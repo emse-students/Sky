@@ -1,0 +1,63 @@
+{
+	"name": "sky-sveltekit",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"engines": {
+		"node": ">=18.0.0",
+		"bun": "*"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "husky install",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "eslint src/lib --ext .ts,.tsx,.js,.jsx --cache && eslint src/routes --ext .ts,.tsx,.js,.jsx --cache",
+		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"deps:install": "bun install",
+		"deps:install:pnpm": "pnpm install",
+		"deps:install:npm": "npm install",
+		"ci:install": "bun install --production",
+		"ci:build": "bun install --production && npm run build",
+		"prebuild": "npm run deps:install || npm run deps:install:pnpm || npm run deps:install:npm || true",
+		"start": "bun run dev",
+		"package": "bun run build && bun ./scripts/pack-bun.js",
+		"package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
+		"version:show": "node -e \"console.log(require('./package.json').version)\"",
+		"test": "echo 'No tests implemented yet'"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-node": "^5.5.1",
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@tailwindcss/postcss": "^4.1.18",
+		"@types/better-sqlite3": "^7.6.13",
+		"@typescript-eslint/eslint-plugin": "^8.51.0",
+		"@typescript-eslint/parser": "^8.51.0",
+		"autoprefixer": "^10.4.23",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.14.0",
+		"husky": "^9.1.7",
+		"prettier": "^3.7.4",
+		"prettier-plugin-svelte": "^3.4.1",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"svelte-eslint-parser": "^1.4.1",
+		"tailwindcss": "^4.1.18",
+		"tar": "^7.5.2",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.53.1",
+		"vite": "^7.2.6"
+	},
+	"dependencies": {
+		"@auth/sveltekit": "^1.11.1",
+		"better-sqlite3": "^12.6.2",
+		"lucide-svelte": "^0.563.0"
+	}
+}
