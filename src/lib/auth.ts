@@ -35,8 +35,8 @@ export const { handle } = SvelteKitAuth({
 				const existingPerson = getPersonById(casId);
 
 				if (!existingPerson) {
-					console.log(\`[auth] Creating new Star (Person) for \${casId}\`);
-					
+					console.log(`[auth] Creating new Star (Person) for ${casId}`);
+
 					// Try to extract name parts if available, or fallback to sensible defaults based on CAS ID (usually name.lastname)
 					let givenName = (profile.given_name as string) || 'Unknown';
 					let familyName = (profile.family_name as string) || 'Unknown';

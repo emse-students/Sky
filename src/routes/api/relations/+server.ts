@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getGraphData, saveGraphData } from '$lib/server/data';
+import { createRelationship, deleteRelationship } from '$lib/server/database';
 import type { RequestHandler } from './$types';
 import type { JsonRelation } from '$types/graph';
 
@@ -7,28 +7,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	// TODO: Check admin auth
 
 	const relation = (await request.json()) as JsonRelation;
-	const data = await getGraphData();
-
-	if (!data) {
-		return json({ error: 'Failed to load data' }, { status: 500 });
-	}
-
-	// Check if exists
-	const exists = data.relationships.some((r) =>
-		r.source === relation.source &&
-        r.target === relation.target &&
-        r.type === relation.type
-	);
-
-	if (!exists) {
-		data.relationships.push(relation);
-		const saved = await saveGraphData(data);
-		if (!saved) {
-			return json({ error: 'Failed to save data' }, { status: 500 });
-		}
-	}
-
-	return json({ success: true, relation });
+	
+    try {
+        const success = createRelationship(relation);
+        return json({ success, relation });
+    } catch (error) {
+        console.error('Failed to create relation:', error);
+        return json({ error: 'Failed to create relation' }, { status: 500 });
+    }
 };
 
 export const DELETE: RequestHandler = async ({ url }) => {
@@ -36,30 +22,20 @@ export const DELETE: RequestHandler = async ({ url }) => {
 
 	const source = url.searchParams.get('source');
 	const target = url.searchParams.get('target');
-	const type = url.searchParams.get('type');
+	const type = url.searchParams.get('type') || undefined;
 
 	if (!source || !target) {
 		return json({ error: 'Missing source or target' }, { status: 400 });
 	}
 
-	const data = await getGraphData();
-	if (!data) {
-		return json({ error: 'Failed to load data' }, { status: 500 });
-	}
-
-	const initialLen = data.relationships.length;
-	data.relationships = data.relationships.filter((r) =>
-		!(r.source === source && r.target === target && (!type || r.type === type))
-	);
-
-	if (data.relationships.length === initialLen) {
-		return json({ error: 'Relation not found' }, { status: 404 });
-	}
-
-	const saved = await saveGraphData(data);
-	if (!saved) {
-		return json({ error: 'Failed to save data' }, { status: 500 });
-	}
-
-	return json({ success: true });
+    try {
+        const success = deleteRelationship(source, target, type);
+        if (!success) {
+            return json({ error: 'Relation not found' }, { status: 404 });
+        }
+        return json({ success: true });
+    } catch (error) {
+         console.error('Failed to delete relation:', error);
+        return json({ error: 'Failed to delete relation' }, { status: 500 });
+    }
 };
