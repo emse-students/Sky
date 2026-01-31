@@ -17,6 +17,7 @@ bun run dev
 ## ✅ Migration Complétée - Phase 1
 
 ### Architecture
+
 - ✅ SvelteKit configuré avec adapter-node
 - ✅ TypeScript activé
 - ✅ Tailwind CSS intégré
@@ -24,12 +25,14 @@ bun run dev
 - ✅ Alias de chemins configurés
 
 ### Backend
+
 - ✅ Système d'authentification (better-sqlite3)
 - ✅ Routes API (`/api/auth/*`)
 - ✅ Hooks serveur pour session management
 - ✅ Types TypeScript complets
 
 ### Données
+
 - ✅ data.json migré vers `/static/data/`
 - ✅ positions.json migré
 - ✅ Images migrées vers `/static/images/`
@@ -63,56 +66,65 @@ sky-sveltekit/
     └── calcul_positions.py
 ```
 
-## 🔄 Prochaines Étapes
+## ✅ Migration Complétée
 
-### Phase 2 : Stores Svelte (En cours)
-- [ ] `authStore` - Gestion utilisateur
-- [ ] `graphStore` - État du graphe
-- [ ] `cameraStore` - Zoom/pan
-- [ ] `themeStore` - Thème clair/sombre
+### Phase 1 : Architecture & Backend
+
+- ✅ SvelteKit configuré avec adapter-node
+- ✅ API Auth & Data
+- ✅ Types TypeScript
+
+### Phase 2 : Stores Svelte
+
+- ✅ `authStore` - Gestion utilisateur
+- ✅ `graphStore` - État du graphe
+- ✅ `cameraStore` - Zoom/pan
+- ✅ `themeStore` - Thème clair/sombre
 
 ### Phase 3 : Composants Canvas
-- [ ] `GraphCanvas.svelte` - Rendu principal
-- [ ] `StarfieldCanvas.svelte` - Arrière-plan
-- [ ] `ProfileModal.svelte` - Fiche détaillée
-- [ ] `TopBar.svelte` - Navigation
-- [ ] `SearchBox.svelte` - Recherche
+
+- ✅ `GraphCanvas.svelte` - Rendu principal avec Viewport culling
+- ✅ `StarfieldCanvas.svelte` - Arrière-plan
+- ✅ `ProfileModal.svelte` - Fiche détaillée
+- ✅ `TopBar.svelte` - Navigation & Recherche
 
 ### Phase 4 : Admin
-- [ ] Interface CRUD personnes
-- [ ] Interface CRUD relations
-- [ ] Export JSON
+
+- ✅ Interface CRUD personnes
+- ✅ Interface CRUD relations
+- ✅ Export JSON
 
 ### Phase 5 : Tests & Optimisations
-- [ ] Viewport culling
-- [ ] Web Workers
-- [ ] Tests Vitest
+
+- ✅ Viewport culling (GraphCanvas)
+- ✅ Configuration Vitest
+- ✅ Tests unitaires (Stores)
 
 ## 🛠️ Commandes
 
 ```bash
 bun run dev          # Développement
 bun run build        # Production
-bun run preview      # Prévisualiser le build
-python scripts/calcul_positions.py  # Recalculer positions
+bun run test         # Lancer les tests
 ```
 
 ## 🔐 Authentification
 
 L'API d'authentification est fonctionnelle :
+
 - `POST /api/auth/login` - Connexion
 - `POST /api/auth/logout` - Déconnexion
 - `GET /api/auth/me` - Utilisateur actuel
 
 ## 📊 Comparaison Vanilla JS vs SvelteKit
 
-| Avantage | Description |
-|----------|-------------|
-| **Réactivité** | `$state`, `$derived` - pas de `useState` |
-| **Performance** | SSR, code splitting automatique |
-| **DX** | TypeScript natif, HMR |
-| **Routing** | File-based, simple |
-| **Bundle** | ~15kb compilé vs ~50kb vanilla |
+| Avantage        | Description                              |
+| --------------- | ---------------------------------------- |
+| **Réactivité**  | `$state`, `$derived` - pas de `useState` |
+| **Performance** | SSR, code splitting automatique          |
+| **DX**          | TypeScript natif, HMR                    |
+| **Routing**     | File-based, simple                       |
+| **Bundle**      | ~15kb compilé vs ~50kb vanilla           |
 
 ## 🎯 Différences avec MiGallery
 

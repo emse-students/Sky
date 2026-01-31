@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { auth } from '$server/auth';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ cookies }) => {
+export const POST: RequestHandler = ({ cookies }) => {
 	const token = cookies.get('sky_session');
 	if (token) {
 		auth.deleteSession(token);
