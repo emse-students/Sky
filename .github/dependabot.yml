@@ -1,13 +1,29 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-  
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+ # Maintenir les GitHub Actions à jour
+ - package-ecosystem: 'github-actions'
+   directory: '/'
+   schedule:
+    interval: 'weekly'
+    day: 'monday'
+   commit-message:
+    prefix: 'chore(deps):'
+    include: 'scope'
+   labels:
+    - 'dependencies'
+    - 'github-actions'
+   open-pull-requests-limit: 5
+
+ # Maintenir les dépendances npm à jour
+ - package-ecosystem: 'npm'
+   directory: '/'
+   schedule:
+    interval: 'weekly'
+    day: 'monday'
+   commit-message:
+    prefix: 'chore(deps):'
+    include: 'scope'
+   labels:
+    - 'dependencies'
+    - 'npm'
+   open-pull-requests-limit: 10
