@@ -23,7 +23,7 @@ function createAuthStore() {
 			try {
 				const res = await fetch('/api/auth/me');
 				if (res.ok) {
-					const data = await res.json();
+					const data = (await res.json()) as { user: User | null };
 					set({ user: data.user, loading: false });
 				} else {
 					set({ user: null, loading: false });

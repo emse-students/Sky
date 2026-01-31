@@ -298,24 +298,24 @@ export function createRelationship(relationship: JsonRelation): boolean {
 		stmt.run(relationship.source, relationship.target, relationship.type);
 		return true;
 	} catch (error) {
-        console.error('Create relationship error:', error);
+		console.error('Create relationship error:', error);
 		return false;
 	}
 }
 
 export function deleteRelationship(source: string, target: string, type?: string): boolean {
-    const database = getDatabase();
-    let query = 'DELETE FROM relationships WHERE source_id = ? AND target_id = ?';
-    const params: string[] = [source, target];
+	const database = getDatabase();
+	let query = 'DELETE FROM relationships WHERE source_id = ? AND target_id = ?';
+	const params: string[] = [source, target];
 
-    if (type) {
-        query += ' AND type = ?';
-        params.push(type);
-    }
+	if (type) {
+		query += ' AND type = ?';
+		params.push(type);
+	}
 
-    const stmt = database.prepare(query);
-    const result = stmt.run(...params);
-    return result.changes > 0;
+	const stmt = database.prepare(query);
+	const result = stmt.run(...params);
+	return result.changes > 0;
 }
 
 // ============================================

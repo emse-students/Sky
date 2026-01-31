@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getPerson, updatePerson, getRelationships } from '$lib/server/database';
 
-export const GET: RequestHandler = ({ locals, params }) => {
+export const GET: RequestHandler = ({ locals }) => {
 	const user = locals.user;
 	if (!user || !user.profile_id) {
 		return json({ error: 'Not authenticated' }, { status: 401 });

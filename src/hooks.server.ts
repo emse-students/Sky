@@ -31,8 +31,8 @@ const protectHandle: Handle = async ({ event, resolve }) => {
 			// Fallback stub if essential info is missing
 			event.locals.user = {
 				id: 0,
-				email: email,
-				name: name,
+				email,
+				name,
 				profile_id: casId || null,
 				role: 'user',
 				first_login: 0,
