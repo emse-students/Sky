@@ -59,7 +59,7 @@ class AuthService {
 	createSession(email: string, name: string): { token: string; user: User } {
 		// Extract ID from email (before @)
 		const userId = email.split('@')[0];
-		
+
 		let user = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
 
 		if (!user) {

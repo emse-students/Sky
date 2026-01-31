@@ -7,7 +7,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// TODO: Check admin auth
 
 	const person = (await request.json()) as Person;
-	
+
 	try {
 		const newId = createPerson({
 			id: person.id,
@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			links: person.links,
 			associations: person.associations
 		});
-		
+
 		return json({ id: newId });
 	} catch (error) {
 		console.error('Failed to create person:', error);
