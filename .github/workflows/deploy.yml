@@ -44,8 +44,8 @@ jobs:
       find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'database' -not -name '.svelte-kit' -exec rm -rf {} +
 
       # Copier les nouveaux fichiers depuis le runner
-      # Chemin ajusté pour le runner 'sky' avec dossier de travail custom 'Sky'
-      cp -r ~/actions-runner-sky/Sky/Sky/* .
+      # Utilisation directe de github.workspace pour éviter les erreurs de chemin
+      cp -r ${{ github.workspace }}/* .
 
    - name: Initialize database if needed
      run: |
