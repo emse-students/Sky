@@ -3,7 +3,8 @@ import { auth } from '$server/auth';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	const { email, name } = await request.json();
+	const body = (await request.json()) as { email: string; name: string };
+	const { email, name } = body;
 	const { token, user } = auth.createSession(email, name);
 
 	cookies.set('sky_session', token, {

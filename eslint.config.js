@@ -123,10 +123,10 @@ export default [
 			'eslint.config.js',
 			'scripts/**/*.js',
 			'scripts/**/*.cjs',
-			'scripts/**/*.mjs',
-			'src/**/*.svelte',
-			'**/.svelte-kit/**',
-			'static/streamsaver-sw.js'
+			'scripts/**/*.mjs',		'scripts/**/*.ts',
+		'database/**/*.ts',
+		'database/**/*.py',			'src/**/*.svelte',
+		'**/.svelte-kit/**'
 		]
 	}
 ];

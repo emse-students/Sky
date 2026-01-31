@@ -2,10 +2,14 @@ import numpy as np
 import json
 import math
 import networkx as nx
+import os
+import sqlite3
 
-# Charger data.json au lieu de SQL
-DATA_FILE = "data.json"
-POSITIONS_FILE = "positions.json"
+# Chemins
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_FILE = os.path.join(BASE_DIR, "database", "sky.db")
+POSITIONS_FILE = os.path.join(BASE_DIR, "static", "data", "positions.json")
+
 def plot_circle_packing(comp_pos, comp_radii, comp_sizes, big_radius):
     pass
     # # Calcul automatique du grand cercle si nécessaire
@@ -222,7 +226,7 @@ def pack_subgraphs(G, pos, padding=200):
 
     for idx, comp in enumerate(components):
         subG = G.subgraph(comp)
-        cx, cy = comp_pos[idx]
+        cx, cy = comp_pos[idx] * 2
         radius = comp_radii[idx]
 
         # layout local
@@ -281,17 +285,33 @@ def compute_and_save_positions(people, rels):
         json.dump(pos_json, f, indent=2)
 
     return pos_json
+# Connexion à la base de données SQLite
+print(f"📂 Connexion à la base de données {DB_FILE}")
+conn = sqlite3.connect(DB_FILE)
+cursor = conn.cursor()
 
-with open(DATA_FILE, "r", encoding="utf-8") as f:
-    data = json.load(f)
+# Récupérer les personnes depuis SQLite
+cursor.execute("""
+    SELECT id, first_name, last_name, level FROM people
+""")
+people = [
+    {"id": row[0], "name": f"{row[2]} {row[1]}", "level": row[3]}
+    for row in cursor.fetchall()
+]
 
-# Gérer people comme objet ou tableau
-if isinstance(data["people"], dict):
-    people = list(data["people"].values())
-else:
-    people = data["people"]
+# Récupérer les relations depuis SQLite
+# Accepter parrainage, adoption, family1, family2
+cursor.execute("""
+    SELECT source_id, target_id, type 
+    FROM relationships 
+    WHERE type IN ('parrainage', 'adoption', 'family1', 'family2')
+""")
+rel = [
+    {"source": row[0], "target": row[1], "type": row[2]}
+    for row in cursor.fetchall()
+]
 
-rel = [r for r in data["relationships"] if r["type"] in ["family1", "family2"]]
+conn.close()
 
 # Calculer les positions
 pos = compute_and_save_positions(people, rel)

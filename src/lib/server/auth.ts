@@ -40,14 +40,37 @@ class AuthService {
 		}
 	}
 
-	createSession(email: string, name: string): { token: string; user: User } {
+	getOrCreateUser(email: string, name: string, profileId?: string): User {
 		let user = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
 
 		if (!user) {
 			this.db.prepare(
-				'INSERT INTO users (email, name) VALUES (?, ?)'
-			).run(email, name);
+				'INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)'
+			).run(email, name, profileId || null);
 			user = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User;
+		} else if (profileId && user.profile_id !== profileId) {
+			// Update profile_id if different and provided
+			this.db.prepare('UPDATE users SET profile_id = ? WHERE email = ?').run(profileId, email);
+			user.profile_id = profileId;
+		}
+		return user;
+	}
+
+	createSession(email: string, name: string): { token: string; user: User } {
+		// Extract ID from email (before @)
+		const userId = email.split('@')[0];
+		
+		let user = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+
+		if (!user) {
+			this.db.prepare(
+				'INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)'
+			).run(email, name, userId);
+			user = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User;
+		} else if (!user.profile_id) {
+			// Update existing user with profile_id if missing
+			this.db.prepare('UPDATE users SET profile_id = ? WHERE email = ?').run(userId, email);
+			user.profile_id = userId;
 		}
 
 		const token = crypto.randomUUID();

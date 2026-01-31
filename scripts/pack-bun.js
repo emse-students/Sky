@@ -28,11 +28,11 @@ if (!fs.existsSync(buildDir)) {
 }
 console.log('✅ build/ trouvé');
 
-const dataDir = path.resolve(process.cwd(), 'data');
+const dataDir = path.resolve(process.cwd(), 'database');
 if (fs.existsSync(dataDir)) {
-	console.log('✅ data/ trouvé (base de données)');
+	console.log('✅ database/ trouvé (base de données)');
 } else {
-	console.warn("⚠️  data/ non trouvé - le package n'inclura pas de base de données");
+	console.warn("⚠️  database/ non trouvé - le package n'inclura pas de base de données");
 }
 
 const envFile = path.resolve(process.cwd(), '.env');
@@ -76,11 +76,7 @@ try {
 				// Exclure les dossiers de données temporaires ou volumineux
 				const excludes = [
 					'build/artifacts',
-					'data/cache',
-					'data/chunk-uploads',
-					'data/mock-uploads',
-					'data/immich-file-cache',
-					'data/backups'
+					'database/backups'
 				];
 
 				if (excludes.some((ex) => normalizedPath === ex || normalizedPath.startsWith(ex + '/'))) {
@@ -97,7 +93,7 @@ try {
 		},
 		[
 			'build',
-			fs.existsSync(dataDir) ? 'data' : null,
+			fs.existsSync(dataDir) ? 'database' : null,
 			fs.existsSync(envFile) && includeEnv ? '.env' : null,
 			'package.json',
 			fs.existsSync(readmeFile) ? 'README.md' : null,

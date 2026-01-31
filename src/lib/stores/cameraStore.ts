@@ -10,23 +10,38 @@ const DEFAULT_CAMERA: CameraState = {
 	targetZoom: 0.05
 };
 
+const BASE_MAX_PAN = 5000;
+
 function createCameraStore() {
 	const { subscribe, set, update } = writable<CameraState>(DEFAULT_CAMERA);
+
+	// Calcule la limite dynamique en fonction du zoom
+	const calculateMaxPan = (zoom: number): number => {
+		// Plus on zoom (zoom grand), plus on peut s'éloigner du centre
+		// zoom 0.05 (très dézoomé) -> 5000px max
+		// zoom 1.0 (normal) -> 100000px max
+		// zoom 5.0 (très zoomé) -> 500000px max
+		return BASE_MAX_PAN * (1 / zoom);
+	};
 
 	return {
 		subscribe,
 		reset: () => set(DEFAULT_CAMERA),
 		setTarget: (x: number, y: number, zoom?: number) => {
-			update(state => ({
-				...state,
-				targetX: x,
-				targetY: y,
-				targetZoom: zoom ?? state.targetZoom
-			}));
+			update(state => {
+				const targetZoom = zoom ?? state.targetZoom;
+				const maxPan = calculateMaxPan(targetZoom);
+				return {
+					...state,
+					targetX: Math.max(-maxPan, Math.min(maxPan, x)),
+					targetY: Math.max(-maxPan, Math.min(maxPan, y)),
+					targetZoom
+				};
+			});
 		},
 		zoom: (delta: number, _centerX?: number, _centerY?: number) => {
 			update(state => {
-				const newZoom = Math.max(0.1, Math.min(5, state.targetZoom + delta));
+				const newZoom = Math.max(0.01, Math.min(5, state.targetZoom + delta));
 				return {
 					...state,
 					targetZoom: newZoom
@@ -34,11 +49,16 @@ function createCameraStore() {
 			});
 		},
 		pan: (dx: number, dy: number) => {
-			update(state => ({
-				...state,
-				targetX: state.targetX + dx,
-				targetY: state.targetY + dy
-			}));
+			update(state => {
+				const maxPan = calculateMaxPan(state.targetZoom);
+				const newTargetX = Math.max(-maxPan, Math.min(maxPan, state.targetX + dx));
+				const newTargetY = Math.max(-maxPan, Math.min(maxPan, state.targetY + dy));
+				return {
+					...state,
+					targetX: newTargetX,
+					targetY: newTargetY
+				};
+			});
 		},
 		updateSmooth: () => {
 			update(state => {
