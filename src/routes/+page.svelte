@@ -130,7 +130,11 @@
 
   function closeProfile() {
     isProfileModalOpen = false;
-    selectedPersonId.set(null); // Clear selection on graph
+    // Sur mobile (portrait), ne pas réinitialiser la sélection pour garder la position de la caméra
+    const isMobile = window.innerHeight > window.innerWidth;
+    if (!isMobile) {
+      selectedPersonId.set(null); // Clear selection on graph (desktop only)
+    }
   }
 
   function handleLogin() {
