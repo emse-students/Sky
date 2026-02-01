@@ -160,4 +160,20 @@ class AuthService {
 	}
 }
 
-export const auth = new AuthService();
+let authInstance: AuthService | null = null;
+
+export function getAuthService(): AuthService {
+	if (!authInstance) {
+		authInstance = new AuthService();
+	}
+	return authInstance;
+}
+
+// For backward compatibility
+export const auth = new Proxy({} as AuthService, {
+	get(target, prop) {
+		const service = getAuthService();
+		const value = service[prop as keyof AuthService];
+		return typeof value === 'function' ? value.bind(service) : value;
+	}
+});
