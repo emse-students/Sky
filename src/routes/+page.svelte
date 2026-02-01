@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { authStore } from "$stores/authStore";
-  import { signIn, signOut } from "@auth/sveltekit/client";
+  import { page } from "$app/stores";
+  import { signIn } from "@auth/sveltekit/client";
   import { graphStore, selectedPersonId, focusDepth } from "$stores/graphStore";
   import { cameraStore } from "$stores/cameraStore";
   import StarfieldCanvas from "$components/Canvas/StarfieldCanvas.svelte";
@@ -29,8 +29,8 @@
   let isLoading = true;
 
   // Derived values
-  $: user = $authStore.user;
-  $: isAuthenticated = !!$authStore.user;
+  $: user = $page.data.user;
+  $: isAuthenticated = !!user;
   $: people = $graphStore.people;
 
   // Create a map for efficient lookups by ID
@@ -48,7 +48,6 @@
   }
 
   onMount(() => {
-    authStore.checkAuth();
     // Simulate loading done when mounted (or bind to graph loaded state if available)
     setTimeout(() => {
       isLoading = false;
@@ -139,7 +138,8 @@
   }
 
   async function handleLogout() {
-    await signOut();
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
   }
 
   function goToMyProfile() {
@@ -221,7 +221,7 @@
         <div class="user-menu">
           <button class="user-button">
             <img
-              src={`/api/avatar/${user?.profile_id}`}
+              src={`/api/avatar/${user?.profile_id || user?.id}`}
               alt={user?.name}
               class="user-avatar"
               onerror={(e) => {

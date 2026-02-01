@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { authStore } from "$stores/authStore";
+  import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import {
     Linkedin,
@@ -29,7 +29,7 @@
   let isSearching = false;
   let selectedRelationType: "family1" | "family2" = "family1";
 
-  $: user = $authStore.user;
+  $: user = $page.data.user;
   $: if (!user) goto("/");
 
   // Filter relationships by type

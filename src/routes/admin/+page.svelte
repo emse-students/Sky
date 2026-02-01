@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { authStore } from "$stores/authStore";
+  import { page } from "$app/stores";
   import {
     Database,
     Download,
@@ -11,12 +11,24 @@
   } from "lucide-svelte";
 
   let stats = { people: 0, relationships: 0, links: 0 };
-  let loading = false;
+  let loadingExport = false;
+  let loadingImport = false;
+  let loadingRecalc = false;
   let message = "";
   let messageType: "success" | "error" | "" = "";
 
-  $: user = $authStore.user;
-  $: isAdmin = user?.email?.endsWith("@emse.fr") || false;
+  $: user = $page.data.user;
+  $: isAdmin = user?.profile_id === "jolan.boudin";
+
+  // Debug: afficher les infos utilisateur
+  $: if (user) {
+    console.log("User info:", {
+      profile_id: user.profile_id,
+      email: user.email,
+      name: user.name,
+      isAdmin,
+    });
+  }
 
   onMount(async () => {
     if (!isAdmin) return;
@@ -29,6 +41,9 @@
         fetch("/api/people"),
         fetch("/api/relationships"),
       ]);
+
+      if (!peopleRes.ok) throw new Error(`People API error: ${peopleRes.status}`);
+      if (!relRes.ok) throw new Error(`Relationships API error: ${relRes.status}`);
 
       const people = await peopleRes.json();
       const relationships = await relRes.json();
@@ -46,7 +61,7 @@
   }
 
   async function exportDatabase() {
-    loading = true;
+    loadingExport = true;
     message = "";
     try {
       const response = await fetch("/api/admin/export");
@@ -68,7 +83,7 @@
       message = "Erreur lors de l'export";
       messageType = "error";
     } finally {
-      loading = false;
+      loadingExport = false;
     }
   }
 
@@ -77,7 +92,7 @@
     const file = input.files?.[0];
     if (!file) return;
 
-    loading = true;
+    loadingImport = true;
     message = "";
 
     try {
@@ -101,13 +116,13 @@
       message = "Erreur lors de l'import";
       messageType = "error";
     } finally {
-      loading = false;
+      loadingImport = false;
       input.value = "";
     }
   }
 
   async function recalculatePositions() {
-    loading = true;
+    loadingRecalc = true;
     message = "";
     try {
       const response = await fetch("/api/admin/recalculate", {
@@ -121,7 +136,7 @@
       message = "Erreur lors du recalcul";
       messageType = "error";
     } finally {
-      loading = false;
+      loadingRecalc = false;
     }
   }
 </script>
@@ -178,8 +193,8 @@
           Télécharger une copie complète de la base de données SQLite pour
           sauvegarde ou migration.
         </p>
-        <button class="btn-primary" onclick={exportDatabase} disabled={loading}>
-          {loading ? "Export en cours..." : "Exporter"}
+        <button class="btn-primary" onclick={exportDatabase} disabled={loadingExport}>
+          {loadingExport ? "Export en cours..." : "Exporter"}
         </button>
       </div>
 
@@ -189,13 +204,13 @@
           Remplacer la base de données actuelle par un fichier de sauvegarde.
           Attention : opération irréversible !
         </p>
-        <label class="btn-primary" class:disabled={loading}>
-          {loading ? "Import en cours..." : "Choisir un fichier"}
+        <label class="btn-primary" class:disabled={loadingImport}>
+          {loadingImport ? "Import en cours..." : "Choisir un fichier"}
           <input
             type="file"
             accept=".db,.sqlite,.sqlite3"
             onchange={importDatabase}
-            disabled={loading}
+            disabled={loadingImport}
             style="display: none;"
           />
         </label>
@@ -210,9 +225,9 @@
         <button
           class="btn-secondary"
           onclick={recalculatePositions}
-          disabled={loading}
+          disabled={loadingRecalc}
         >
-          {loading ? "Calcul en cours..." : "Recalculer"}
+          {loadingRecalc ? "Calcul en cours..." : "Recalculer"}
         </button>
       </div>
     </div>
