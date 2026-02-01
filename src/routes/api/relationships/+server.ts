@@ -1,12 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import Database from 'better-sqlite3';
-import { recalculatePositions } from '$lib/server/database';
-
-const db = new Database('database/sky.db');
+import { getDatabase, recalculatePositions } from '$lib/server/database';
 
 export const GET: RequestHandler = async () => {
 	try {
+		const db = getDatabase();
 		const relationships = db.prepare('SELECT * FROM relationships').all();
 		return json(relationships);
 	} catch (error) {
@@ -22,6 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		const db = getDatabase();
 		const body = (await request.json()) as { targetId?: string; type?: string };
 		const { targetId, type } = body;
 
@@ -98,6 +97,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		const db = getDatabase();
 		const body = (await request.json()) as { relationshipId?: number };
 		const { relationshipId } = body;
 
