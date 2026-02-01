@@ -7,7 +7,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	const { email, name } = body;
 	const { token, user } = auth.createSession(email, name);
 
-	cookies.set('sky_session', token, {
+	cookies.set('session_token', token, {
 		path: '/',
 		httpOnly: true,
 		maxAge: 60 * 60 * 24 * 7,

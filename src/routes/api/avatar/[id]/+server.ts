@@ -2,13 +2,24 @@ import type { RequestHandler } from './$types';
 import { getPersonById } from '$lib/server/database';
 import { getPersonInitials } from '$lib/utils/format';
 
-const MIGALLERY_API_KEY =
-	process.env.MIGALLERY_API_KEY || 'pArlmji6ankvno-zAPwD96jA-EOn8Xb2egd6APlT3Ac';
+// Environment variable - loaded by Bun or SvelteKit
+const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
+
+console.log('[Avatar API] MIGALLERY_API_KEY:', MIGALLERY_API_KEY ? '✓ Set' : '✗ Missing');
+
+if (!MIGALLERY_API_KEY) {
+	console.error('[Avatar API] MIGALLERY_API_KEY is not set in environment variables');
+}
 
 export const GET: RequestHandler = async ({ params }) => {
 	const { id } = params;
 
 	console.debug(`[Avatar API] Fetching avatar for: ${id}`);
+
+	if (!MIGALLERY_API_KEY) {
+		console.error('[Avatar API] API key not configured');
+		return new Response(null, { status: 500 });
+	}
 
 	try {
 		const apiUrl = `https://gallery.mitv.fr/api/users/${id}/avatar`;

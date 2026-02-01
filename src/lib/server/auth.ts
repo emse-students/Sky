@@ -40,7 +40,7 @@ class AuthService {
 				.prepare(
 					'INSERT INTO users (email, name, role, first_login) VALUES (?, ?, ?, ?)'
 				)
-				.run('admin@emse.fr', 'Administrateur', 'admin', 0);
+				.run('les.roots@etu.emse.fr', 'Administrateur', 'les.roots', 0);
 		}
 	}
 

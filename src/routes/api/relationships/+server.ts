@@ -5,6 +5,16 @@ import { recalculatePositions } from '$lib/server/database';
 
 const db = new Database('database/sky.db');
 
+export const GET: RequestHandler = async () => {
+	try {
+		const relationships = db.prepare('SELECT * FROM relationships').all();
+		return json(relationships);
+	} catch (error) {
+		console.error('Error fetching relationships:', error);
+		return json({ error: 'Failed to fetch relationships' }, { status: 500 });
+	}
+};
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = locals.user;
 	if (!user || !user.profile_id) {

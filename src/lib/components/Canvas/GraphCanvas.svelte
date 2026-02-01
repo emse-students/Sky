@@ -8,7 +8,6 @@
     focusDepth,
   } from "$stores/graphStore";
   import { cameraStore } from "$stores/cameraStore";
-  import Tooltip from "$components/Tooltip.svelte";
   import { getPersonName } from "$lib/utils/format";
 
   let canvas: HTMLCanvasElement;
@@ -20,11 +19,7 @@
   let hasDragged = false;
   let dragStart = { x: 0, y: 0 };
   let hoveredPerson: string | null = null;
-  let tooltipPerson: any = null;
-  let tooltipX = 0;
-  let tooltipY = 0;
   let lastHoverCheck = 0;
-  let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
   const HOVER_THROTTLE = 50; // ms
 
   $: ({ people, relations, positions } = $filteredGraph);
@@ -96,19 +91,6 @@
     targetZoom = Math.min(Math.max(targetZoom, 0.1), 1.0);
 
     cameraStore.setTarget(centerX, centerY, targetZoom);
-  }
-
-  // Update tooltip person when hovered person changes
-  $: {
-    if (hoveredPerson) {
-      if (tooltipTimeout) clearTimeout(tooltipTimeout);
-      tooltipTimeout = setTimeout(() => {
-        tooltipPerson = people.find((p) => p.id === hoveredPerson);
-      }, 300);
-    } else {
-      if (tooltipTimeout) clearTimeout(tooltipTimeout);
-      tooltipPerson = null;
-    }
   }
 
   onMount(() => {
@@ -277,10 +259,6 @@
       lastHoverCheck = now;
 
       const found = findNodeAt(e.clientX, e.clientY);
-      if (found) {
-        tooltipX = e.clientX;
-        tooltipY = e.clientY;
-      }
 
       hoveredPerson = found;
       canvas.style.cursor = found
@@ -413,9 +391,6 @@
       const foundId = findNodeAt(t.clientX, t.clientY);
       if (foundId) {
         selectedPersonId.set(foundId);
-        tooltipPerson = people.find((p) => p.id === foundId);
-        tooltipX = t.clientX;
-        tooltipY = t.clientY;
       } else {
         selectedPersonId.set(null);
       }
@@ -440,10 +415,6 @@
   id="graph"
   class="block"
 ></canvas>
-
-{#if tooltipPerson}
-  <Tooltip person={tooltipPerson} x={tooltipX} y={tooltipY} />
-{/if}
 
 <style>
   canvas {

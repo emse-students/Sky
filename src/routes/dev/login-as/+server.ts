@@ -12,7 +12,7 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 
 	// Database now uses prenom.nom format
 	const profileId = username; // Username IS the profile ID (prenom.nom)
-	const email = `${username}@emse.fr`; // Generate email
+	const email = `${username}@etu.emse.fr`; // Generate email
 	let name = username; // Fallback
 
 	// Get real name from database
@@ -32,9 +32,11 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 	// Create dev session
 	const { token, user } = auth.createSession(email, name);
 
-	// Link profile
+	// Link profile immediately (update the database)
 	try {
 		auth.linkProfile(user.id, profileId);
+		// Update the user object with profile_id for the current session
+		user.profile_id = profileId;
 	} catch (error) {
 		console.error('Failed to link profile:', error);
 	}
