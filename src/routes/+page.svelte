@@ -907,4 +907,29 @@
       padding: 6px 8px;
     }
   }
+
+  /* Profile Panel - Bottom Sheet on Mobile & Portrait (screens taller than wide) */
+  @media (max-width: 768px), (orientation: portrait) {
+    .profile-panel {
+      width: 100%;
+      height: 60vh;
+      top: auto;
+      bottom: 0;
+      left: 0;
+      border-right: none;
+      border-top: 1px solid rgba(59, 130, 246, 0.3);
+      transform: translateY(100%);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .profile-panel.active {
+      transform: translateY(0);
+    }
+
+    :global(body:has(.profile-panel.active) #graph) {
+      transform: none;
+    }
+  }
 </style>
