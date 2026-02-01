@@ -5,7 +5,10 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 const config = {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter(),
+    adapter: adapter({
+      // Increase body size limit to 10MB for database imports
+      envPrefix: '',
+    }),
     alias: {
       $components: "src/lib/components",
       $stores: "src/lib/stores",

@@ -1,17 +1,96 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import type { Person, JsonRelation, GraphDataFile } from '$types/graph';
 
 const DB_PATH = path.join(process.cwd(), 'database', 'sky.db');
+const SCHEMA_PATH = path.join(process.cwd(), 'database', 'schema.sql');
 
 export { DB_PATH };
 
 let db: Database.Database | null = null;
 
+function initializeSchema(database: Database.Database): void {
+	try {
+		// Check if schema exists
+		const tableCheck = database.prepare(
+			"SELECT name FROM sqlite_master WHERE type='table' AND name='people'"
+		).get();
+
+		if (!tableCheck) {
+			console.debug('[Database] Initializing schema...');
+
+			// Try to read schema file
+			if (fs.existsSync(SCHEMA_PATH)) {
+				const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
+				database.exec(schema);
+				console.debug('[Database] Schema initialized from schema.sql');
+			} else {
+				// Fallback to inline schema if file not found
+				console.debug('[Database] schema.sql not found, using inline schema');
+				database.exec(`
+					PRAGMA foreign_keys = ON;
+					
+					CREATE TABLE IF NOT EXISTS people (
+						id TEXT PRIMARY KEY,
+						first_name TEXT NOT NULL,
+						last_name TEXT NOT NULL,
+						level INTEGER,
+						image_url TEXT,
+						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+						updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+						UNIQUE(id)
+					);
+					
+					CREATE INDEX IF NOT EXISTS idx_people_level ON people(level);
+					CREATE INDEX IF NOT EXISTS idx_people_last_name ON people(last_name);
+					CREATE INDEX IF NOT EXISTS idx_people_first_name ON people(first_name);
+					
+					CREATE TABLE IF NOT EXISTS relationships (
+						id INTEGER PRIMARY KEY AUTOINCREMENT,
+						source_id TEXT NOT NULL,
+						target_id TEXT NOT NULL,
+						type TEXT NOT NULL DEFAULT 'parrainage',
+						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+						FOREIGN KEY (source_id) REFERENCES people(id) ON DELETE CASCADE,
+						FOREIGN KEY (target_id) REFERENCES people(id) ON DELETE CASCADE,
+						UNIQUE(source_id, target_id, type)
+					);
+					
+					CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
+					CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
+					CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(type);
+					
+					CREATE TABLE IF NOT EXISTS metadata (
+						key TEXT PRIMARY KEY,
+						value TEXT,
+						updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+					);
+					
+					INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '3.0');
+				`);
+				console.debug('[Database] Schema initialized with inline fallback');
+			}
+		}
+	} catch (error) {
+		console.error('[Database] Failed to initialize schema:', error);
+		throw error;
+	}
+}
+
 export function getDatabase(): Database.Database {
 	if (!db) {
+		// Ensure database directory exists
+		const dbDir = path.dirname(DB_PATH);
+		if (!fs.existsSync(dbDir)) {
+			fs.mkdirSync(dbDir, { recursive: true });
+		}
+
 		db = new Database(DB_PATH);
 		db.pragma('foreign_keys = ON');
+
+		// Initialize schema if needed
+		initializeSchema(db);
 	}
 	return db;
 }

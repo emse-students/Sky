@@ -3,7 +3,7 @@ import { createPerson, getAllPeople } from '$lib/server/database';
 import type { RequestHandler } from './$types';
 import type { Person } from '$types/graph';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = () => {
 	try {
 		const people = getAllPeople();
 		return json(people);

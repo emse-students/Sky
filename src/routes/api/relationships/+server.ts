@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDatabase, recalculatePositions } from '$lib/server/database';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = () => {
 	try {
 		const db = getDatabase();
 		const relationships = db.prepare('SELECT * FROM relationships').all();
