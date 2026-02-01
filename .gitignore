@@ -20,10 +20,11 @@ Thumbs.db
 !.env.test
 
 # Database
-/database/*.db
-/database/*.db-journal
-/database/*.db-wal
-/database/backups
+database/*.db
+database/*.db-journal
+database/*.db-wal
+database/*.db.backup
+database/backups/
 *.sqlite
 *.sqlite3
 auth.db
