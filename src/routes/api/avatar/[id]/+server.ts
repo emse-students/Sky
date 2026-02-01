@@ -5,7 +5,7 @@ import { getPersonInitials } from '$lib/utils/format';
 // Environment variable - loaded by Bun or SvelteKit
 const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
 
-console.log('[Avatar API] MIGALLERY_API_KEY:', MIGALLERY_API_KEY ? '✓ Set' : '✗ Missing');
+console.debug('[Avatar API] MIGALLERY_API_KEY:', MIGALLERY_API_KEY ? '✓ Set' : '✗ Missing');
 
 if (!MIGALLERY_API_KEY) {
 	console.error('[Avatar API] MIGALLERY_API_KEY is not set in environment variables');
