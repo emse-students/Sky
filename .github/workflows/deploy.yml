@@ -62,8 +62,8 @@ jobs:
         run: |
           cd ~/Sky
           pm2 delete sky || true
-          pm2 start /home/mitv/.bun/bin/bun \
+          pm2 start npm \
             --name sky \
             --cwd /home/mitv/Sky \
-            -- run build/index.js
+            -- run start:prod
           pm2 save
