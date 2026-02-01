@@ -10,7 +10,7 @@ const DEFAULT_CAMERA: CameraState = {
 	targetZoom: 0.05
 };
 
-const BASE_MAX_PAN = 5000;
+const BASE_MAX_PAN = 1000000;
 
 function createCameraStore() {
 	const { subscribe, set, update } = writable<CameraState>(DEFAULT_CAMERA);
@@ -18,9 +18,6 @@ function createCameraStore() {
 	// Calcule la limite dynamique en fonction du zoom
 	const calculateMaxPan = (zoom: number): number => {
 		// Plus on zoom (zoom grand), plus on peut s'éloigner du centre
-		// zoom 0.05 (très dézoomé) -> 5000px max
-		// zoom 1.0 (normal) -> 100000px max
-		// zoom 5.0 (très zoomé) -> 500000px max
 		return BASE_MAX_PAN * (1 / zoom);
 	};
 
