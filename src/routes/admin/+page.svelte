@@ -42,8 +42,10 @@
         fetch("/api/relationships"),
       ]);
 
-      if (!peopleRes.ok) throw new Error(`People API error: ${peopleRes.status}`);
-      if (!relRes.ok) throw new Error(`Relationships API error: ${relRes.status}`);
+      if (!peopleRes.ok)
+        throw new Error(`People API error: ${peopleRes.status}`);
+      if (!relRes.ok)
+        throw new Error(`Relationships API error: ${relRes.status}`);
 
       const people = await peopleRes.json();
       const relationships = await relRes.json();
@@ -193,7 +195,11 @@
           Télécharger une copie complète de la base de données SQLite pour
           sauvegarde ou migration.
         </p>
-        <button class="btn-primary" onclick={exportDatabase} disabled={loadingExport}>
+        <button
+          class="btn-primary"
+          onclick={exportDatabase}
+          disabled={loadingExport}
+        >
           {loadingExport ? "Export en cours..." : "Exporter"}
         </button>
       </div>
