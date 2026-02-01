@@ -1,6 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getPerson, updatePerson, getRelationships } from '$lib/server/database';
+import {
+	getPerson,
+	updatePerson,
+	getRelationships
+} from '$lib/server/database';
 
 export const GET: RequestHandler = ({ locals }) => {
 	const user = locals.user;
@@ -35,11 +39,11 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const data = await request.json();
-		const { bio, links } = data;
+		const data = (await request.json()) as { links?: Record<string, string> };
+		const { links } = data;
 
 		// Update person
-		updatePerson(user.profile_id, { bio, links });
+		updatePerson(user.profile_id, { links });
 
 		return json({ success: true });
 	} catch (error) {

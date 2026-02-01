@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { deletePerson } from '$lib/server/database';
 import type { RequestHandler } from './$types';
 
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = ({ params }) => {
 	// TODO: Check admin auth
 
 	const { id } = params;

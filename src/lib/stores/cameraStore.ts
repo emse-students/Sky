@@ -25,7 +25,7 @@ function createCameraStore() {
 		subscribe,
 		reset: () => set(DEFAULT_CAMERA),
 		setTarget: (x: number, y: number, zoom?: number) => {
-			update(state => {
+			update((state) => {
 				const targetZoom = zoom ?? state.targetZoom;
 				const maxPan = calculateMaxPan(targetZoom);
 				return {
@@ -37,7 +37,7 @@ function createCameraStore() {
 			});
 		},
 		zoom: (delta: number, _centerX?: number, _centerY?: number) => {
-			update(state => {
+			update((state) => {
 				const newZoom = Math.max(0.01, Math.min(5, state.targetZoom + delta));
 				return {
 					...state,
@@ -46,10 +46,16 @@ function createCameraStore() {
 			});
 		},
 		pan: (dx: number, dy: number) => {
-			update(state => {
+			update((state) => {
 				const maxPan = calculateMaxPan(state.targetZoom);
-				const newTargetX = Math.max(-maxPan, Math.min(maxPan, state.targetX + dx));
-				const newTargetY = Math.max(-maxPan, Math.min(maxPan, state.targetY + dy));
+				const newTargetX = Math.max(
+					-maxPan,
+					Math.min(maxPan, state.targetX + dx)
+				);
+				const newTargetY = Math.max(
+					-maxPan,
+					Math.min(maxPan, state.targetY + dy)
+				);
 				return {
 					...state,
 					targetX: newTargetX,
@@ -58,7 +64,7 @@ function createCameraStore() {
 			});
 		},
 		updateSmooth: () => {
-			update(state => {
+			update((state) => {
 				const SMOOTH = 0.1;
 				return {
 					...state,

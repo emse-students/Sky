@@ -26,8 +26,52 @@ Thumbs.db
 /database/backups
 *.sqlite
 *.sqlite3
+auth.db
+auth.db-journal
+auth.db-wal
 
 # Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+dist/
+*.log
+npm-debug.log*
+bun-debug.log*
+
+# Testing
+coverage/
+
+# Temporary files
+*.tmp
+*.bak
+.DS_Store
+
+# CSV data files (old data)
+*.csv
+old_data/
+
+# Migration scripts (one-off)
+scripts/debug_*.py
+scripts/fix_*.py
+scripts/remove_*.py
+scripts/analyze_*.py
+scripts/merge_*.py
+scripts/import_*.py
 __pycache__/
 *.py[cod]
 *$py.class

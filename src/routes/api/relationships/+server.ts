@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const body = await request.json() as { targetId?: string; type?: string };
+		const body = (await request.json()) as { targetId?: string; type?: string };
 		const { targetId, type } = body;
 
 		// Validate inputs
@@ -21,16 +21,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate type
-		if (!['family1', 'family2'].includes(type)) {
+		if (!['parrainage', 'adoption'].includes(type)) {
 			return json({ error: 'Invalid relationship type' }, { status: 400 });
 		}
 
 		// Check if relationship already exists
-		const existing = db.prepare(`
+		const existing = db
+			.prepare(
+				`
 			SELECT id FROM relationships 
 			WHERE (source_id = ? AND target_id = ?) 
 			   OR (source_id = ? AND target_id = ?)
-		`).get(user.profile_id, targetId, targetId, user.profile_id);
+		`
+			)
+			.get(user.profile_id, targetId, targetId, user.profile_id);
 
 		if (existing) {
 			return json({ error: 'Relationship already exists' }, { status: 400 });
@@ -41,22 +45,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const totalFillotsQuery = `
 			SELECT COUNT(*) as count FROM relationships 
 			WHERE source_id = ?
-              AND type IN ('family1', 'family2')
+              AND type IN ('parrainage', 'adoption')
 		`;
-		const totalFillots = db.prepare(totalFillotsQuery).get(user.profile_id) as { count: number };
+		const totalFillots = db.prepare(totalFillotsQuery).get(user.profile_id) as {
+      count: number;
+    };
 
 		if (totalFillots.count >= 3) {
-			return json({ error: 'Vous avez déjà atteint la limite de 3 fillots (total officiel + adoption)' }, { status: 400 });
+			return json(
+				{
+					error:
+            'Vous avez déjà atteint la limite de 3 fillots (total officiel + adoption)'
+				},
+				{ status: 400 }
+			);
 		}
 
 		// Create relationship (Me = Source/Parrain, Target = Fillot)
-		db.prepare(`
+		db.prepare(
+			`
 			INSERT INTO relationships (source_id, target_id, type)
 			VALUES (?, ?, ?)
-		`).run(user.profile_id, targetId, type);
+		`
+		).run(user.profile_id, targetId, type);
 
 		// Recalculate positions in background
-		recalculatePositions().catch(err =>
+		recalculatePositions().catch((err) =>
 			console.error('Failed to recalculate positions:', err)
 		);
 
@@ -74,7 +88,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const body = await request.json() as { relationshipId?: number };
+		const body = (await request.json()) as { relationshipId?: number };
 		const { relationshipId } = body;
 
 		if (!relationshipId) {
@@ -82,20 +96,27 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Verify ownership
-		const relationship = db.prepare(`
+		const relationship = db
+			.prepare(
+				`
 			SELECT * FROM relationships 
 			WHERE id = ? AND (source_id = ? OR target_id = ?)
-		`).get(relationshipId, user.profile_id, user.profile_id);
+		`
+			)
+			.get(relationshipId, user.profile_id, user.profile_id);
 
 		if (!relationship) {
-			return json({ error: 'Relationship not found or unauthorized' }, { status: 404 });
+			return json(
+				{ error: 'Relationship not found or unauthorized' },
+				{ status: 404 }
+			);
 		}
 
 		// Delete relationship
 		db.prepare('DELETE FROM relationships WHERE id = ?').run(relationshipId);
 
 		// Recalculate positions in background
-		recalculatePositions().catch(err =>
+		recalculatePositions().catch((err) =>
 			console.error('Failed to recalculate positions:', err)
 		);
 

@@ -6,7 +6,7 @@
   import { cameraStore } from "$stores/cameraStore";
   import StarfieldCanvas from "$components/Canvas/StarfieldCanvas.svelte";
   import GraphCanvas from "$components/Canvas/GraphCanvas.svelte";
-  import { getPersonName } from "$lib/utils/format";
+  import { getPersonName, getPersonInitials } from "$lib/utils/format";
   import {
     Linkedin,
     Mail,
@@ -321,7 +321,7 @@
             }}
           />
           <div class="avatar-placeholder-large" style="display: none;">
-            {currentProfile.prenom?.charAt(0) || "?"}
+            {getPersonInitials(currentProfile)}
           </div>
         </div>
         <h3 class="profile-name">{getPersonName(currentProfile)}</h3>

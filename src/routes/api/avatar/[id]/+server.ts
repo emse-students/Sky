@@ -1,6 +1,9 @@
 import type { RequestHandler } from './$types';
+import { getPersonById } from '$lib/server/database';
+import { getPersonInitials } from '$lib/utils/format';
 
-const MIGALLERY_API_KEY = 'pArlmji6ankvno-zAPwD96jA-EOn8Xb2egd6APlT3Ac';
+const MIGALLERY_API_KEY =
+	process.env.MIGALLERY_API_KEY || 'pArlmji6ankvno-zAPwD96jA-EOn8Xb2egd6APlT3Ac';
 
 export const GET: RequestHandler = async ({ params }) => {
 	const { id } = params;
@@ -20,9 +23,32 @@ export const GET: RequestHandler = async ({ params }) => {
 		console.debug(`[Avatar API] Response status: ${response.status}`);
 
 		if (!response.ok) {
-			console.debug(`[Avatar API] API returned error: ${response.status} ${response.statusText}`);
+			console.debug(
+				`[Avatar API] API returned error: ${response.status} ${response.statusText}`
+			);
+			// Get person from database for proper initials
+			let initials = '?';
+			try {
+				const person = getPersonById(id);
+				if (person) {
+					initials = getPersonInitials(person);
+				} else {
+					// Fallback: extract from ID format (prenom.nom)
+					initials = id
+						.split('.')
+						.slice(0, 2)
+						.map((part: string) => part.charAt(0).toUpperCase())
+						.join('');
+				}
+			} catch {
+				// Double fallback
+				initials = id
+					.split('.')
+					.slice(0, 2)
+					.map((part: string) => part.charAt(0).toUpperCase())
+					.join('');
+			}
 			// Return a placeholder SVG avatar
-			const initials = id.split('.').map(part => part.charAt(0).toUpperCase()).join('');
 			const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
 				<defs>
 					<linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -45,7 +71,9 @@ export const GET: RequestHandler = async ({ params }) => {
 		const imageBuffer = await response.arrayBuffer();
 		const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-		console.debug(`[Avatar API] Success! Content-Type: ${contentType}, Size: ${imageBuffer.byteLength}`);
+		console.debug(
+			`[Avatar API] Success! Content-Type: ${contentType}, Size: ${imageBuffer.byteLength}`
+		);
 
 		return new Response(imageBuffer, {
 			headers: {

@@ -43,7 +43,11 @@ export const { handle } = SvelteKitAuth({
 					let givenName = (profile.given_name as string) || 'Unknown';
 					let familyName = (profile.family_name as string) || 'Unknown';
 
-					if (givenName === 'Unknown' && familyName === 'Unknown' && casId.includes('.')) {
+					if (
+						givenName === 'Unknown' &&
+            familyName === 'Unknown' &&
+            casId.includes('.')
+					) {
 						const parts = casId.split('.');
 						givenName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
 						if (parts.length > 1) {
@@ -55,7 +59,6 @@ export const { handle } = SvelteKitAuth({
 						id: casId,
 						prenom: givenName,
 						nom: familyName,
-						bio: 'Nouvelle étoile',
 						image: undefined,
 						level: null
 					});
@@ -64,7 +67,15 @@ export const { handle } = SvelteKitAuth({
 			}
 			return true;
 		},
-		jwt({ token, user, profile }: { token: JWT; user?: User; profile?: Profile }): JWT {
+		jwt({
+			token,
+			user,
+			profile
+		}: {
+      token: JWT;
+      user?: User;
+      profile?: Profile;
+    }): JWT {
 			if (user) {
 				token.id = profile?.sub;
 			}
