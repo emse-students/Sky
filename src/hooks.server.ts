@@ -14,7 +14,7 @@ const protectHandle: Handle = async ({ event, resolve }) => {
 			return resolve(event);
 		}
 	} else {
-	    // console.log('No session token found');
+		// console.log('No session token found');
 	}
 
 	// Fallback to Auth.js session

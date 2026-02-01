@@ -4,316 +4,386 @@ import math
 import networkx as nx
 import os
 import sqlite3
+import logging
+import time
+import random
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Chemins
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(BASE_DIR, "database", "sky.db")
 POSITIONS_FILE = os.path.join(BASE_DIR, "static", "data", "positions.json")
 
-def plot_circle_packing(comp_pos, comp_radii, comp_sizes, big_radius):
-    pass
-    # # Calcul automatique du grand cercle si nécessaire
-    # if big_radius <= 0:
-    #     max_dist = 0.0
-    #     for i, (x, y) in comp_pos.items():
-    #         r = comp_radii[i]
-    #         dist = np.linalg.norm([x, y]) + r
-    #         max_dist = max(max_dist, dist)
-    #     big_radius = max_dist
-
-    # fig, ax = plt.subplots(figsize=(8, 8))
-
-    # for i, (x, y) in comp_pos.items():
-    #     r = comp_radii[i]
-    #     size = comp_sizes[i]
-
-    #     circ = plt.Circle(
-    #         (x, y),
-    #         r,
-    #         alpha=0.5,
-    #         edgecolor='black'
-    #     )
-    #     ax.add_patch(circ)
-
-    #     ax.text(
-    #         x,
-    #         y,
-    #         str(size),
-    #         ha='center',
-    #         va='center',
-    #         fontsize=8,
-    #         fontweight='bold'
-    #     )
-
-    # outer = plt.Circle(
-    #     (0, 0),
-    #     big_radius,
-    #     fill=False,
-    #     edgecolor='red',
-    #     linewidth=2
-    # )
-    # ax.add_patch(outer)
-
-    # # Mise à l'échelle
-    # ax.set_aspect('equal', 'box')
-    # margin = big_radius * 0.1
-    # ax.set_xlim(-big_radius - margin, big_radius + margin)
-    # ax.set_ylim(-big_radius - margin, big_radius + margin)
-
-    # ax.axis("off")
-    # plt.title("Circle Packing — Sous-graphes")
-    # plt.show()
-
-def circles_pack_in_circle(comp_radii,comp_pts):
+def circles_pack_in_circle(comp_radii, comp_pts):
+    """
+    Pack circles (subgraphs) into a larger circle.
+    Optimized to reduce iterations.
+    """
     n = len(comp_radii)
+    if n == 0:
+        return {}, 0
+
     indices = list(range(n))
     indices.sort(key=lambda i: comp_radii[i], reverse=True)
 
     pos = {}
-    # placer le plus grand au centre
+    # Place biggest circle at center
     pos[indices[0]] = np.array([0.0, 0.0])
 
-    def no_overlap(i, p_i):
-        for j, p_j in pos.items():
-            if i == j:
-                continue
-            d = np.linalg.norm(p_i - p_j)
-            if d < comp_radii[i] + comp_radii[j]:
+    def no_overlap(i, p_i, current_pos):
+        """Check if circle i at p_i overlaps with any circle in current_pos."""
+        r_i = comp_radii[i]
+        for j, p_j in current_pos.items():
+            if i == j: continue
+            # Optimization: check squared distance
+            d_sq = np.sum((p_i - p_j)**2)
+            min_dist = r_i + comp_radii[j]
+            if d_sq < min_dist * min_dist:
                 return False
         return True
 
+    logger.info(f"Packing {n} subgraphs...")
+    
+    # 1. Initial heuristic packing
     for k in range(1, n):
         i = indices[k]
         r_i = comp_radii[i]
-
+        
         best_pos = None
         best_dist = float("inf")
 
+        # Reduced angles to 36 (every 10 deg)
+        num_angles = 36 
+        
+        # Limit search to already placed circles
+        # Optimization: Only check circles that are "exposed"? (ignoring for now)
+        
         for j in pos.keys():
             r_j = comp_radii[j]
             xj, yj = pos[j]
             R = r_i + r_j
-
-            for theta in np.linspace(0, 2*np.pi, 80):
-                px = xj + R * np.cos(theta)
-                py = yj + R * np.sin(theta)
-                p = np.array([px, py])
-
-                if no_overlap(i, p):
+            
+            angles = np.linspace(0, 2*np.pi, num_angles, endpoint=False)
+            
+            for theta in angles:
+                p = np.array([xj + R * np.cos(theta), yj + R * np.sin(theta)])
+                
+                # Check overlap
+                if no_overlap(i, p, pos):
                     dist = np.linalg.norm(p)
                     if dist < best_dist:
                         best_dist = dist
                         best_pos = p
-        pos[i] = best_pos
-    plot_circle_packing(comp_pos=pos,comp_radii=comp_radii,comp_sizes=comp_pts,big_radius=0)
-    # recentre le packing
-    x_mins = []
-    x_maxs = []
-    y_mins = []
-    y_maxs = []
 
-    for i, center in pos.items():
-        r = comp_radii[i]
-        x, y = center
-        x_mins.append(x - r)
-        x_maxs.append(x + r)
-        y_mins.append(y - r)
-        y_maxs.append(y + r)
+        if best_pos is not None:
+            pos[i] = best_pos
+        else:
+            # Fallback: place far away
+            max_r = 0
+            if pos:
+                 max_r = max([np.linalg.norm(p) + comp_radii[idx] for idx, p in pos.items()])
+            pos[i] = np.array([max_r + r_i + 10.0, 0])
 
-    x_min, x_max = min(x_mins), max(x_maxs)
-    y_min, y_max = min(y_mins), max(y_maxs)
+    # 2. Centering and Compacting
+    # Calculate bounding circle size
+    if not pos:
+        return {}, 0
+        
+    x_coords = [p[0] for p in pos.values()]
+    y_coords = [p[1] for p in pos.values()]
+    all_radii = [comp_radii[i] for i in pos.keys()]
+    
+    x_min = min(x - r for x, r in zip(x_coords, all_radii))
+    x_max = max(x + r for x, r in zip(x_coords, all_radii))
+    y_min = min(y - r for y, r in zip(y_coords, all_radii))
+    y_max = max(y + r for y, r in zip(y_coords, all_radii))
 
     width = x_max - x_min
     height = y_max - y_min
-
-    # diamètre du grand cercle = le côté le plus grand de la bounding box
     diameter = max(width, height)
     outer_radius = diameter / 2
 
-    # centre du grand cercle
-    center_x = (x_min + x_max) / 2
-    center_y = (y_min + y_max) / 2
-    center = np.array([center_x, center_y])
+    center = np.array([(x_min + x_max) / 2, (y_min + y_max) / 2])
 
-    # décaler tous les cercles pour que le grand cercle soit centré en (0,0)
-    new_pos = {}
-    for i, p in pos.items():
-        new_pos[i] = p - center
-    plot_circle_packing(comp_pos=new_pos, comp_radii=comp_radii, comp_sizes=comp_pts, big_radius=outer_radius)
+    # Recentering
+    new_pos = {i: p - center for i, p in pos.items()}
 
-    # déplacement ordonnée par taille des cercles
-    num_rings = 6  # nombre d'anneaux testés entre le centre et l'outer_radius
-    num_angles = 48  # nombre d'angles testés par anneau
-    min_sep = 10.0  # distance minimale demandée
+    # 3. Refinement Step (Compacting)
+    # Trying to move circles closer to center if possible
+    # Skipping heavy refinement if too many components to keep it fast
+    if n < 100:
+        logger.info("Refining packing (compacting)...")
+        num_rings = 4 
+        num_angles = 24 
+        sorted_indices = indices 
 
-    # tri des indices par rayon décroissant (plus grands d'abord)
-    indices = list(range(n))
-    indices.sort(key=lambda i: comp_radii[i], reverse=True)
-
-    visited = set()
-
-    for i in indices:
-        pi = new_pos[i]
-        ri = comp_radii[i]
-
-        # déterminer si ce cercle est au contact d'autres à la distance minimale près
-        contact = False
-        for j in range(n):
-            if j == i:
+        for i in sorted_indices:
+            # Skip the very largest one at center (usually index 0) if it's at 0,0
+            if i == indices[0] and np.linalg.norm(new_pos[i]) < 0.1:
                 continue
-            d = np.linalg.norm(pi - new_pos[j])
-            if d <= (ri + comp_radii[j]) + min_sep:
-                contact = True
-                break
+                
+            pi = new_pos[i]
+            ri = comp_radii[i]
+            current_dist = np.linalg.norm(pi)
+            
+            # Search closer to center
+            max_r = max(0.0, current_dist - 1.0)
+            if max_r <= 0.1: continue
+            
+            radii_test = np.linspace(0.1, max_r, num_rings)
+            found_better = False
+            
+            for rad in radii_test:
+                thetas = np.linspace(0, 2*np.pi, num_angles, endpoint=False)
+                for theta in thetas:
+                    cand = np.array([rad * np.cos(theta), rad * np.sin(theta)])
+                    if no_overlap(i, cand, new_pos):
+                         new_pos[i] = cand
+                         found_better = True
+                         break
+                if found_better: break
 
-        if not contact:
-            continue
-
-        # construire l'ensemble de candidats à tester
-        best_candidate = None
-        best_min_dist = -1.0
-
-        # rayons à tester depuis le centre (éviter 0 si ri > 0)
-        max_place_radius = max(0.0, outer_radius - ri)
-        radii_to_test = np.linspace(0.0, max_place_radius, num_rings + 1)[1:]
-        radii_to_test = np.concatenate(([0.0], radii_to_test))
-
-        for rad in radii_to_test:
-            # angles
-            thetas = np.linspace(0.0, 2 * np.pi, num_angles, endpoint=False)
-            for theta in thetas:
-                cand = np.array([rad * np.cos(theta), rad * np.sin(theta)])
-
-                # condition: rester entièrement dans outer circle
-                if np.linalg.norm(cand) + ri > outer_radius:
-                    continue
-
-                # calculer la distance center-to-center au plus proche autre cercle
-                dists = np.linalg.norm(np.vstack([cand - new_pos[j] for j in range(n) if j != i]), axis=1)
-                # condition minimum par rapport aux autres cercles :
-                # on exige à la fois non-overlap (ri + rj) et min_sep center-to-center
-                reqs = np.array([max(ri + comp_radii[j], min_sep) for j in range(n) if j != i])
-
-                if np.all(dists >= reqs):
-                    # candidat valide : prendre la distance minimale center-to-center comme score
-                    min_dist = float(dists.min())
-                    # on préfère le candidat qui maximise cette min_dist
-                    if min_dist > best_min_dist :
-                        best_min_dist = min_dist
-                        best_candidate = cand.copy()
-
-        if best_candidate is not None:
-            new_pos[i] = best_candidate
-
-    plot_circle_packing(comp_pos=new_pos, comp_radii=comp_radii, comp_sizes=comp_pts, big_radius=outer_radius)
     return new_pos, outer_radius
 
 def pack_subgraphs(G, pos, padding=200):
     components = list(nx.connected_components(G))
+    N_comp = len(components)
+    logger.info(f"Found {N_comp} connected components.")
+    
     comp_radii = []
     comp_pts = []
+    
+    # Calculate approximate radius for each component
     for comp in components:
-        pts = np.array([pos[n] for n in comp])
-        comp_pts.append(len(pts))
-        # ajuste le padding en fonctions du nombres de points du sous graphe
-        if len(comp) < 11:
-            comp_radii.append(padding*math.sqrt(len(comp)/5))
+        n_nodes = len(comp)
+        comp_pts.append(n_nodes)
+        
+        # Radius heuristic
+        if n_nodes < 10:
+            comp_radii.append(padding * math.sqrt(n_nodes) * 0.8)
         else:
-            comp_radii.append(padding * (len(comp) / 5))
+            comp_radii.append(padding * (math.sqrt(n_nodes)) * 1.2)
 
-    comp_pos, big_radius = circles_pack_in_circle(comp_radii,comp_pts)
+    # Pack the components
+    comp_pos, big_radius = circles_pack_in_circle(comp_radii, comp_pts)
     final_pos = pos.copy()
 
+    logger.info("Computing fine-grained layouts for components...")
+    
     for idx, comp in enumerate(components):
+        if idx % 10 == 0 and idx > 0 and N_comp > 50:
+            logger.info(f"  Processed {idx}/{N_comp} components...")
+            
         subG = G.subgraph(comp)
-        cx, cy = comp_pos[idx] * 2
+        
+        if idx not in comp_pos: # Should not happen
+            continue
+            
+        cx, cy = comp_pos[idx] * 2.5 
         radius = comp_radii[idx]
 
-        # layout local
         try:
-             # Kamada Kawai produit des graphes plus "écartés" et structurés (constellations)
-             # attention complexité O(N^2)
-             if len(comp) > 400:
-                raise Exception("Too big for KK")
-             
-             local_pos = nx.kamada_kawai_layout(
-                subG,
-                center=(cx, cy),
-                scale=radius,
-            )
-        except:
-             # Fallback sur spring if trop gros ou erreur
-             local_pos = nx.spring_layout(
-                subG,
-                center=(cx, cy),
-                scale=radius,
-                k=radius / math.sqrt(len(comp)) * 2, # Force l'écartement
-                iterations=50,
-                seed=22
-            )
+             # Use Kamada Kawai for cleaner layouts on smaller graphs
+             if len(comp) < 80:
+                 local_pos = nx.kamada_kawai_layout(
+                    subG,
+                    center=(cx, cy),
+                    scale=radius * 1.0,  # Increased scale for more space
+                )
+             else:
+                 # Much better spacing for large families
+                 k_val = 3.5 / math.sqrt(len(comp)) if len(comp) > 0 else 1  # Increased spacing
+                 # Many more iterations for complete untangling
+                 if len(comp) < 150:
+                     iterations = 300
+                 elif len(comp) < 300:
+                     iterations = 500
+                 else:
+                     iterations = 600
+                 
+                 local_pos = nx.spring_layout(
+                    subG,
+                    center=(cx, cy),
+                    scale=radius * 1.1,  # Increased scale
+                    k=k_val, 
+                    iterations=iterations,
+                    seed=42
+                )
+        except Exception as e:
+             logger.error(f"Layout error for component {idx}: {e}")
+             local_pos = nx.circular_layout(subG, center=(cx,cy), scale=radius)
 
-        # injecter les nouvelles positions dans final_pos
         for n, p in local_pos.items():
             final_pos[n] = p
+            
     return final_pos
 
-def compute_and_save_positions(people, rels):
-    """Construit un graphe NetworkX, calcule les positions, les stocke dans un fichier."""
+def run():
+    if not os.path.exists(DB_FILE):
+        logger.error(f"Database not found: {DB_FILE}")
+        return
+
+    logger.info("Loading data from SQLite...")
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM people")
+    nodes = [r[0] for r in cursor.fetchall()]
+    logger.info(f"Loaded {len(nodes)} people.")
+
+    cursor.execute("SELECT source_id, target_id FROM relationships")
+    edges_raw = cursor.fetchall()
+    
+    node_set = set(nodes)
+    edges = []
+    for s, t in edges_raw:
+        if s in node_set and t in node_set:
+            edges.append((s, t))
+            
+    logger.info(f"Loaded {len(edges)} relationships.")
+    conn.close()
+
+    if not nodes:
+        logger.warning("No nodes found.")
+        return
+
     G = nx.Graph()
+    G.add_nodes_from(nodes)
+    G.add_edges_from(edges)
 
-    for p in people:
-        G.add_node(str(p["id"]))
+    # Identify isolated nodes (no connections)
+    isolated_nodes = [n for n in G.nodes() if G.degree(n) == 0]
+    connected_nodes = [n for n in G.nodes() if G.degree(n) > 0]
+    
+    logger.info(f"Found {len(isolated_nodes)} isolated nodes and {len(connected_nodes)} connected nodes.")
 
-    for r in rels:
-        G.add_edge(str(r["source"]), str(r["target"]))
+    start_time = time.time()
+    pos_new = {}
 
-    pos = nx.spring_layout(
-        G,
-        iterations=0,
-        seed=22
-    )
+    if connected_nodes:
+        logger.info("Calculating layout for connected nodes...")
+        G_connected = G.subgraph(connected_nodes)
+        
+        # Dummy pos for connected nodes only
+        dummy_pos = {n: (0, 0) for n in connected_nodes}
+        
+        logger.info("Starting Graph Packing Algorithm...")
+        pos_connected = pack_subgraphs(G_connected, dummy_pos, padding=250)
+        pos_new.update(pos_connected)
+        
+        # Calculate bounding radius of connected graph
+        if pos_connected:
+            max_radius = max(np.linalg.norm(np.array([pos[0], pos[1]])) 
+                           for pos in pos_connected.values())
+        else:
+            max_radius = 0
+    else:
+        max_radius = 0
 
-    pos_new = pack_subgraphs(G, pos)
+    # Place isolated nodes like a realistic starfield with clusters and galactic structures
+    if isolated_nodes:
+        logger.info(f"Scattering {len(isolated_nodes)} isolated nodes like stars...")
+        
+        random.seed(42)
+        np.random.seed(42)
+        
+        # Create realistic star field with multiple structures
+        num_isolated = len(isolated_nodes)
+        
+        # Define galactic structures
+        # 1. Main galactic band (like Milky Way) - 40% of stars
+        # 2. Star clusters - 30% of stars in 5-8 clusters
+        # 3. Diffuse background - 30% of stars scattered
+        
+        num_band = int(num_isolated * 0.40)
+        num_clusters = int(num_isolated * 0.30)
+        num_diffuse = num_isolated - num_band - num_clusters
+        
+        # Shuffle nodes for random assignment
+        shuffled_nodes = isolated_nodes.copy()
+        random.shuffle(shuffled_nodes)
+        
+        idx = 0
+        
+        # 1. Galactic band (dense band across the sky)
+        band_angle = random.uniform(0, 2 * np.pi)  # Random orientation
+        band_width = 4000
+        band_length = max_radius + 20000
+        
+        for i in range(num_band):
+            # Position along the band
+            t = np.random.beta(2, 2)  # More dense in center
+            along = (t - 0.5) * 2 * band_length
+            
+            # Perpendicular offset (Gaussian for band thickness)
+            across = np.random.normal(0, band_width / 3)
+            
+            # Rotate by band angle
+            x = along * np.cos(band_angle) - across * np.sin(band_angle)
+            y = along * np.sin(band_angle) + across * np.cos(band_angle)
+            
+            pos_new[shuffled_nodes[idx]] = np.array([x, y])
+            idx += 1
+        
+        # 2. Star clusters (dense groups)
+        num_cluster_groups = random.randint(5, 8)
+        stars_per_cluster = num_clusters // num_cluster_groups
+        
+        for c in range(num_cluster_groups):
+            # Random cluster center
+            cluster_r = random.uniform(max_radius + 3000, max_radius + 18000)
+            cluster_angle = random.uniform(0, 2 * np.pi)
+            cluster_cx = cluster_r * np.cos(cluster_angle)
+            cluster_cy = cluster_r * np.sin(cluster_angle)
+            
+            # Cluster radius
+            cluster_radius = random.uniform(800, 2000)
+            
+            # Place stars in this cluster
+            for s in range(stars_per_cluster):
+                if idx >= len(shuffled_nodes):
+                    break
+                    
+                # Use normal distribution for cluster shape
+                offset_r = abs(np.random.normal(0, cluster_radius / 2))
+                offset_angle = random.uniform(0, 2 * np.pi)
+                
+                x = cluster_cx + offset_r * np.cos(offset_angle)
+                y = cluster_cy + offset_r * np.sin(offset_angle)
+                
+                pos_new[shuffled_nodes[idx]] = np.array([x, y])
+                idx += 1
+        
+        # 3. Diffuse background stars
+        for i in range(idx, len(shuffled_nodes)):
+            # Wide exponential distribution for natural falloff
+            r_normalized = np.random.exponential(scale=0.6)
+            r_normalized = min(r_normalized, 5.0)
+            
+            r = max_radius + 2000 + r_normalized * 4000
+            angle = random.uniform(0, 2 * np.pi)
+            
+            x = r * np.cos(angle)
+            y = r * np.sin(angle)
+            
+            pos_new[shuffled_nodes[i]] = np.array([x, y])
 
-    # Conversion JSON
+    # Save
+    logger.info(f"Saving positions to {POSITIONS_FILE}...")
     pos_json = {
         node: {"x": float(coords[0]), "y": float(coords[1])}
         for node, coords in pos_new.items()
     }
 
+    os.makedirs(os.path.dirname(POSITIONS_FILE), exist_ok=True)
     with open(POSITIONS_FILE, "w") as f:
         json.dump(pos_json, f, indent=2)
 
-    return pos_json
-# Connexion à la base de données SQLite
-print(f"📂 Connexion à la base de données {DB_FILE}")
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
+    duration = time.time() - start_time
+    logger.info(f"Done in {duration:.2f} seconds. Positioned {len(pos_new)} nodes.")
 
-# Récupérer les personnes depuis SQLite
-cursor.execute("""
-    SELECT id, first_name, last_name, level FROM people
-""")
-people = [
-    {"id": row[0], "name": f"{row[2]} {row[1]}", "level": row[3]}
-    for row in cursor.fetchall()
-]
-
-# Récupérer les relations depuis SQLite
-# Accepter parrainage, adoption, family1, family2
-cursor.execute("""
-    SELECT source_id, target_id, type 
-    FROM relationships 
-    WHERE type IN ('parrainage', 'adoption', 'family1', 'family2')
-""")
-rel = [
-    {"source": row[0], "target": row[1], "type": row[2]}
-    for row in cursor.fetchall()
-]
-
-conn.close()
-
-# Calculer les positions
-pos = compute_and_save_positions(people, rel)
-print(f"✅ Positions calculées et sauvegardées dans {POSITIONS_FILE}")
-print(f"   {len(people)} personnes, {len(rel)} relations")
+if __name__ == "__main__":
+    run()

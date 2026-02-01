@@ -20,14 +20,18 @@ function createThemeStore() {
 
 	return {
 		subscribe,
-		toggle: () => update(current => {
-			const newTheme = current === 'light' ? 'dark' : 'light';
-			if (browser) {
-				localStorage.setItem('theme', newTheme);
-				document.documentElement.classList.toggle('dark', newTheme === 'dark');
-			}
-			return newTheme;
-		}),
+		toggle: () =>
+			update((current) => {
+				const newTheme = current === 'light' ? 'dark' : 'light';
+				if (browser) {
+					localStorage.setItem('theme', newTheme);
+					document.documentElement.classList.toggle(
+						'dark',
+						newTheme === 'dark'
+					);
+				}
+				return newTheme;
+			}),
 		set: (theme: Theme) => {
 			if (browser) {
 				localStorage.setItem('theme', theme);

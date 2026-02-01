@@ -13,12 +13,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			id: person.id,
 			prenom: person.prenom,
 			nom: person.nom,
-			surnom: person.surnom,
-			bio: person.bio,
 			image: person.image,
 			level: person.level,
-			links: person.links,
-			associations: person.associations
+			links: person.links
 		});
 
 		return json({ id: newId });

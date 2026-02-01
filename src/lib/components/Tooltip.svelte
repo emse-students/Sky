@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
-  import { getPersonName } from "$lib/utils/format";
+  import { getPersonName, getPersonInitials } from "$lib/utils/format";
 
   interface Props {
     person: any;
@@ -32,7 +32,7 @@
           }}
         />
         <div class="avatar-placeholder" style="display: none;">
-          {person.prenom?.charAt(0) || "?"}
+          {getPersonInitials(person)}
         </div>
       </div>
       <div class="tooltip-info">

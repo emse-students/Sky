@@ -2,15 +2,19 @@ import { writable } from 'svelte/store';
 import type { User } from '$types/api';
 
 function createAuthStore() {
-	const { subscribe, set, update } = writable<{ user: User | null; loading: boolean }>({
-		user: null,
-		loading: true
-	});
+	const { subscribe, set, update } = writable<{
+    user: User | null;
+    loading: boolean;
+  }>({
+  	user: null,
+  	loading: true
+  });
 
 	return {
 		subscribe,
-		setUser: (user: User | null) => update(state => ({ ...state, user })),
-		setLoading: (loading: boolean) => update(state => ({ ...state, loading })),
+		setUser: (user: User | null) => update((state) => ({ ...state, user })),
+		setLoading: (loading: boolean) =>
+			update((state) => ({ ...state, loading })),
 		logout: async () => {
 			try {
 				await fetch('/api/auth/logout', { method: 'POST' });

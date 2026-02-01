@@ -1,147 +1,204 @@
-# 🌟 Sky - SvelteKit Edition
+# 🌟 Sky - EMSE Student Network
 
-Version moderne et performante du système de généalogie étudiante EMSE.
+Application web moderne de visualisation et gestion du réseau de parrainage/adoption de l'EMSE (École des Mines de Saint-Étienne).
 
 ## 🚀 Démarrage Rapide
 
 ```bash
-# Installer les dépendances
+# Installation des dépendances
 bun install
 
-# Lancer le serveur de développement
+# Lancement en développement
 bun run dev
 
-# Ouvrir http://localhost:5173
+# Accès à l'application
+# http://localhost:5173
 ```
 
-## ✅ Migration Complétée - Phase 1
+## 🏗️ Stack Technique
 
-### Architecture
+- **Framework:** SvelteKit 2.x + Svelte 5
+- **Langage:** TypeScript
+- **Styles:** Tailwind CSS
+- **Base de données:** SQLite3 (better-sqlite3)
+- **Visualisation:** Canvas 2D + NetworkX (Python)
+- **Runtime:** Bun
 
-- ✅ SvelteKit configuré avec adapter-node
-- ✅ TypeScript activé
-- ✅ Tailwind CSS intégré
-- ✅ Structure des dossiers (inspirée de MiGallery)
-- ✅ Alias de chemins configurés
-
-### Backend
-
-- ✅ Système d'authentification (better-sqlite3)
-- ✅ Routes API (`/api/auth/*`)
-- ✅ Hooks serveur pour session management
-- ✅ Types TypeScript complets
-
-### Données
-
-- ✅ data.json migré vers `/static/data/`
-- ✅ positions.json migré
-- ✅ Images migrées vers `/static/images/`
-- ✅ Script Python calcul_positions.py conservé
-
-## 📁 Structure
+## 📁 Structure du Projet
 
 ```
-sky-sveltekit/
+sky/
 ├── src/
 │   ├── lib/
-│   │   ├── components/     # Composants réutilisables
-│   │   ├── server/        # Code serveur (auth.ts)
-│   │   ├── stores/        # Svelte stores (à créer)
-│   │   ├── types/         # TypeScript types
-│   │   └── utils/         # Utilitaires
+│   │   ├── components/     # Composants Svelte réutilisables
+│   │   ├── server/        # Code backend (database.ts, auth.ts)
+│   │   ├── stores/        # Stores Svelte (état global)
+│   │   ├── types/         # Définitions TypeScript
+│   │   └── utils/         # Fonctions utilitaires
 │   ├── routes/
-│   │   ├── api/          # Routes API
-│   │   ├── admin/        # Interface admin (à créer)
-│   │   └── +page.svelte  # Page d'accueil
-│   ├── app.css           # Styles globaux
-│   ├── app.d.ts          # Types globaux
-│   └── hooks.server.ts   # Hooks SvelteKit
+│   │   ├── api/          # API REST
+│   │   ├── profile/      # Pages profil
+│   │   └── +page.svelte  # Page d'accueil (graphe)
+│   └── hooks.server.ts   # Middleware d'authentification
+├── database/
+│   ├── sky.db            # Base de données SQLite
+│   ├── schema.sql        # Schéma SQL (v3.0)
+│   └── SCHEMA_REFERENCE.md  # Documentation complète
+├── scripts/
+│   ├── db_gui.py         # Interface admin (Tkinter)
+│   └── calcul_positions.py  # Algorithme de layout (NetworkX)
 ├── static/
 │   ├── data/
-│   │   ├── data.json
-│   │   └── positions.json
-│   ├── images/
-│   └── sky.png
-└── scripts/
-    └── calcul_positions.py
+│   │   ├── data.json     # Export JSON (généré)
+│   │   └── positions.json # Positions des nœuds
+│   └── images/           # Avatars
+└── build/                # Build de production
 ```
 
-## ✅ Migration Complétée
+## 🎯 Fonctionnalités
 
-### Phase 1 : Architecture & Backend
+### Interface Principale
 
-- ✅ SvelteKit configuré avec adapter-node
-- ✅ API Auth & Data
-- ✅ Types TypeScript
+- ✅ **Visualisation interactive** du graphe de parrainage
+- ✅ **Recherche** par nom, prénom ou promotion
+- ✅ **Zoom/Pan** avec mini-carte de navigation
+- ✅ **Profils détaillés** avec liens sociaux
+- ✅ **Thème clair/sombre** avec persistance
 
-### Phase 2 : Stores Svelte
+### Système d'Authentification
 
-- ✅ `authStore` - Gestion utilisateur
-- ✅ `graphStore` - État du graphe
-- ✅ `cameraStore` - Zoom/pan
-- ✅ `themeStore` - Thème clair/sombre
+- ✅ Connexion avec ID utilisateur
+- ✅ Sessions persistantes (cookies)
+- ✅ Gestion de profil
+- ✅ Middleware de protection des routes
 
-### Phase 3 : Composants Canvas
+### Base de Données (SQLite)
 
-- ✅ `GraphCanvas.svelte` - Rendu principal avec Viewport culling
-- ✅ `StarfieldCanvas.svelte` - Arrière-plan
-- ✅ `ProfileModal.svelte` - Fiche détaillée
-- ✅ `TopBar.svelte` - Navigation & Recherche
+- ✅ **5100+ profils** étudiants
+- ✅ **1500+ relations** de parrainage/adoption
+- ✅ Recherche full-text (FTS5)
+- ✅ Contraintes d'intégrité référentielle
+- ✅ Triggers de synchronisation
 
-### Phase 4 : Admin
+### Administration
 
-- ✅ Interface CRUD personnes
-- ✅ Interface CRUD relations
-- ✅ Export JSON
+- ✅ Interface graphique Python (Tkinter)
+- ✅ CRUD complet (personnes, relations, liens)
+- ✅ Fusion de profils (merge)
+- ✅ Gestion granulaire des relations (Officiel/Adoption)
 
-### Phase 5 : Tests & Optimisations
-
-- ✅ Viewport culling (GraphCanvas)
-- ✅ Configuration Vitest
-- ✅ Tests unitaires (Stores)
-
-## 🛠️ Commandes
+## 🛠️ Commandes Disponibles
 
 ```bash
-bun run dev          # Développement
-bun run build        # Production
-bun run test         # Lancer les tests
+# Développement
+bun run dev              # Serveur dev (http://localhost:5173)
+bun run build            # Build de production
+bun run preview          # Preview du build
+
+# Base de données
+python scripts/db_gui.py # Interface admin
+bun run calcul           # Recalcul des positions
+
+# Tests
+bun run test             # Tests unitaires (Vitest)
 ```
+
+## 📊 Base de Données
+
+### Tables Principales
+
+| Table            | Description                            | Entrées  |
+| ---------------- | -------------------------------------- | -------- |
+| `people`         | Profils individuels                    | ~5100    |
+| `relationships`  | Relations parrainage/adoption          | ~1500    |
+| `external_links` | Liens sociaux (LinkedIn, GitHub, etc.) | Variable |
+
+### Types de Relations
+
+- **`parrainage`** - Relation officielle de parrainage
+- **`adoption`** - Relation d'adoption
+
+Voir [database/SCHEMA_REFERENCE.md](database/SCHEMA_REFERENCE.md) pour la documentation complète.
 
 ## 🔐 Authentification
 
-L'API d'authentification est fonctionnelle :
+L'API REST fournit les endpoints suivants :
 
-- `POST /api/auth/login` - Connexion
-- `POST /api/auth/logout` - Déconnexion
-- `GET /api/auth/me` - Utilisateur actuel
+```typescript
+POST / api / auth / login; // Connexion
+POST / api / auth / logout; // Déconnexion
+GET / api / auth / me; // Utilisateur connecté
+```
 
-## 📊 Comparaison Vanilla JS vs SvelteKit
+Les sessions sont gérées via cookies HTTP-only sécurisés.
 
-| Avantage        | Description                              |
-| --------------- | ---------------------------------------- |
-| **Réactivité**  | `$state`, `$derived` - pas de `useState` |
-| **Performance** | SSR, code splitting automatique          |
-| **DX**          | TypeScript natif, HMR                    |
-| **Routing**     | File-based, simple                       |
-| **Bundle**      | ~15kb compilé vs ~50kb vanilla           |
+## 🎨 Développement
 
-## 🎯 Différences avec MiGallery
+### Stores Svelte
 
-- Pas de CAS EMSE (pour l'instant - login simulé)
-- Canvas au lieu de galerie photos
-- Focus sur visualisation de graphe
-- Même architecture, même stack technique
+- **`authStore`** - État d'authentification
+- **`graphStore`** - Données du graphe
+- **`cameraStore`** - Position caméra (zoom/pan)
+- **`themeStore`** - Thème visuel
 
-## 📚 Technologies
+### Composants Principaux
 
-- **Framework**: SvelteKit 2.x + Svelte 5
-- **Langage**: TypeScript
-- **Styles**: Tailwind CSS
-- **Base de données**: better-sqlite3
-- **Runtime**: Bun
-- **Layout**: Python (NetworkX)
+- **`GraphCanvas.svelte`** - Rendu du graphe (Canvas 2D)
+- **`StarfieldCanvas.svelte`** - Arrière-plan animé
+- **`Navbar.svelte`** - Barre de navigation
+- **`Tooltip.svelte`** - Infobulles
+
+### Optimisations
+
+- ✅ **Viewport culling** - Rendu uniquement des nœuds visibles
+- ✅ **Code splitting** automatique (SvelteKit)
+- ✅ **SSR** pour le SEO
+- ✅ **Image lazy loading**
+
+## 🚀 Déploiement
+
+```bash
+# Build de production
+bun run build
+
+# Le dossier build/ contient l'app Node.js
+# Démarrage avec :
+node build/index.js
+```
+
+### Variables d'environnement
+
+Créer un fichier `.env` :
+
+```bash
+AUTH_SECRET=<généré avec scripts/generate-auth-secret.js>
+```
+
+## 📚 Documentation
+
+- [database/SCHEMA_REFERENCE.md](database/SCHEMA_REFERENCE.md) - Schéma de base de données
+- [database/README.md](database/README.md) - Guide de la base de données
+- [SvelteKit Docs](https://kit.svelte.dev/) - Documentation officielle
+
+## 🤝 Contribution
+
+### Workflow Git
+
+```bash
+# Créer une branche
+git checkout -b feature/nouvelle-fonctionnalite
+
+# Commit avec message clair
+git commit -m "feat: ajout de X"
+
+# Push et pull request
+git push origin feature/nouvelle-fonctionnalite
+```
+
+## 📝 Licence
+
+Projet interne EMSE - Tous droits réservés
 
 ---
 
-Migration en cours par étapes - Suivre [MIGRATION_SVELTEKIT.md](../Sky/MIGRATION_SVELTEKIT.md) pour le plan complet.
+**Version actuelle:** 3.0 (Base de données nettoyée - 1er février 2026)

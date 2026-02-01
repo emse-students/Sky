@@ -17,7 +17,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ url }) => {
+export const DELETE: RequestHandler = ({ url }) => {
 	// TODO: Check admin auth
 
 	const source = url.searchParams.get('source');

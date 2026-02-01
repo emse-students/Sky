@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { exportGraphData } from '$lib/server/database';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = () => {
 	try {
 		const data = exportGraphData();
 		return json(data);

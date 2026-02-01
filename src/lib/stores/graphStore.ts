@@ -1,10 +1,16 @@
 import { writable, derived } from 'svelte/store';
-import type { Person, Relation, Position, GraphDataFile, JsonRelation } from '$types/graph';
+import type {
+	Person,
+	Relation,
+	Position,
+	GraphDataFile,
+	JsonRelation
+} from '$types/graph';
 
 export interface GraphData {
-    people: Person[];
-    relations: Relation[];
-    positions: Record<string, Position>;
+  people: Person[];
+  relations: Relation[];
+  positions: Record<string, Position>;
 }
 
 // Helper function to find neighbors within N hops using BFS
@@ -16,7 +22,9 @@ export function findNeighborsWithinHops(
 	const neighbors = new Set<string>();
 	neighbors.add(personId); // Include the person themselves
 
-	const queue: Array<{ id: string, depth: number }> = [{ id: personId, depth: 0 }];
+	const queue: Array<{ id: string; depth: number }> = [
+		{ id: personId, depth: 0 }
+	];
 	const visited = new Set<string>();
 
 	while (queue.length > 0) {
@@ -28,7 +36,7 @@ export function findNeighborsWithinHops(
 		visited.add(id);
 
 		// Find all direct connections
-		relations.forEach(rel => {
+		relations.forEach((rel) => {
 			let neighborId: string | null = null;
 
 			if (rel.id1 === id) {
@@ -50,7 +58,11 @@ export function findNeighborsWithinHops(
 }
 
 function createGraphStore() {
-	const { subscribe, set, update: _update } = writable<GraphData>({
+	const {
+		subscribe,
+		set,
+		update: _update
+	} = writable<GraphData>({
 		people: [],
 		relations: [],
 		positions: {}
@@ -58,7 +70,7 @@ function createGraphStore() {
 
 	let currentData: GraphData = { people: [], relations: [], positions: {} };
 
-	subscribe(data => {
+	subscribe((data) => {
 		currentData = data;
 	});
 
@@ -78,7 +90,9 @@ function createGraphStore() {
 				if (posRes.ok) {
 					serverPositions = (await posRes.json()) as Record<string, Position>;
 				} else {
-					console.warn('Could not load positions.json, graph might look empty or clumped');
+					console.warn(
+						'Could not load positions.json, graph might look empty or clumped'
+					);
 				}
 
 				// Convert people object to array if needed
@@ -117,10 +131,12 @@ function createGraphStore() {
 				return [];
 			}
 			const q = query.toLowerCase();
-			return currentData.people.filter(p => {
-				const fullName = `${p.nom} ${p.prenom}`.toLowerCase();
-				return fullName.includes(q) || p.id?.toLowerCase().includes(q);
-			}).slice(0, 10);
+			return currentData.people
+				.filter((p) => {
+					const fullName = `${p.nom} ${p.prenom}`.toLowerCase();
+					return fullName.includes(q) || p.id?.toLowerCase().includes(q);
+				})
+				.slice(0, 10);
 		}
 	};
 }
@@ -141,13 +157,17 @@ export const filteredGraph = derived(
 		}
 
 		// Find neighbors within depth
-		const visiblePeople = findNeighborsWithinHops($selectedId, $graph.relations, $depth);
+		const visiblePeople = findNeighborsWithinHops(
+			$selectedId,
+			$graph.relations,
+			$depth
+		);
 
 		// Filter people and relations
 		return {
-			people: $graph.people.filter(p => visiblePeople.has(p.id)),
-			relations: $graph.relations.filter(r =>
-				visiblePeople.has(r.id1) && visiblePeople.has(r.id2)
+			people: $graph.people.filter((p) => visiblePeople.has(p.id)),
+			relations: $graph.relations.filter(
+				(r) => visiblePeople.has(r.id1) && visiblePeople.has(r.id2)
 			),
 			positions: $graph.positions
 		};
