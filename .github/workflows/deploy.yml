@@ -1,69 +1,69 @@
 name: Deploy to production
 
 on:
- workflow_run:
-  workflows: ['CI (Bun)']
-  types:
-   - completed
-  branches:
-   - main
+  workflow_run:
+    workflows: ["CI (Bun)"]
+    types:
+      - completed
+    branches:
+      - main
 
 jobs:
- deploy:
-  name: Deploy to production
-  runs-on: self-hosted
-  if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
-  steps:
-   - name: Checkout
-     uses: actions/checkout@v6
+  deploy:
+    name: Deploy to production
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-   - name: Install Bun
-     uses: oven-sh/setup-bun@v2
-     with:
-      bun-version: latest
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
-   - name: Setup dependencies
-     run: bun install
+      - name: Setup dependencies
+        run: bun install
 
-   - name: Type check and generate SvelteKit config
-     run: bun run check && bunx svelte-kit sync
+      - name: Type check and generate SvelteKit config
+        run: bun run check && bunx svelte-kit sync
 
-   - name: Lint code
-     env:
-      NODE_OPTIONS: '--max-old-space-size=16384'
-     run: bun run lint
+      - name: Lint code
+        env:
+          NODE_OPTIONS: "--max-old-space-size=16384"
+        run: bun run lint
 
-   - name: Build project
-     run: bun run build
+      - name: Build project
+        run: bun run build
 
-   - name: Paste files to server
-     run: |
-      cd ~/Sky
-      # Supprimer tout SAUF .env, database et .svelte-kit
-      # On préserve 'database' car il contient la DB et les fichiers permanents
-      find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'database' -not -name '.svelte-kit' -exec rm -rf {} +
+      - name: Paste files to server
+        run: |
+          cd ~/Sky
+          # Supprimer tout SAUF .env, database et .svelte-kit
+          # On préserve 'database' car il contient la DB et les fichiers permanents
+          find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'database' -not -name '.svelte-kit' -exec rm -rf {} +
 
-      # Copier les nouveaux fichiers depuis le runner
-      # Utilisation directe de github.workspace pour éviter les erreurs de chemin
-      cp -r ${{ github.workspace }}/* .
+          # Copier les nouveaux fichiers depuis le runner
+          # Utilisation directe de github.workspace pour éviter les erreurs de chemin
+          cp -r ${{ github.workspace }}/* .
 
-   - name: Initialize database if needed
-     run: |
-       cd ~/Sky
-       # Vérifier si la base de données existe
-       if [ ! -f "database/sky.db" ]; then
-         echo "Base de données non trouvée, initialisation..."
-         bun run db:init
-       else
-         echo "Base de données existante trouvée, pas d'initialisation"
-       fi
+      - name: Initialize database if needed
+        run: |
+          cd ~/Sky
+          # Vérifier si la base de données existe
+          if [ ! -f "database/sky.db" ]; then
+            echo "Base de données non trouvée, initialisation..."
+            bun scripts/init-db.js
+          else
+            echo "Base de données existante trouvée, pas d'initialisation"
+          fi
 
-   - name: Restart server
-     run: |
-      cd ~/Sky
-      pm2 delete sky || true
-      pm2 start /home/mitv/.bun/bin/bun \
-        --name sky \
-        --cwd /home/mitv/Sky \
-        -- run build/index.js
-      pm2 save
+      - name: Restart server
+        run: |
+          cd ~/Sky
+          pm2 delete sky || true
+          pm2 start /home/mitv/.bun/bin/bun \
+            --name sky \
+            --cwd /home/mitv/Sky \
+            -- run build/index.js
+          pm2 save
