@@ -77,6 +77,22 @@ jobs:
           ADAPTER: node
         run: npm run build
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize Database for Python Script
+        run: node scripts/init-db.js
+
+      - name: Test Python Script (calcul_positions.py)
+        run: python scripts/calcul_positions.py
+
       - name: Create .env file for tests
         run: |
           cat > .env << EOF
