@@ -126,8 +126,9 @@ CREATE TABLE IF NOT EXISTS associations (
     person_id TEXT NOT NULL,
     
     -- Association information
-    name TEXT NOT NULL,LinkedIn', 'Email', 'GitHub', 'Instagram', 'Phone', 'Website'
-    url TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT,
+    logo_url TEXT,
     
     -- Display order
     display_order INTEGER DEFAULT 0,
@@ -136,11 +137,10 @@ CREATE TABLE IF NOT EXISTS associations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Constraints
-    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE,
-    UNIQUE(person_id, url)
+    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_external_links_person ON external_links(person_id);
+CREATE INDEX IF NOT EXISTS idx_associations_person ON associations(person_id);
 
 -- ============================================
 -- METADATA TABLE
