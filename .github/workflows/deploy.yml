@@ -68,17 +68,18 @@ jobs:
           # Install dependencies
           python3 -m pip install -r requirements.txt --user --break-system-packages || python3 -m pip install -r requirements.txt --user
 
-      - name: Initialize database if needed
+      - name: Initialize and Verify Database
         run: |
           cd ~/Sky
-          # Vérifier si la base de données existe
-          if [ ! -f "database/sky.db" ]; then
-            echo "Base de données non trouvée, initialisation..."
-            bun scripts/init-db.js
-          else
-            echo "Base de données existante trouvée, exécution des migrations..."
-            bun scripts/migrate-add-bio.js
-          fi
+          # Rebuild better-sqlite3 for the current Node environment to ensure ABI compatibility
+          # This fixes possible mismatch between Bun install and Node execution
+          npm rebuild better-sqlite3
+
+          # Run the integrity check script using Node (Bun does not support better-sqlite3 yet)
+          node scripts/check-db-integrity.js
+          
+          # Migration auto des IDs si nécessaire
+          node scripts/migrate-ids.js || true
 
       - name: Restart server
         run: |

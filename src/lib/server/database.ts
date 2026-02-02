@@ -111,15 +111,14 @@ export interface PersonRow {
 
 export function getAllPeople(): Person[] {
 	const database = getDatabase();
+	// Use SELECT * from people to avoid crashing if 'bio' column is missing (migration failed)
 	const stmt = database.prepare(`
-		SELECT 
-			id, first_name, last_name,
-			level, bio, image_url
+		SELECT *
 		FROM people
 		ORDER BY last_name, first_name
 	`);
 
-	const rows = stmt.all() as (PersonRow & { bio: string | null })[];
+	const rows = stmt.all() as (PersonRow & { bio?: string })[];
 
 	return rows.map((row) => {
 		const person: Person = {
@@ -146,15 +145,14 @@ export function getAllPeople(): Person[] {
 
 export function getPersonById(id: string): Person | null {
 	const database = getDatabase();
+	// Use SELECT * to avoid crash if bio column missing
 	const stmt = database.prepare(`
-		SELECT 
-			id, first_name, last_name,
-			level, bio, image_url
+		SELECT *
 		FROM people
 		WHERE id = ?
 	`);
 
-	const row = stmt.get(id) as PersonRow & { bio: string | null } | undefined;
+	const row = stmt.get(id) as (PersonRow & { bio?: string }) | undefined;
 	if (!row) {
 		return null;
 	}
