@@ -16,6 +16,15 @@ console.log("🚀 Starting ID migration...\n");
 
 const db = new Database(DB_PATH);
 
+// Check if migration is needed
+const sample = db.prepare("SELECT id FROM people LIMIT 50").all();
+const needsMigration = sample.some(p => p.id.includes("_") && !p.id.includes("."));
+
+if (!needsMigration) {
+  console.log("✅ No IDs with underscores found. Database seems already migrated.");
+  process.exit(0);
+}
+
 // Disable foreign key checks during migration
 db.pragma("foreign_keys = OFF");
 
