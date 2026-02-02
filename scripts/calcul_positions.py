@@ -21,7 +21,7 @@ POSITIONS_FILE = os.path.join(BASE_DIR, "database", "positions.json")
 def circles_pack_in_circle(comp_radii, comp_pts):
     """
     Pack circles (subgraphs) into a larger circle.
-    Optimized to reduce iterations.
+    Optimized to reduce iterations using Grid-based spatial hashing and heuristic candidate selection.
     """
     n = len(comp_radii)
     if n == 0:
@@ -31,22 +31,48 @@ def circles_pack_in_circle(comp_radii, comp_pts):
     indices.sort(key=lambda i: comp_radii[i], reverse=True)
 
     pos = {}
+    # Use a spatial grid to optimize overlap checks from O(N) to O(1)
+    # Cell size must be at least 2*max_radius to guarantee we only need to check 3x3 neighbors
+    max_radius = comp_radii[indices[0]]
+    grid_size = max_radius * 2.1
+    if grid_size <= 1e-6: grid_size = 1.0
+    
+    from collections import defaultdict
+    grid = defaultdict(list)
+
+    def add_to_grid(idx, p):
+        gx = int(p[0] / grid_size)
+        gy = int(p[1] / grid_size)
+        grid[(gx, gy)].append(idx)
+
+    def check_overlap_grid(i, p_i):
+        r_i = comp_radii[i]
+        gx = int(p_i[0] / grid_size)
+        gy = int(p_i[1] / grid_size)
+        
+        # Check 3x3 neighboring cells
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                cell_key = (gx + dx, gy + dy)
+                if cell_key in grid:
+                    for j in grid[cell_key]:
+                        # Distance check
+                        diff = p_i - pos[j]
+                        d_sq = np.dot(diff, diff)
+                        min_dist = r_i + comp_radii[j]
+                        
+                        # Use a small epsilon to avoid floating point issues
+                        if d_sq < (min_dist * 0.999)**2:
+                            return True
+        return False
+
     # Place biggest circle at center
     pos[indices[0]] = np.array([0.0, 0.0])
+    add_to_grid(indices[0], pos[indices[0]])
 
-    def no_overlap(i, p_i, current_pos):
-        """Check if circle i at p_i overlaps with any circle in current_pos."""
-        r_i = comp_radii[i]
-        for j, p_j in current_pos.items():
-            if i == j: continue
-            # Optimization: check squared distance
-            d_sq = np.sum((p_i - p_j)**2)
-            min_dist = r_i + comp_radii[j]
-            if d_sq < min_dist * min_dist:
-                return False
-        return True
-
-    logger.info(f"Packing {n} subgraphs...")
+    logger.info(f"Packing {n} subgraphs (Optimized)...")
+    
+    import random
     
     # 1. Initial heuristic packing
     for k in range(1, n):
@@ -54,39 +80,65 @@ def circles_pack_in_circle(comp_radii, comp_pts):
         r_i = comp_radii[i]
         
         best_pos = None
-        best_dist = float("inf")
+        best_dist_sq = float("inf")
 
-        # Reduced angles to 36 (every 10 deg)
-        num_angles = 36 
+        # Reduced angles (12 is usually enough for packing)
+        num_angles = 12 
         
-        # Limit search to already placed circles
-        # Optimization: Only check circles that are "exposed"? (ignoring for now)
+        # Optimization: Don't try to stick to ALL existing circles.
+        # Just check the largest ones (first 100) and some random ones to fill gaps.
+        # This keeps complexity linear-ish instead of quadratic.
+        candidates_indices = []
+        if k < 150:
+            # Check all for the first batch
+            candidates_indices = indices[:k]
+        else:
+            # Check top 100 (largest) + 20 random recent ones
+            candidates_indices = indices[:100]
+            # Add some randomness to explore other areas
+            others = indices[100:k]
+            if others:
+                 candidates_indices.extend(random.sample(others, min(len(others), 30)))
         
-        for j in pos.keys():
+        for j in candidates_indices:
+            if j not in pos: continue # Should be in pos, but safety check
+            
             r_j = comp_radii[j]
             xj, yj = pos[j]
             R = r_i + r_j
             
             angles = np.linspace(0, 2*np.pi, num_angles, endpoint=False)
             
+            # Vectorized candidate generation could be done, but loop is fine if N_candidates is small
             for theta in angles:
                 p = np.array([xj + R * np.cos(theta), yj + R * np.sin(theta)])
                 
-                # Check overlap
-                if no_overlap(i, p, pos):
-                    dist = np.linalg.norm(p)
-                    if dist < best_dist:
-                        best_dist = dist
+                # Fast overlap check using grid
+                if not check_overlap_grid(i, p):
+                    dist_sq = np.dot(p, p)
+                    if dist_sq < best_dist_sq:
+                        best_dist_sq = dist_sq
                         best_pos = p
 
         if best_pos is not None:
             pos[i] = best_pos
+            add_to_grid(i, best_pos)
         else:
-            # Fallback: place far away
-            max_r = 0
-            if pos:
-                 max_r = max([np.linalg.norm(p) + comp_radii[idx] for idx, p in pos.items()])
-            pos[i] = np.array([max_r + r_i + 10.0, 0])
+            # Fallback: place far away if no spot is found
+            # This happens if packed very tight or bug. Place at outer rim.
+            # Just extend the bounding box.
+            max_current_dist = 0
+            # Heuristic estimate
+            estimate_radius = np.sqrt(k) * max_radius
+            # Just put it far out
+            fallback_pos = np.array([estimate_radius + r_i + 10.0, 0])
+            
+            # Verify no overlap at fallback (unlikely to overlap if far, but safety)
+            while check_overlap_grid(i, fallback_pos):
+                fallback_pos[0] += max_radius
+            
+            pos[i] = fallback_pos
+            add_to_grid(i, fallback_pos)
 
     # 2. Centering and Compacting
     # Calculate bounding circle size
