@@ -2,7 +2,14 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { Linkedin, Mail, Globe, Github, Instagram, Phone } from "lucide-svelte";
+  import {
+    Linkedin,
+    Mail,
+    Globe,
+    Github,
+    Instagram,
+    Phone,
+  } from "lucide-svelte";
   import LinkInput from "$lib/components/LinkInput.svelte";
   import RelationshipSection from "$lib/components/RelationshipSection.svelte";
   import Button from "$lib/components/Button.svelte";
@@ -33,14 +40,14 @@
 
   // Filter relationships by type
   // Parrainage: Source (Parrain) -> Target (Fillot)
-  // Fillots: I am the Source (source_id)
-  $: fillots = relationships.filter((r) => r.source_id === user?.profile_id);
+  // Fillots: I am the Source (person_id_1)
+  $: fillots = relationships.filter((r) => r.person_id_1 === user?.profile_id);
 
   $: fillotParrainage = fillots.filter((r) => r.type === "parrainage");
   $: fillotAdoption = fillots.filter((r) => r.type === "adoption");
 
-  // Parrains: I am the Target (target_id)
-  $: parrains = relationships.filter((r) => r.target_id === user?.profile_id);
+  // Parrains: I am the Target (person_id_2)
+  $: parrains = relationships.filter((r) => r.person_id_2 === user?.profile_id);
 
   $: parrainParrainage = parrains.find((r) => r.type === "parrainage");
   $: parrainAdoption = parrains.find((r) => r.type === "adoption");
@@ -200,8 +207,8 @@
   <title>Éditer mon profil - Sky</title>
 </svelte:head>
 
-<div class="page-container">
-  <div class="content-container card">
+<div class="edit-page">
+  <div class="edit-container">
     <h1>Éditer mon profil</h1>
 
     {#if loading}
@@ -236,12 +243,50 @@
       <!-- Links -->
       <div class="form-section">
         <h3>Mes Liens</h3>
-        <LinkInput id="linkedin" label="LinkedIn" icon={Linkedin} bind:value={links["LinkedIn"]} placeholder="https://linkedin.com/in/..." />
-        <LinkInput id="email" label="Email" icon={Mail} type="email" bind:value={links["Email"]} placeholder="mon.email@example.com" />
-        <LinkInput id="github" label="GitHub" icon={Github} bind:value={links["GitHub"]} placeholder="https://github.com/..." />
-        <LinkInput id="instagram" label="Instagram" icon={Instagram} bind:value={links["Instagram"]} placeholder="https://instagram.com/..." />
-        <LinkInput id="phone" label="Téléphone" icon={Phone} type="tel" bind:value={links["Phone"]} placeholder="+33 6 12 34 56 78" />
-        <LinkInput id="website" label="Site Web" icon={Globe} bind:value={links["Website"]} placeholder="https://monsite.com" />
+        <LinkInput
+          id="linkedin"
+          label="LinkedIn"
+          icon={Linkedin}
+          bind:value={links["LinkedIn"]}
+          placeholder="https://linkedin.com/in/..."
+        />
+        <LinkInput
+          id="email"
+          label="Email"
+          icon={Mail}
+          type="email"
+          bind:value={links["Email"]}
+          placeholder="mon.email@example.com"
+        />
+        <LinkInput
+          id="github"
+          label="GitHub"
+          icon={Github}
+          bind:value={links["GitHub"]}
+          placeholder="https://github.com/..."
+        />
+        <LinkInput
+          id="instagram"
+          label="Instagram"
+          icon={Instagram}
+          bind:value={links["Instagram"]}
+          placeholder="https://instagram.com/..."
+        />
+        <LinkInput
+          id="phone"
+          label="Téléphone"
+          icon={Phone}
+          type="tel"
+          bind:value={links["Phone"]}
+          placeholder="+33 6 12 34 56 78"
+        />
+        <LinkInput
+          id="website"
+          label="Site Web"
+          icon={Globe}
+          bind:value={links["Website"]}
+          placeholder="https://monsite.com"
+        />
       </div>
 
       <!-- Fillots -->
@@ -254,7 +299,7 @@
           maxCount={3}
           relationships={fillotParrainage}
           {people}
-          idField="target_id"
+          idField="person_id_2"
           onRemove={removeRelationship}
         />
 
@@ -264,7 +309,7 @@
           maxCount={3}
           relationships={fillotAdoption}
           {people}
-          idField="target_id"
+          idField="person_id_2"
           onRemove={removeRelationship}
         />
 
@@ -313,7 +358,7 @@
           maxCount={1}
           relationships={parrainParrainage ? [parrainParrainage] : []}
           {people}
-          idField="source_id"
+          idField="person_id_1"
           onRemove={removeRelationship}
           emptyMessage="Aucun parrain officiel"
         />
@@ -324,7 +369,7 @@
           maxCount={1}
           relationships={parrainAdoption ? [parrainAdoption] : []}
           {people}
-          idField="source_id"
+          idField="person_id_1"
           onRemove={removeRelationship}
           emptyMessage="Aucun parrain d'adoption"
         />
@@ -335,7 +380,12 @@
         <Button variant="outline" on:click={() => goto("/")}>
           Retour à la carte
         </Button>
-        <Button variant="secondary" disabled={saving} loading={saving} on:click={saveProfile}>
+        <Button
+          variant="secondary"
+          disabled={saving}
+          loading={saving}
+          on:click={saveProfile}
+        >
           Sauvegarder
         </Button>
       </div>
@@ -346,6 +396,28 @@
 </div>
 
 <style>
+  .edit-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 10;
+    background: var(--gradient-dark);
+    padding: 80px 20px 40px;
+  }
+
+  .edit-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    color: var(--text-primary);
+  }
+
   h1 {
     color: white;
     font-size: 32px;

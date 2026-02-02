@@ -18,7 +18,10 @@
       }
     }}
   />
-  <div class="avatar-placeholder" style="display: none; font-size: {size / 2.5}px;">
+  <div
+    class="avatar-placeholder"
+    style="display: none; font-size: {size / 2.5}px;"
+  >
     {fallbackText}
   </div>
 </div>

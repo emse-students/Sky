@@ -10,7 +10,8 @@
   {#if label}
     <label class="label" for={id}>{label}</label>
   {/if}
-  <textarea class="textarea" {id} {placeholder} {rows} bind:value on:input></textarea>
+  <textarea class="textarea" {id} {placeholder} {rows} bind:value on:input
+  ></textarea>
 </div>
 
 <style>
