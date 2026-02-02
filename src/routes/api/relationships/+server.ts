@@ -21,8 +21,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		const db = getDatabase();
-		const body = (await request.json()) as { targetId?: string; type?: string };
-		const { targetId, type } = body;
+		const body = (await request.json()) as {
+			targetId?: string;
+			type?: string;
+			role?: 'parrain' | 'fillot';
+		};
+		const { targetId, type, role = 'fillot' } = body;
 
 		// Validate inputs
 		if (!targetId || !type) {
@@ -34,49 +38,85 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ error: 'Invalid relationship type' }, { status: 400 });
 		}
 
+		// Determine who is source and who is target
+		// parrain = source, fillot = target
+		let sourceId: string;
+		let targetUser: string;
+
+		if (role === 'parrain') {
+			sourceId = targetId; // The person I selected is the Parrain (Source)
+			targetUser = user.profile_id; // I am the Fillot (Target)
+		} else {
+			sourceId = user.profile_id; // I am the Parrain (Source)
+			targetUser = targetId; // The person I selected is the Fillot (Target)
+		}
+
 		// Check if relationship already exists
 		const existing = db
 			.prepare(
 				`
 			SELECT id FROM relationships 
-			WHERE (source_id = ? AND target_id = ?) 
-			   OR (source_id = ? AND target_id = ?)
+			WHERE source_id = ? AND target_id = ?
 		`
 			)
-			.get(user.profile_id, targetId, targetId, user.profile_id);
+			.get(sourceId, targetUser);
 
 		if (existing) {
 			return json({ error: 'Relationship already exists' }, { status: 400 });
 		}
 
-		// Check total fillots limit (max 3 across both types)
-		// I am the SOURCE of the relationship (I am the Parrain)
+		// Check total fillots limit for the SOURCE (Parrain)
+		// Max 3 fillots (official + adoption included)
 		const totalFillotsQuery = `
 			SELECT COUNT(*) as count FROM relationships 
 			WHERE source_id = ?
               AND type IN ('parrainage', 'adoption')
 		`;
-		const totalFillots = db.prepare(totalFillotsQuery).get(user.profile_id) as {
-      count: number;
-    };
+		const totalFillots = db.prepare(totalFillotsQuery).get(sourceId) as {
+			count: number;
+		};
 
 		if (totalFillots.count >= 3) {
 			return json(
 				{
 					error:
-            'Vous avez déjà atteint la limite de 3 fillots (total officiel + adoption)'
+						role === 'fillot'
+							? 'Vous avez déjà atteint la limite de 3 fillots.'
+							: 'Ce parrain a déjà atteint la limite de 3 fillots.'
 				},
 				{ status: 400 }
 			);
 		}
 
-		// Create relationship (Me = Source/Parrain, Target = Fillot)
+		// Check if I (Target) already have a Parrain of this type (if official)
+		// Usually you only have 1 official Parrain
+		if (type === 'parrainage') {
+			const existingParrain = db
+				.prepare(
+					'SELECT id FROM relationships WHERE target_id = ? AND type = \'parrainage\''
+				)
+				.get(targetUser);
+
+			if (existingParrain) {
+				return json(
+					{
+						error:
+							role === 'parrain'
+								? 'Vous avez déjà un parrain officiel.'
+								: 'Cette personne a déjà un parrain officiel.'
+					},
+					{ status: 400 }
+				);
+			}
+		}
+
+		// Create relationship
 		db.prepare(
 			`
 			INSERT INTO relationships (source_id, target_id, type)
 			VALUES (?, ?, ?)
 		`
-		).run(user.profile_id, targetId, type);
+		).run(sourceId, targetUser, type);
 
 		// Recalculate positions in background
 		recalculatePositions().catch((err) =>

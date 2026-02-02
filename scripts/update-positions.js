@@ -7,10 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, "../database/sky.db");
-const oldPositionsPath = path.join(__dirname, "../static/data/positions.json");
+const oldPositionsPath = path.join(__dirname, "../database/positions.json");
 const newPositionsPath = path.join(
   __dirname,
-  "../static/data/positions.json.new",
+  "../database/positions.json.new",
 );
 
 console.log("📍 Mise à jour de positions.json avec les nouveaux IDs...\n");

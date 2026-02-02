@@ -77,7 +77,7 @@ jobs:
 
           # Run the integrity check script using Node (Bun does not support better-sqlite3 yet)
           node scripts/check-db-integrity.js
-          
+
           # Migration auto des IDs si nécessaire
           node scripts/migrate-ids.js || true
 
