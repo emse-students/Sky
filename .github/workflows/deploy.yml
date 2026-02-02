@@ -50,9 +50,23 @@ jobs:
       - name: Install Python dependencies
         run: |
           cd ~/Sky
-          # Essayer d'installer avec l'argument --break-system-packages (pour les OS récents)
-          # sinon se rabattre sur l'installation standard
-          python3 -m pip install -r requirements.txt --break-system-packages || python3 -m pip install -r requirements.txt
+
+          # Check if pip is installed, if not try to install it using get-pip.py
+          if ! python3 -m pip --version > /dev/null 2>&1; then
+            echo "Pip module not found. Attempting to install pip locally..."
+            curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+            python3 get-pip.py --user
+            rm get-pip.py
+          fi
+
+          # Add user site-packages binary path to PATH (often ~/.local/bin)
+          export PATH=$PATH:$HOME/.local/bin
+
+          # Verify pip is now available
+          python3 -m pip --version
+
+          # Install dependencies
+          python3 -m pip install -r requirements.txt --user --break-system-packages || python3 -m pip install -r requirements.txt --user
 
       - name: Initialize database if needed
         run: |
