@@ -371,7 +371,7 @@ def run():
             
             pos_new[shuffled_nodes[i]] = np.array([x, y])
 
-    # Save
+    # Save to static/data (source)
     logger.info(f"Saving positions to {POSITIONS_FILE}...")
     pos_json = {
         node: {"x": float(coords[0]), "y": float(coords[1])}
@@ -381,6 +381,13 @@ def run():
     os.makedirs(os.path.dirname(POSITIONS_FILE), exist_ok=True)
     with open(POSITIONS_FILE, "w") as f:
         json.dump(pos_json, f, indent=2)
+
+    # Save to build/client/data (if exists, for production hot-update)
+    BUILD_POSITIONS_FILE = os.path.join(BASE_DIR, "build", "client", "data", "positions.json")
+    if os.path.exists(os.path.dirname(BUILD_POSITIONS_FILE)):
+        logger.info(f"Updating production build at {BUILD_POSITIONS_FILE}...")
+        with open(BUILD_POSITIONS_FILE, "w") as f:
+            json.dump(pos_json, f, indent=2)
 
     duration = time.time() - start_time
     logger.info(f"Done in {duration:.2f} seconds. Positioned {len(pos_new)} nodes.")
