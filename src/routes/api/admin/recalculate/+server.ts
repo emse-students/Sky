@@ -1,23 +1,18 @@
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { recalculatePositions } from '$lib/server/database';
+import type { RequestHandler } from '@sveltejs/kit';
 
-export const POST: RequestHandler = ({ locals }) => {
-	// Check admin authorization
-	if (locals.user?.profile_id !== 'jolan.boudin') {
-		return new Response('Unauthorized', { status: 403 });
+export const POST: RequestHandler = async ({ locals }) => {
+	const user = locals.user;
+	if (!user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	try {
-		// Launch in background
-		recalculatePositions().catch((error) => {
-			console.error('Position recalculation failed:', error);
-		});
-
-		return new Response(JSON.stringify({ success: true }), {
-			headers: { 'Content-Type': 'application/json' }
-		});
+		await recalculatePositions();
+		return json({ success: true });
 	} catch (error) {
-		console.error('Recalculation error:', error);
-		return new Response('Recalculation failed', { status: 500 });
+		console.error('Recalculation failed:', error);
+		return json({ error: 'Failed to recalculate positions' }, { status: 500 });
 	}
 };
