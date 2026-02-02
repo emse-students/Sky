@@ -33,7 +33,7 @@ class AuthService {
         `);
 
 		const adminExists = this.db
-			.prepare("SELECT id FROM users WHERE role = 'admin'")
+			.prepare("SELECT id FROM users WHERE email = 'les.roots@etu.emse.fr'")
 			.get();
 		if (!adminExists) {
 			this.db

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
+  import { browser } from "$app/environment";
   import {
     Linkedin,
     Mail,
@@ -36,7 +37,7 @@
   let selectedRelationType: "parrainage" | "adoption" = "parrainage";
 
   $: user = $page.data.user;
-  $: if (!user) goto("/");
+  $: if (browser && !user) goto("/");
 
   // Filter relationships by type
   // Parrainage: Source (Parrain) -> Target (Fillot)
