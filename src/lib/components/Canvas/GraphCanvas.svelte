@@ -297,7 +297,7 @@
     const mouseY = clientY - rect.top;
     const worldX = (mouseX - canvas.width / 2) / camera.zoom + camera.x;
     const worldY = (mouseY - canvas.height / 2) / camera.zoom + camera.y;
-    const threshold = 20 / camera.zoom; // Increased hit radius for better click sensitivity
+    const threshold = 40 / camera.zoom; // Increased hit radius for better click sensitivity
 
     for (const person of people) {
       if (!person.id) continue;
