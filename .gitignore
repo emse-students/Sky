@@ -83,3 +83,6 @@ ENV/
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Generated Data
+static/data/positions.json
