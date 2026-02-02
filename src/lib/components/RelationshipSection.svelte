@@ -4,9 +4,17 @@
   export let maxCount: number;
   export let relationships: any[];
   export let people: any[];
-  export let idField: "source_id" | "target_id";
+  export let idField: string;
   export let onRemove: (id: number) => void;
   export let emptyMessage: string = "";
+
+  function getPersonName(rel: any): string {
+    if (rel.other_person_name) return rel.other_person_name;
+    const personId = rel[idField];
+    const person = people.find((p) => p.id === personId);
+    if (!person) return "Inconnu";
+    return person.name || `${person.prenom} ${person.nom}` || "Inconnu";
+  }
 </script>
 
 <div class="subsection">
@@ -15,7 +23,7 @@
     <div class="relationship-list">
       {#each relationships as rel}
         <div class="relationship-item">
-          <span>{people.find((p) => p.id === rel[idField])?.name || "Inconnu"}</span>
+          <span>{getPersonName(rel)}</span>
           <button class="btn-remove" onclick={() => onRemove(rel.id)}>✕</button>
         </div>
       {/each}
