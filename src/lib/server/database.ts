@@ -298,6 +298,70 @@ export function deletePerson(id: string): boolean {
 	return result.changes > 0;
 }
 
+export function mergePeople(sourceId: string, targetId: string): void {
+	const database = getDatabase();
+
+	database.transaction(() => {
+		// 1. Move relationships requests (target_id = sourceId)
+		// I am the TARGET (fillot), so these are my Parrains.
+		const incoming = database
+			.prepare('SELECT id, source_id, type FROM relationships WHERE target_id = ?')
+			.all(sourceId) as { id: number; source_id: string; type: string }[];
+
+		for (const rel of incoming) {
+			try {
+				database
+					.prepare('UPDATE relationships SET target_id = ? WHERE id = ?')
+					.run(targetId, rel.id);
+			} catch {
+				// Constraint violation (duplicate), delete this one
+				console.warn(
+					`Duplicate incoming relation from ${rel.source_id} during merge, deleting.`
+				);
+				database.prepare('DELETE FROM relationships WHERE id = ?').run(rel.id);
+			}
+		}
+
+		// 2. Move relationships source (source_id = sourceId)
+		// I am the SOURCE (parrain), so these are my Fillots.
+		const outgoing = database
+			.prepare('SELECT id, target_id, type FROM relationships WHERE source_id = ?')
+			.all(sourceId) as { id: number; target_id: string; type: string }[];
+
+		for (const rel of outgoing) {
+			try {
+				database
+					.prepare('UPDATE relationships SET source_id = ? WHERE id = ?')
+					.run(targetId, rel.id);
+			} catch {
+				console.warn(
+					`Duplicate outgoing relation to ${rel.target_id} during merge, deleting.`
+				);
+				database.prepare('DELETE FROM relationships WHERE id = ?').run(rel.id);
+			}
+		}
+
+		// 3. Move external links
+		const links = database
+			.prepare('SELECT id, url FROM external_links WHERE person_id = ?')
+			.all(sourceId) as { id: number; url: string }[];
+
+		for (const link of links) {
+			try {
+				database
+					.prepare('UPDATE external_links SET person_id = ? WHERE id = ?')
+					.run(targetId, link.id);
+			} catch {
+				// Duplicate url for target
+				database.prepare('DELETE FROM external_links WHERE id = ?').run(link.id);
+			}
+		}
+
+		// 4. Delete the source person
+		database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
+	})();
+}
+
 // ============================================
 // RELATIONSHIPS OPERATIONS
 // ============================================

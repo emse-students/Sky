@@ -24,6 +24,7 @@ database/*.db
 database/*.db-journal
 database/*.db-wal
 database/*.db.backup
+database/positions.json
 database/backups/
 *.sqlite
 *.sqlite3
@@ -83,6 +84,3 @@ ENV/
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-
-# Generated Data
-static/data/positions.json

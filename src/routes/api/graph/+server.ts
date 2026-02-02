@@ -6,8 +6,9 @@ export const GET: RequestHandler = () => {
 	try {
 		const data = exportGraphData();
 		return json(data);
-	} catch (error: any) {
+	} catch (error) {
 		console.error('Error fetching graph data:', error);
-		return json({ error: 'Failed to load graph data', details: error.message }, { status: 500 });
+		const message = error instanceof Error ? error.message : 'Unknown error';
+		return json({ error: 'Failed to load graph data', details: message }, { status: 500 });
 	}
 };

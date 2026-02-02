@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 # Chemins
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(BASE_DIR, "database", "sky.db")
-POSITIONS_FILE = os.path.join(BASE_DIR, "static", "data", "positions.json")
+# Store positions in database folder as it is preserved during deployments
+POSITIONS_FILE = os.path.join(BASE_DIR, "database", "positions.json")
 
 def circles_pack_in_circle(comp_radii, comp_pts):
     """
@@ -371,7 +372,7 @@ def run():
             
             pos_new[shuffled_nodes[i]] = np.array([x, y])
 
-    # Save to static/data (source)
+    # Save to database directory
     logger.info(f"Saving positions to {POSITIONS_FILE}...")
     pos_json = {
         node: {"x": float(coords[0]), "y": float(coords[1])}
@@ -381,28 +382,6 @@ def run():
     os.makedirs(os.path.dirname(POSITIONS_FILE), exist_ok=True)
     with open(POSITIONS_FILE, "w") as f:
         json.dump(pos_json, f, indent=2)
-
-    # Save to build/client/data (if exists, for production hot-update)
-    BUILD_POSITIONS_FILE = os.path.join(BASE_DIR, "build", "client", "data", "positions.json")
-    build_dir = os.path.dirname(BUILD_POSITIONS_FILE)
-    
-    if os.path.exists(build_dir):
-        logger.info(f"Updating production build at {BUILD_POSITIONS_FILE}...")
-        with open(BUILD_POSITIONS_FILE, "w") as f:
-            json.dump(pos_json, f, indent=2)
-            
-        # Remove stale compressed files (.br, .gz) that might be served instead of the new JSON
-        for ext in ['.br', '.gz']:
-            compressed_file = BUILD_POSITIONS_FILE + ext
-            if os.path.exists(compressed_file):
-                logger.info(f"Removing stale compressed file: {compressed_file}")
-                try:
-                    os.remove(compressed_file)
-                except Exception as e:
-                    logger.warning(f"Failed to remove {compressed_file}: {e}")
-
-    else:
-        logger.warning(f"Production build directory not found at {build_dir}. Skipping hot update.")
 
     duration = time.time() - start_time
     logger.info(f"Done in {duration:.2f} seconds. Positioned {len(pos_new)} nodes.")

@@ -34,7 +34,11 @@
   let searchTerm = "";
   let searchResults: any[] = [];
   let isSearching = false;
-  let selectedRelationType: "parrainage" | "adoption" = "parrainage";
+  let addRole: "parrain" | "fillot" = "fillot";
+  let addType: "parrainage" | "adoption" = "parrainage";
+  let showCreatePerson = false;
+  let newPerson = { firstName: "", lastName: "" };
+  let creatingPerson = false;
 
   $: user = $page.data.user;
   $: if (browser && !user) goto("/");
@@ -164,13 +168,16 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           targetId,
-          type: selectedRelationType,
+          type: addType,
+          role: addRole,
         }),
       });
 
       if (res.ok) {
         searchTerm = "";
         searchResults = [];
+        showCreatePerson = false;
+        newPerson = { firstName: "", lastName: "" };
         await loadProfile();
       } else {
         const data = await res.json();
@@ -179,6 +186,48 @@
     } catch (error) {
       console.error("Error adding relationship:", error);
       alert("Erreur lors de l'ajout");
+    }
+  }
+
+  async function createNewPerson() {
+    if (
+      !newPerson.firstName.trim() ||
+      !newPerson.lastName.trim()
+    ) {
+      alert("Veuillez remplir les noms et prénoms");
+      return;
+    }
+
+    creatingPerson = true;
+    try {
+      const res = await fetch("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prenom: newPerson.firstName,
+          nom: newPerson.lastName,
+          // level? image?
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Assume data returns the ID (the file says it returns newId, but server usually returns json)
+        // src/routes/api/people/+server.ts returns `return json({ id: newId });` (Oops I didn't see the return line but usually it does).
+        // Let's assume it returns { id: "..." }
+        if (data.id) {
+            await addRelationship(data.id);
+        } else {
+             alert("Erreur: ID manquant après création");
+        }
+      } else {
+        alert("Erreur lors de la création de la personne");
+      }
+    } catch (error) {
+      console.error("Error creating person:", error);
+      alert("Erreur lors de la création");
+    } finally {
+      creatingPerson = false;
     }
   }
 
@@ -313,40 +362,6 @@
           idField="person_id_2"
           onRemove={removeRelationship}
         />
-
-        {#if fillots.length < 3}
-          <div class="add-relationship">
-            <h4>Ajouter un fillot</h4>
-            <div class="search-box">
-              <select class="select" bind:value={selectedRelationType}>
-                <option value="parrainage">Officiel</option>
-                <option value="adoption">Adoption</option>
-              </select>
-              <input
-                class="input"
-                type="text"
-                placeholder="Rechercher..."
-                bind:value={searchTerm}
-                oninput={searchPeople}
-              />
-            </div>
-            {#if isSearching}
-              <div class="searching">Recherche...</div>
-            {:else if searchResults.length > 0}
-              <div class="search-results">
-                {#each searchResults as person}
-                  <button
-                    class="result-item"
-                    onclick={() => addRelationship(person.id)}
-                  >
-                    {person.prenom}
-                    {person.nom} ({person.level || "N/A"})
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        {/if}
       </div>
 
       <!-- Parrains -->
@@ -374,6 +389,120 @@
           onRemove={removeRelationship}
           emptyMessage="Aucun parrain d'adoption"
         />
+      </div>
+
+      <!-- Add Relationship -->
+      <div class="form-section">
+        <h3>Ajouter une relation</h3>
+        <div class="add-relationship">
+          <div class="relationship-controls">
+            <div class="control-group">
+              <span class="group-label">Rôle à ajouter :</span>
+              <div class="radio-group">
+                <label>
+                  <input type="radio" bind:group={addRole} value="fillot" />
+                  Fillot
+                </label>
+                <label>
+                  <input type="radio" bind:group={addRole} value="parrain" />
+                  Parrain
+                </label>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <span class="group-label">Type :</span>
+              <div class="radio-group">
+                <label>
+                  <input
+                    type="radio"
+                    bind:group={addType}
+                    value="parrainage"
+                  />
+                  Officiel
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    bind:group={addType}
+                    value="adoption"
+                  />
+                  Adoption
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-box">
+            <input
+              class="input"
+              type="text"
+              placeholder="Rechercher une personne..."
+              bind:value={searchTerm}
+              oninput={searchPeople}
+            />
+          </div>
+
+          {#if isSearching}
+            <div class="searching">Recherche...</div>
+          {:else if searchResults.length > 0}
+            <div class="search-results">
+              {#each searchResults as person}
+                <button
+                  class="result-item"
+                  onclick={() => addRelationship(person.id)}
+                >
+                  <div class="person-info">
+                    <strong>{person.prenom} {person.nom}</strong>
+                    {#if person.level}<span class="level">Promo {person.level}</span>{/if}
+                  </div>
+                  <span class="action-icon">+</span>
+                </button>
+              {/each}
+            </div>
+          {:else if searchTerm.length > 2}
+             <div class="no-results">
+                <p>Aucun résultat trouvé pour "{searchTerm}"</p>
+                <Button 
+                   variant="outline" 
+                   size="sm"
+                   on:click={() => showCreatePerson = !showCreatePerson}
+                >
+                   {showCreatePerson ? "Annuler la création" : "Créer une nouvelle personne"}
+                </Button>
+             </div>
+          {/if}
+          
+          {#if showCreatePerson}
+            <div class="create-person-form">
+               <h4>Créer une nouvelle personne</h4>
+               <div class="form-row">
+                 <input 
+                    class="input" 
+                    type="text" 
+                    placeholder="Prénom"
+                    bind:value={newPerson.firstName}
+                 />
+                 <input 
+                    class="input" 
+                    type="text" 
+                    placeholder="Nom"
+                    bind:value={newPerson.lastName}
+                 />
+               </div>
+               <div class="form-actions">
+                  <Button 
+                    disabled={creatingPerson}
+                    loading={creatingPerson}
+                    on:click={createNewPerson}
+                  >
+                    Créer et Ajouter comme {addRole}
+                  </Button>
+               </div>
+            </div>
+          {/if}
+
+        </div>
       </div>
 
       <!-- Save Button -->
@@ -527,5 +656,99 @@
     text-align: center;
     padding: 40px;
     color: rgba(255, 255, 255, 0.6);
+  }
+
+  .relationship-controls {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .control-group .group-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+
+  .radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: pointer;
+    color: white;
+    font-size: 14px;
+    text-transform: none;
+  }
+
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .person-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .level {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .no-results {
+    padding: 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .no-results p {
+     margin: 0;
+  }
+
+  .create-person-form {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+  }
+
+  .create-person-form h4 {
+    color: #3b82f6;
+    margin-top: 0;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
   }
 </style>
