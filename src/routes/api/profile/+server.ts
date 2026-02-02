@@ -48,6 +48,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		return json({ success: true });
 	} catch (error) {
 		console.error('Error updating profile:', error);
-		return json({ error: 'Failed to update profile' }, { status: 500 });
+		const message = error instanceof Error ? error.message : 'Unknown error';
+		return json({ error: 'Failed to update profile', details: message }, { status: 500 });
 	}
 };

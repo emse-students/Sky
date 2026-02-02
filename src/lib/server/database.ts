@@ -283,7 +283,14 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
 				VALUES (?, ?, ?)
 			`);
 			for (const [type, url] of Object.entries(updates.links)) {
-				linkStmt.run(id, type, url);
+				try {
+					linkStmt.run(id, type, url);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					console.warn(
+						`[Database] Failed to insert link '${type}': ${url} for user ${id}. Error: ${message}`
+					);
+				}
 			}
 		}
 	}
