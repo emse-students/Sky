@@ -47,6 +47,13 @@ jobs:
           # Utilisation directe de github.workspace pour éviter les erreurs de chemin
           cp -r ${{ github.workspace }}/* .
 
+      - name: Install Python dependencies
+        run: |
+          cd ~/Sky
+          # Essayer d'installer avec l'argument --break-system-packages (pour les OS récents)
+          # sinon se rabattre sur l'installation standard
+          python3 -m pip install -r requirements.txt --break-system-packages || python3 -m pip install -r requirements.txt
+
       - name: Initialize database if needed
         run: |
           cd ~/Sky
