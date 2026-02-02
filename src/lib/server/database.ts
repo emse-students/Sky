@@ -440,8 +440,11 @@ export async function recalculatePositions(): Promise<void> {
 	return new Promise((resolve, reject) => {
 		console.debug('🔄 Lancement du calcul des positions...');
 
+		// Try python3 first, then fallback to python
+		const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
+
 		const pythonProcess = spawn(
-			'python',
+			pythonCommand,
 			[path.join(projectRoot, 'scripts', 'calcul_positions.py')],
 			{
 				cwd: projectRoot
