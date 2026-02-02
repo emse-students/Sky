@@ -76,7 +76,8 @@ jobs:
             echo "Base de données non trouvée, initialisation..."
             bun scripts/init-db.js
           else
-            echo "Base de données existante trouvée, pas d'initialisation"
+            echo "Base de données existante trouvée, exécution des migrations..."
+            bun scripts/migrate-add-bio.js
           fi
 
       - name: Restart server
