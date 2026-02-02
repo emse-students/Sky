@@ -384,10 +384,14 @@ def run():
 
     # Save to build/client/data (if exists, for production hot-update)
     BUILD_POSITIONS_FILE = os.path.join(BASE_DIR, "build", "client", "data", "positions.json")
-    if os.path.exists(os.path.dirname(BUILD_POSITIONS_FILE)):
+    build_dir = os.path.dirname(BUILD_POSITIONS_FILE)
+    
+    if os.path.exists(build_dir):
         logger.info(f"Updating production build at {BUILD_POSITIONS_FILE}...")
         with open(BUILD_POSITIONS_FILE, "w") as f:
             json.dump(pos_json, f, indent=2)
+    else:
+        logger.warning(f"Production build directory not found at {build_dir}. Skipping hot update.")
 
     duration = time.time() - start_time
     logger.info(f"Done in {duration:.2f} seconds. Positioned {len(pos_new)} nodes.")
