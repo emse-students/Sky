@@ -2,17 +2,16 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import {
-    Linkedin,
-    Mail,
-    Globe,
-    Github,
-    Instagram,
-    Phone,
-  } from "lucide-svelte";
+  import { Linkedin, Mail, Globe, Github, Instagram, Phone } from "lucide-svelte";
+  import LinkInput from "$lib/components/LinkInput.svelte";
+  import RelationshipSection from "$lib/components/RelationshipSection.svelte";
+  import Button from "$lib/components/Button.svelte";
+  import TextArea from "$lib/components/TextArea.svelte";
+  import Avatar from "$lib/components/Avatar.svelte";
 
   let profile: any = null;
   let relationships: any[] = [];
+  let people: any[] = [];
   let bio = "";
   let links: Record<string, string> = {
     LinkedIn: "",
@@ -27,24 +26,24 @@
   let searchTerm = "";
   let searchResults: any[] = [];
   let isSearching = false;
-  let selectedRelationType: "family1" | "family2" = "family1";
+  let selectedRelationType: "parrainage" | "adoption" = "parrainage";
 
   $: user = $page.data.user;
   $: if (!user) goto("/");
 
   // Filter relationships by type
   // Parrainage: Source (Parrain) -> Target (Fillot)
-  // Fillots: I am the Source (person_id_1)
-  $: fillots = relationships.filter((r) => r.person_id_1 === user?.profile_id);
+  // Fillots: I am the Source (source_id)
+  $: fillots = relationships.filter((r) => r.source_id === user?.profile_id);
 
-  $: fillotFamily1 = fillots.filter((r) => r.type === "family1");
-  $: fillotFamily2 = fillots.filter((r) => r.type === "family2");
+  $: fillotParrainage = fillots.filter((r) => r.type === "parrainage");
+  $: fillotAdoption = fillots.filter((r) => r.type === "adoption");
 
-  // Parrains: I am the Target (person_id_2)
-  $: parrains = relationships.filter((r) => r.person_id_2 === user?.profile_id);
+  // Parrains: I am the Target (target_id)
+  $: parrains = relationships.filter((r) => r.target_id === user?.profile_id);
 
-  $: parrainFamily1 = parrains.find((r) => r.type === "family1");
-  $: parrainFamily2 = parrains.find((r) => r.type === "family2");
+  $: parrainParrainage = parrains.find((r) => r.type === "parrainage");
+  $: parrainAdoption = parrains.find((r) => r.type === "adoption");
 
   onMount(async () => {
     await loadProfile();
@@ -53,9 +52,13 @@
   async function loadProfile() {
     loading = true;
     try {
-      const res = await fetch("/api/profile");
-      if (res.ok) {
-        const data = await res.json();
+      const [profileRes, peopleRes] = await Promise.all([
+        fetch("/api/profile"),
+        fetch("/api/people"),
+      ]);
+
+      if (profileRes.ok) {
+        const data = await profileRes.json();
         profile = data.person;
         relationships = data.relationships || [];
         bio = profile?.bio || "";
@@ -74,6 +77,12 @@
         }
       } else {
         console.error("Failed to load profile");
+      }
+
+      if (peopleRes.ok) {
+        people = await peopleRes.json();
+      } else {
+        console.error("Failed to load people");
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -125,7 +134,7 @@
         // Filter out self and already related people
         const relatedIds = new Set(
           relationships.map((r) =>
-            r.person_id_1 === user?.profile_id ? r.person_id_2 : r.person_id_1,
+            r.source_id === user?.profile_id ? r.target_id : r.source_id,
           ),
         );
         searchResults = data.results.filter(
@@ -191,8 +200,8 @@
   <title>Éditer mon profil - Sky</title>
 </svelte:head>
 
-<div class="edit-page">
-  <div class="edit-container">
+<div class="page-container">
+  <div class="content-container card">
     <h1>Éditer mon profil</h1>
 
     {#if loading}
@@ -200,23 +209,12 @@
     {:else if profile}
       <div class="profile-section">
         <div class="profile-header-edit">
-          <div class="profile-avatar-edit">
-            <img
-              src={`/api/avatar/${user?.profile_id}`}
-              alt={profile.name}
-              onerror={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                const sibling = target.nextElementSibling as HTMLElement;
-                if (sibling) {
-                  target.style.display = "none";
-                  sibling.style.display = "flex";
-                }
-              }}
-            />
-            <div class="avatar-placeholder-edit" style="display: none;">
-              {profile.name?.charAt(0) || "?"}
-            </div>
-          </div>
+          <Avatar
+            src="/api/avatar/{user?.profile_id}"
+            alt={profile.name}
+            size={80}
+            fallbackText={profile.name?.charAt(0) || "?"}
+          />
           <div>
             <h2>{profile.name}</h2>
             <p class="promo">Promo {profile.level || "N/A"}</p>
@@ -226,135 +224,60 @@
 
       <!-- Bio -->
       <div class="form-section">
-        <label for="bio">Biographie</label>
-        <textarea
+        <TextArea
           id="bio"
+          label="Biographie"
           bind:value={bio}
-          rows="6"
+          rows={6}
           placeholder="Décrivez-vous..."
-        ></textarea>
+        />
       </div>
 
       <!-- Links -->
       <div class="form-section">
         <h3>Mes Liens</h3>
-        <div class="field-group">
-          <label for="linkedin">
-            <Linkedin size={16} />
-            LinkedIn
-          </label>
-          <input
-            type="text"
-            id="linkedin"
-            bind:value={links["LinkedIn"]}
-            placeholder="https://linkedin.com/in/..."
-          />
-        </div>
-        <div class="field-group">
-          <label for="email">
-            <Mail size={16} />
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            bind:value={links["Email"]}
-            placeholder="mon.email@example.com"
-          />
-        </div>
-        <div class="field-group">
-          <label for="github">
-            <Github size={16} />
-            GitHub
-          </label>
-          <input
-            type="text"
-            id="github"
-            bind:value={links["GitHub"]}
-            placeholder="https://github.com/..."
-          />
-        </div>
-        <div class="field-group">
-          <label for="instagram">
-            <Instagram size={16} />
-            Instagram
-          </label>
-          <input
-            type="text"
-            id="instagram"
-            bind:value={links["Instagram"]}
-            placeholder="https://instagram.com/..."
-          />
-        </div>
-        <div class="field-group">
-          <label for="phone">
-            <Phone size={16} />
-            Téléphone
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            bind:value={links["Phone"]}
-            placeholder="+33 6 12 34 56 78"
-          />
-        </div>
-        <div class="field-group">
-          <label for="website">
-            <Globe size={16} />
-            Site Web
-          </label>
-          <input
-            type="text"
-            id="website"
-            bind:value={links["Website"]}
-            placeholder="https://monsite.com"
-          />
-        </div>
+        <LinkInput id="linkedin" label="LinkedIn" icon={Linkedin} bind:value={links["LinkedIn"]} placeholder="https://linkedin.com/in/..." />
+        <LinkInput id="email" label="Email" icon={Mail} type="email" bind:value={links["Email"]} placeholder="mon.email@example.com" />
+        <LinkInput id="github" label="GitHub" icon={Github} bind:value={links["GitHub"]} placeholder="https://github.com/..." />
+        <LinkInput id="instagram" label="Instagram" icon={Instagram} bind:value={links["Instagram"]} placeholder="https://instagram.com/..." />
+        <LinkInput id="phone" label="Téléphone" icon={Phone} type="tel" bind:value={links["Phone"]} placeholder="+33 6 12 34 56 78" />
+        <LinkInput id="website" label="Site Web" icon={Globe} bind:value={links["Website"]} placeholder="https://monsite.com" />
       </div>
 
       <!-- Fillots -->
       <div class="form-section">
         <h3>Mes Fillots ({fillots.length}/3 max)</h3>
 
-        <div class="subsection">
-          <h4>Officiels ({fillotFamily1.length}/3)</h4>
-          <div class="relationship-list">
-            {#each fillotFamily1 as rel}
-              <div class="relationship-item">
-                <span>{rel.other_person_name}</span>
-                <button
-                  class="btn-remove"
-                  onclick={() => removeRelationship(rel.id)}>✕</button
-                >
-              </div>
-            {/each}
-          </div>
-        </div>
+        <RelationshipSection
+          title="Officiels"
+          count={fillotParrainage.length}
+          maxCount={3}
+          relationships={fillotParrainage}
+          {people}
+          idField="target_id"
+          onRemove={removeRelationship}
+        />
 
-        <div class="subsection">
-          <h4>D'adoption ({fillotFamily2.length}/3)</h4>
-          <div class="relationship-list">
-            {#each fillotFamily2 as rel}
-              <div class="relationship-item">
-                <span>{rel.other_person_name}</span>
-                <button
-                  class="btn-remove"
-                  onclick={() => removeRelationship(rel.id)}>✕</button
-                >
-              </div>
-            {/each}
-          </div>
-        </div>
+        <RelationshipSection
+          title="D'adoption"
+          count={fillotAdoption.length}
+          maxCount={3}
+          relationships={fillotAdoption}
+          {people}
+          idField="target_id"
+          onRemove={removeRelationship}
+        />
 
         {#if fillots.length < 3}
           <div class="add-relationship">
             <h4>Ajouter un fillot</h4>
             <div class="search-box">
-              <select bind:value={selectedRelationType}>
-                <option value="family1">Officiel</option>
-                <option value="family2">Adoption</option>
+              <select class="select" bind:value={selectedRelationType}>
+                <option value="parrainage">Officiel</option>
+                <option value="adoption">Adoption</option>
               </select>
               <input
+                class="input"
                 type="text"
                 placeholder="Rechercher..."
                 bind:value={searchTerm}
@@ -384,46 +307,37 @@
       <div class="form-section">
         <h3>Mes Parrains</h3>
 
-        <div class="subsection">
-          <h4>Officiel (max 1)</h4>
-          {#if parrainFamily1}
-            <div class="relationship-item">
-              <span>{parrainFamily1.other_person_name}</span>
-              <button
-                class="btn-remove"
-                onclick={() => removeRelationship(parrainFamily1.id)}>✕</button
-              >
-            </div>
-          {:else}
-            <p class="empty">Aucun parrain officiel</p>
-          {/if}
-        </div>
+        <RelationshipSection
+          title="Officiel (max 1)"
+          count={parrainParrainage ? 1 : 0}
+          maxCount={1}
+          relationships={parrainParrainage ? [parrainParrainage] : []}
+          {people}
+          idField="source_id"
+          onRemove={removeRelationship}
+          emptyMessage="Aucun parrain officiel"
+        />
 
-        <div class="subsection">
-          <h4>D'adoption (max 1)</h4>
-          {#if parrainFamily2}
-            <div class="relationship-item">
-              <span>{parrainFamily2.other_person_name}</span>
-              <button
-                class="btn-remove"
-                onclick={() => removeRelationship(parrainFamily2.id)}>✕</button
-              >
-            </div>
-          {:else}
-            <p class="empty">Aucun parrain d'adoption</p>
-          {/if}
-        </div>
+        <RelationshipSection
+          title="D'adoption (max 1)"
+          count={parrainAdoption ? 1 : 0}
+          maxCount={1}
+          relationships={parrainAdoption ? [parrainAdoption] : []}
+          {people}
+          idField="source_id"
+          onRemove={removeRelationship}
+          emptyMessage="Aucun parrain d'adoption"
+        />
       </div>
 
       <!-- Save Button -->
       <div class="actions">
-        <!-- Changed label from Annuler to Retour -->
-        <button class="btn-cancel" onclick={() => goto("/")}
-          >Retour à la carte</button
-        >
-        <button class="btn-save" onclick={saveProfile} disabled={saving}>
-          {saving ? "Sauvegarde..." : "Sauvegarder"}
-        </button>
+        <Button variant="outline" on:click={() => goto("/")}>
+          Retour à la carte
+        </Button>
+        <Button variant="secondary" disabled={saving} loading={saving} on:click={saveProfile}>
+          Sauvegarder
+        </Button>
       </div>
     {:else}
       <div class="error">Profil non trouvé</div>
@@ -432,28 +346,6 @@
 </div>
 
 <style>
-  .edit-page {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 10;
-    background: linear-gradient(to bottom, #0f172a, #1e293b);
-    padding: 80px 20px 40px;
-  }
-
-  .edit-container {
-    max-width: 800px;
-    margin: 0 auto;
-    background: rgba(17, 24, 39, 0.95);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 16px;
-    padding: 32px;
-    color: white;
-  }
-
   h1 {
     color: white;
     font-size: 32px;
@@ -465,14 +357,6 @@
     color: white;
     font-size: 24px;
     margin: 0;
-  }
-
-  h3 {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 18px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 8px;
   }
 
   h4 {
@@ -499,129 +383,16 @@
     gap: 20px;
   }
 
-  .profile-avatar-edit {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid rgba(59, 130, 246, 0.5);
-  }
-
-  .profile-avatar-edit img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .avatar-placeholder-edit {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    font-size: 32px;
-    font-weight: bold;
-    color: white;
-  }
-
   .form-section {
     margin-bottom: 32px;
   }
 
-  .subsection {
-    margin-bottom: 24px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-  }
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
-  }
-
-  .field-group {
-    margin-bottom: 12px;
-  }
-
-  input[type="text"],
-  input[type="email"],
-  input[type="tel"] {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 10px;
-    color: white;
-    font-size: 14px;
-  }
-
-  input[type="text"]:focus,
-  input[type="email"]:focus,
-  input[type="tel"]:focus {
-    outline: none;
-    border-color: rgba(59, 130, 246, 0.5);
-  }
-
-  textarea {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 12px;
-    color: white;
-    font-size: 14px;
-    line-height: 1.6;
-    resize: vertical;
-    font-family: inherit;
-  }
-
-  textarea:focus {
-    outline: none;
-    border-color: rgba(59, 130, 246, 0.5);
-  }
-
-  .relationship-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .relationship-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 6px;
-  }
-
-  .relationship-item span {
-    color: white;
-    font-size: 14px;
-  }
-
-  .btn-remove {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #f87171;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.2s;
-  }
-
-  .btn-remove:hover {
-    background: rgba(239, 68, 68, 0.3);
+  .form-section h3 {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 18px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
   }
 
   .add-relationship {
@@ -635,30 +406,6 @@
     display: flex;
     gap: 8px;
     margin-bottom: 12px;
-  }
-
-  .search-box select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-  }
-
-  .search-box input {
-    flex: 1;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: white;
-    font-size: 14px;
-  }
-
-  .search-box input:focus {
-    outline: none;
-    border-color: rgba(59, 130, 246, 0.5);
   }
 
   .search-results {
@@ -685,10 +432,11 @@
     background: rgba(59, 130, 246, 0.2);
   }
 
-  .empty {
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 13px;
-    font-style: italic;
+  .searching,
+  .loading {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 20px;
   }
 
   .actions {
@@ -698,42 +446,6 @@
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-cancel,
-  .btn-save {
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-cancel {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  .btn-save {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    border: none;
-    color: white;
-  }
-
-  .btn-save:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-  }
-
-  .btn-save:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .loading,
