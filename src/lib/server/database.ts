@@ -114,17 +114,18 @@ export function getAllPeople(): Person[] {
 	const stmt = database.prepare(`
 		SELECT 
 			id, first_name, last_name,
-			level, image_url
+			level, bio, image_url
 		FROM people
 		ORDER BY last_name, first_name
 	`);
 
-	const rows = stmt.all() as PersonRow[];
+	const rows = stmt.all() as (PersonRow & { bio: string | null })[];
 
 	return rows.map((row) => {
 		const person: Person = {
 			id: row.id,
 			level: row.level,
+			bio: row.bio || undefined,
 			image: row.image_url || undefined,
 			prenom: row.first_name,
 			nom: row.last_name
@@ -148,12 +149,12 @@ export function getPersonById(id: string): Person | null {
 	const stmt = database.prepare(`
 		SELECT 
 			id, first_name, last_name,
-			level, image_url
+			level, bio, image_url
 		FROM people
 		WHERE id = ?
 	`);
 
-	const row = stmt.get(id) as PersonRow | undefined;
+	const row = stmt.get(id) as PersonRow & { bio: string | null } | undefined;
 	if (!row) {
 		return null;
 	}
@@ -161,6 +162,7 @@ export function getPersonById(id: string): Person | null {
 	const person: Person = {
 		id: row.id,
 		level: row.level,
+		bio: row.bio || undefined,
 		image: row.image_url || undefined,
 		prenom: row.first_name,
 		nom: row.last_name
@@ -223,8 +225,8 @@ export function createPerson(
     	.replace(/[^a-z0-9.]/g, '');
 
 	const stmt = database.prepare(`
-		INSERT INTO people (id, first_name, last_name, level, image_url)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO people (id, first_name, last_name, level, bio, image_url)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`);
 
 	stmt.run(
@@ -232,6 +234,7 @@ export function createPerson(
 		person.prenom,
 		person.nom,
 		person.level || null,
+		person.bio || null,
 		person.image || 'default.jpg'
 	);
 
@@ -258,6 +261,7 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
 			first_name = COALESCE(?, first_name),
 			last_name = COALESCE(?, last_name),
 			level = COALESCE(?, level),
+			bio = COALESCE(?, bio),
 			image_url = COALESCE(?, image_url),
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
@@ -267,6 +271,7 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
 		updates.prenom || null,
 		updates.nom || null,
 		updates.level || null,
+		updates.bio || null,
 		updates.image || null,
 		id
 	);

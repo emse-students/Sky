@@ -390,6 +390,17 @@ def run():
         logger.info(f"Updating production build at {BUILD_POSITIONS_FILE}...")
         with open(BUILD_POSITIONS_FILE, "w") as f:
             json.dump(pos_json, f, indent=2)
+            
+        # Remove stale compressed files (.br, .gz) that might be served instead of the new JSON
+        for ext in ['.br', '.gz']:
+            compressed_file = BUILD_POSITIONS_FILE + ext
+            if os.path.exists(compressed_file):
+                logger.info(f"Removing stale compressed file: {compressed_file}")
+                try:
+                    os.remove(compressed_file)
+                except Exception as e:
+                    logger.warning(f"Failed to remove {compressed_file}: {e}")
+
     else:
         logger.warning(f"Production build directory not found at {build_dir}. Skipping hot update.")
 

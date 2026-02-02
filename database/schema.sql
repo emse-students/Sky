@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS people (
     level INTEGER,  -- Year of graduation (promotion)
     
     -- Profile
+    bio TEXT,
     image_url TEXT,  -- Can be from MiGallery API or local
     
     -- Metadata

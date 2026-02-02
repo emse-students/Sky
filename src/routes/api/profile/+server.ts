@@ -39,11 +39,11 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const data = (await request.json()) as { links?: Record<string, string> };
-		const { links } = data;
+		const data = (await request.json()) as { bio?: string; links?: Record<string, string> };
+		const { bio, links } = data;
 
 		// Update person
-		updatePerson(user.profile_id, { links });
+		updatePerson(user.profile_id, { bio, links });
 
 		return json({ success: true });
 	} catch (error) {
