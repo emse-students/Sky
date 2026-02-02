@@ -4,7 +4,7 @@ import type { User, Session } from '$types/api';
 class AuthService {
 	private db: Database.Database;
 
-	constructor(dbPath: string = 'auth.db') {
+	constructor(dbPath: string = 'database/auth.db') {
 		this.db = new Database(dbPath);
 		this.initDatabase();
 	}
