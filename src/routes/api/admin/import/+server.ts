@@ -1,6 +1,10 @@
 import type { RequestHandler } from './$types';
 import { writeFileSync, copyFileSync } from 'fs';
 import { DB_PATH } from '$lib/server/database';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Check admin authorization
@@ -24,6 +28,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 		writeFileSync(DB_PATH, buffer);
+
+		// Run migrations on imported database
+		try {
+			console.debug('Running migrations on imported database...');
+
+			// Run integrity check + FTS rebuild
+			await execAsync('node scripts/check-db-integrity.js');
+
+			// Run bio migration
+			await execAsync('node scripts/migrate-add-bio.js');
+
+			console.debug('Migrations completed successfully');
+		} catch (migrationError) {
+			console.error('Migration error (non-fatal):', migrationError);
+			// Don't fail the import if migrations fail
+		}
 
 		return new Response(JSON.stringify({ success: true }), {
 			headers: { 'Content-Type': 'application/json' }

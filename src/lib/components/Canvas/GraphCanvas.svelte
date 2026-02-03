@@ -156,12 +156,12 @@
           }
 
           // Style différent selon le type de lien
-          if (rel.type === "family2") {
+          if (rel.type === "adoption") {
             // Adoption - ligne pointillée
             ctx.strokeStyle = "rgba(150, 100, 255, 0.4)";
             ctx.setLineDash([5 / camera.zoom, 5 / camera.zoom]);
           } else {
-            // Family1 ou autre - ligne continue
+            // Parrainage (officiel) - ligne continue
             ctx.strokeStyle = "rgba(100, 150, 255, 0.3)";
             ctx.setLineDash([]);
           }

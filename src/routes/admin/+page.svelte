@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/stores";
+  import { goto } from "$app/navigation";
   import {
     Database,
     Download,
@@ -8,6 +9,7 @@
     Users,
     Link2,
     AlertCircle,
+    UserCheck,
   } from "lucide-svelte";
 
   let stats = { people: 0, relationships: 0, links: 0 };
@@ -234,6 +236,16 @@
           disabled={loadingRecalc}
         >
           {loadingRecalc ? "Calcul en cours..." : "Recalculer"}
+        </button>
+      </div>
+
+      <div class="action-card">
+        <h2><UserCheck size={24} /> Fusion de doublons</h2>
+        <p>
+          Identifier et fusionner les entrées en double dans la base de données.
+        </p>
+        <button class="btn-secondary" onclick={() => goto("/admin/duplicates")}>
+          Gérer les doublons
         </button>
       </div>
     </div>
