@@ -70,6 +70,20 @@ try {
       console.log("✅ Table 'associations' créée.");
   }
 
+  // 4. Rebuild FTS index if corrupted or missing
+  try {
+    const ftsTest = db.prepare("SELECT COUNT(*) as count FROM people_fts").get();
+    const peopleCount = db.prepare("SELECT COUNT(*) as count FROM people").get();
+    
+    if (!ftsTest || ftsTest.count !== peopleCount.count) {
+      console.log("⚠️ Index FTS désynchronisé. Reconstruction...");
+      rebuildFTS();
+    }
+  } catch (error) {
+    console.log("⚠️ Index FTS manquant ou corrompu. Reconstruction...");
+    rebuildFTS();
+  }
+
   console.log("✅ Intégrité de la base de données vérifiée.");
 
 } catch (error) {
@@ -87,5 +101,27 @@ function applySchema() {
   } else {
     console.error("❌ Fichier de schéma introuvable:", schemaPath);
     process.exit(1);
+  }
+}
+
+function rebuildFTS() {
+  try {
+    db.prepare("DROP TABLE IF EXISTS people_fts").run();
+    db.prepare(`
+      CREATE VIRTUAL TABLE people_fts USING fts5(
+        id,
+        first_name,
+        last_name,
+        content='people',
+        content_rowid='rowid'
+      )
+    `).run();
+    db.prepare(`
+      INSERT INTO people_fts(rowid, id, first_name, last_name)
+      SELECT rowid, id, first_name, last_name FROM people
+    `).run();
+    console.log("✅ Index FTS reconstruit.");
+  } catch (error) {
+    console.error("❌ Erreur lors de la reconstruction FTS:", error);
   }
 }

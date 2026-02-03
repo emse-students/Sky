@@ -37,7 +37,7 @@
   let addRole: "parrain" | "fillot" = "fillot";
   let addType: "parrainage" | "adoption" = "parrainage";
   let showCreatePerson = false;
-  let newPerson = { firstName: "", lastName: "" };
+  let newPerson = { firstName: "", lastName: "", level: "" };
   let creatingPerson = false;
 
   $: user = $page.data.user;
@@ -177,7 +177,7 @@
         searchTerm = "";
         searchResults = [];
         showCreatePerson = false;
-        newPerson = { firstName: "", lastName: "" };
+        newPerson = { firstName: "", lastName: "", level: "" };
         await loadProfile();
       } else {
         const data = await res.json();
@@ -190,10 +190,7 @@
   }
 
   async function createNewPerson() {
-    if (
-      !newPerson.firstName.trim() ||
-      !newPerson.lastName.trim()
-    ) {
+    if (!newPerson.firstName.trim() || !newPerson.lastName.trim()) {
       alert("Veuillez remplir les noms et prénoms");
       return;
     }
@@ -206,7 +203,7 @@
         body: JSON.stringify({
           prenom: newPerson.firstName,
           nom: newPerson.lastName,
-          // level? image?
+          level: newPerson.level ? parseInt(newPerson.level) : null,
         }),
       });
 
@@ -216,9 +213,9 @@
         // src/routes/api/people/+server.ts returns `return json({ id: newId });` (Oops I didn't see the return line but usually it does).
         // Let's assume it returns { id: "..." }
         if (data.id) {
-            await addRelationship(data.id);
+          await addRelationship(data.id);
         } else {
-             alert("Erreur: ID manquant après création");
+          alert("Erreur: ID manquant après création");
         }
       } else {
         alert("Erreur lors de la création de la personne");
@@ -414,19 +411,11 @@
               <span class="group-label">Type :</span>
               <div class="radio-group">
                 <label>
-                  <input
-                    type="radio"
-                    bind:group={addType}
-                    value="parrainage"
-                  />
+                  <input type="radio" bind:group={addType} value="parrainage" />
                   Officiel
                 </label>
                 <label>
-                  <input
-                    type="radio"
-                    bind:group={addType}
-                    value="adoption"
-                  />
+                  <input type="radio" bind:group={addType} value="adoption" />
                   Adoption
                 </label>
               </div>
@@ -454,54 +443,63 @@
                 >
                   <div class="person-info">
                     <strong>{person.prenom} {person.nom}</strong>
-                    {#if person.level}<span class="level">Promo {person.level}</span>{/if}
+                    {#if person.level}<span class="level"
+                        >Promo {person.level}</span
+                      >{/if}
                   </div>
                   <span class="action-icon">+</span>
                 </button>
               {/each}
             </div>
           {:else if searchTerm.length > 2}
-             <div class="no-results">
-                <p>Aucun résultat trouvé pour "{searchTerm}"</p>
-                <Button 
-                   variant="outline" 
-                   size="sm"
-                   on:click={() => showCreatePerson = !showCreatePerson}
-                >
-                   {showCreatePerson ? "Annuler la création" : "Créer une nouvelle personne"}
-                </Button>
-             </div>
-          {/if}
-          
-          {#if showCreatePerson}
-            <div class="create-person-form">
-               <h4>Créer une nouvelle personne</h4>
-               <div class="form-row">
-                 <input 
-                    class="input" 
-                    type="text" 
-                    placeholder="Prénom"
-                    bind:value={newPerson.firstName}
-                 />
-                 <input 
-                    class="input" 
-                    type="text" 
-                    placeholder="Nom"
-                    bind:value={newPerson.lastName}
-                 />
-               </div>
-               <div class="form-actions">
-                  <Button 
-                    disabled={creatingPerson}
-                    loading={creatingPerson}
-                    on:click={createNewPerson}
-                  >
-                    Créer et Ajouter comme {addRole}
-                  </Button>
-               </div>
+            <div class="no-results">
+              <p>Aucun résultat trouvé pour "{searchTerm}"</p>
+              <Button
+                variant="outline"
+                size="sm"
+                on:click={() => (showCreatePerson = !showCreatePerson)}
+              >
+                {showCreatePerson
+                  ? "Annuler la création"
+                  : "Créer une nouvelle personne"}
+              </Button>
             </div>
           {/if}
 
+          {#if showCreatePerson}
+            <div class="create-person-form">
+              <h4>Créer une nouvelle personne</h4>
+              <div class="form-row">
+                <input
+                  class="input"
+                  type="text"
+                  placeholder="Prénom"
+                  bind:value={newPerson.firstName}
+                />
+                <input
+                  class="input"
+                  type="text"
+                  placeholder="Nom"
+                  bind:value={newPerson.lastName}
+                />
+                <input
+                  class="input"
+                  type="number"
+                  placeholder="Année (ex: 2024)"
+                  bind:value={newPerson.level}
+                />
+              </div>
+              <div class="form-actions">
+                <Button
+                  disabled={creatingPerson}
+                  loading={creatingPerson}
+                  on:click={createNewPerson}
+                >
+                  Créer et Ajouter comme {addRole}
+                </Button>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
 
@@ -725,7 +723,7 @@
   }
 
   .no-results p {
-     margin: 0;
+    margin: 0;
   }
 
   .create-person-form {
