@@ -17,12 +17,30 @@ const db = new Database(dbPath);
 
 try {
   console.log("Adding bio column to people table...");
-  db.prepare("ALTER TABLE people ADD COLUMN bio TEXT").run();
+  try {
+    db.prepare("ALTER TABLE people ADD COLUMN bio TEXT").run();
+    console.log("Bio column added.");
+  } catch (error) {
+    if (error.message.includes("duplicate column name: bio")) {
+      console.log("Column bio already exists.");
+    } else {
+      throw error;
+    }
+  }
+
+  console.log("Adding image_url column to people table...");
+  try {
+    db.prepare("ALTER TABLE people ADD COLUMN image_url TEXT").run();
+    console.log("Image_url column added.");
+  } catch (error) {
+    if (error.message.includes("duplicate column name: image_url")) {
+      console.log("Column image_url already exists.");
+    } else {
+      throw error;
+    }
+  }
+
   console.log("Done.");
 } catch (error) {
-  if (error.message.includes("duplicate column name: bio")) {
-    console.log("Column bio already exists.");
-  } else {
-    console.error("Error adding bio column:", error);
-  }
+  console.error("Migration failed:", error);
 }
