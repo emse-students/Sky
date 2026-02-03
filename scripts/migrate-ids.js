@@ -17,13 +17,29 @@ console.log("🚀 Starting ID migration...\n");
 const db = new Database(DB_PATH);
 
 // Check if migration is needed
-const sample = db.prepare("SELECT id FROM people LIMIT 50").all();
-const needsMigration = sample.some(p => p.id.includes("_") && !p.id.includes("."));
+const allPeople = db.prepare("SELECT id FROM people").all();
+const peopleWithUnderscores = allPeople.filter(p => p.id.includes("_") && !p.id.includes("."));
+const totalPeople = allPeople.length;
 
-if (!needsMigration) {
-  console.log("✅ No IDs with underscores found. Database seems already migrated.");
+console.log(`📊 Total people in database: ${totalPeople}`);
+console.log(`📊 People with underscore IDs: ${peopleWithUnderscores.length}`);
+
+// Only migrate if MAJORITY of IDs need migration (> 50%)
+// This prevents accidental wipe when someone adds a single old-format ID
+if (peopleWithUnderscores.length === 0) {
+  console.log("✅ No IDs with underscores found. Database already migrated.");
   process.exit(0);
 }
+
+if (peopleWithUnderscores.length < totalPeople * 0.5) {
+  console.log(`⚠️  Only ${peopleWithUnderscores.length}/${totalPeople} people need migration (< 50%).`);
+  console.log("⚠️  This seems like a partially migrated or corrupted state.");
+  console.log("⚠️  Migration ABORTED to prevent data loss.");
+  console.log("⚠️  Please verify manually or clean up underscore IDs individually.");
+  process.exit(0);
+}
+
+console.log(`🔄 Migrating ${peopleWithUnderscores.length}/${totalPeople} people...`);
 
 // Disable foreign key checks during migration
 db.pragma("foreign_keys = OFF");
