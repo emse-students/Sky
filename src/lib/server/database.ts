@@ -512,7 +512,7 @@ export async function recalculatePositions(): Promise<void> {
 	const projectRoot = path.resolve(__dirname, '../../..');
 
 	return new Promise((resolve, reject) => {
-		console.debug('🔄 Lancement du calcul des positions...');
+		console.debug('[Positions] Lancement du calcul des positions...');
 
 		// Try python3 first, then fallback to python
 		const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
@@ -535,10 +535,10 @@ export async function recalculatePositions(): Promise<void> {
 
 		pythonProcess.on('close', (code) => {
 			if (code === 0) {
-				console.debug('✅ Calcul des positions terminé avec succès');
+				console.debug('[Positions] Calcul des positions terminé avec succès');
 				resolve();
 			} else {
-				console.error(`❌ Calcul des positions échoué avec le code ${code}`);
+				console.error(`[Positions] Calcul des positions échoué avec le code ${code}`);
 				reject(new Error(`Python process exited with code ${code}`));
 			}
 		});

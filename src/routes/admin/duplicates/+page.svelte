@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { page } from '$app/stores';
   import { goto } from "$app/navigation";
-  import { ArrowLeft } from "lucide-svelte";
+  import { ArrowLeft, ArrowRight } from "lucide-svelte";
+
+  let user = $derived($page.data.user);
 
   let searchTerm1 = $state("");
   let searchTerm2 = $state("");
@@ -123,7 +126,9 @@
       {/if}
     </div>
 
-    <div class="col arrow">➡️</div>
+    <div class="col arrow">
+      <ArrowRight size={40} />
+    </div>
 
     <div class="col">
       <h2>Cible (sera CONSERVÉ)</h2>

@@ -233,7 +233,7 @@
                 target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`;
               }}
             />
-            <span class="user-name">{user?.name || "Utilisateur"}</span>
+            <span class="user-name">{user?.profile_id ? (peopleMap.get(user.profile_id)?.prenom || '') + ' ' + (peopleMap.get(user.profile_id)?.nom || '') || user?.name : user?.name || "Utilisateur"}</span>
             <svg
               class="user-chevron"
               width="16"
