@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { ArrowLeft, ArrowRight } from "lucide-svelte";
 
