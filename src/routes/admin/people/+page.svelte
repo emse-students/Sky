@@ -17,6 +17,7 @@
   let loading = $state(true);
   let editingPerson: any = $state(null);
   let isCreating = $state(false);
+  let selectedIds: string[] = $state([]);
 
   let filteredPeople = $derived.by(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -31,6 +32,11 @@
       );
     });
   });
+
+  let allSelected = $derived(
+    filteredPeople.length > 0 &&
+      filteredPeople.every((p) => selectedIds.includes(p.id)),
+  );
 
   // Form state
   let form = $state({
@@ -54,6 +60,40 @@
         const data = await res.json();
         people = Array.isArray(data) ? data : data.people || [];
       }
+    } finally {
+      loading = false;
+    }
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      selectedIds = [];
+    } else {
+      selectedIds = filteredPeople.map((p) => p.id);
+    }
+  }
+
+  function toggleSelection(id: string) {
+    if (selectedIds.includes(id)) {
+      selectedIds = selectedIds.filter((i) => i !== id);
+    } else {
+      selectedIds = [...selectedIds, id];
+    }
+  }
+
+  async function deleteSelected() {
+    if (!confirm(`Supprimer ${selectedIds.length} utilisateurs ?`)) return;
+    loading = true;
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          fetch(`/api/admin/people/${id}`, { method: "DELETE" }),
+        ),
+      );
+      await loadPeople();
+      selectedIds = [];
+    } catch (e) {
+      console.error("Bulk delete error", e);
     } finally {
       loading = false;
     }
@@ -169,10 +209,31 @@
       {#if loading}
         <div class="loading">Chargement...</div>
       {:else}
+        {#if selectedIds.length > 0}
+          <div class="selection-bar" transition:fade>
+            <div class="selection-info">
+              <span class="count">{selectedIds.length} sélectionné(s)</span>
+              <button class="btn-link" onclick={() => (selectedIds = [])}
+                >Tout désélectionner</button
+              >
+            </div>
+            <button class="btn-danger-outline" onclick={deleteSelected}>
+              <Trash2 size={16} />
+              <span>Supprimer</span>
+            </button>
+          </div>
+        {/if}
         <div class="table-container">
           <table>
             <thead>
               <tr>
+                <th class="checkbox-col">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onchange={toggleAll}
+                  />
+                </th>
                 <th>ID</th>
                 <th>Nom</th>
                 <th>Prénom</th>
@@ -183,7 +244,17 @@
             </thead>
             <tbody>
               {#each filteredPeople as person (person.id)}
-                <tr transition:fade>
+                <tr
+                  transition:fade
+                  class:selected={selectedIds.includes(person.id)}
+                >
+                  <td class="checkbox-col">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(person.id)}
+                      onchange={() => toggleSelection(person.id)}
+                    />
+                  </td>
                   <td class="mono">{person.id}</td>
                   <td>{person.nom}</td>
                   <td>{person.prenom}</td>
@@ -306,9 +377,10 @@
 
 <style>
   .admin-layout {
-    min-height: 100vh;
+    height: 100vh;
     background: #05070a;
     color: #f8fafc;
+    overflow-y: auto;
   }
 
   .admin-header {
@@ -579,5 +651,74 @@
     text-align: center;
     padding: 40px;
     color: #94a3b8;
+  }
+
+  .checkbox-col {
+    width: 48px;
+    text-align: center;
+    padding: 0 16px;
+  }
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #3b82f6;
+  }
+
+  tr.selected td {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .selection-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+  }
+
+  .selection-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .count {
+    color: #3b82f6;
+    font-weight: 600;
+  }
+
+  .btn-link {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .btn-link:hover {
+    color: white;
+  }
+
+  .btn-danger-outline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.2);
   }
 </style>
