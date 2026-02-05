@@ -22,6 +22,22 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	try {
+		// 1. Check if user has a custom image in database
+		const person = getPersonById(id);
+		if (person && person.image) {
+			console.debug(`[Avatar API] Found custom image in DB for ${id}`);
+			// If it's a full URL, redirect or fetch it? Redirect is faster/easier for external URLs
+			// but if we want to hide origin or handle CORS, we might proxy.
+			// For simplicity and speed, let's redirect if it looks like a URL.
+			if (person.image.startsWith('http')) {
+				return new Response(null, {
+					status: 302,
+					headers: { Location: person.image }
+				});
+			}
+		}
+
+		// 2. Try MiGallery
 		const apiUrl = `https://gallery.mitv.fr/api/users/${id}/avatar`;
 		console.debug(`[Avatar API] Calling: ${apiUrl}`);
 

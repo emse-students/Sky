@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade, fly } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
   import { page } from "$app/stores";
   import { signIn } from "@auth/sveltekit/client";
   import { graphStore, selectedPersonId, focusDepth } from "$stores/graphStore";
@@ -18,6 +20,12 @@
     User,
     Edit,
     LogOut,
+    Search,
+    Target,
+    X,
+    ChevronDown,
+    Loader2,
+    Database,
   } from "lucide-svelte";
 
   // UI State
@@ -28,6 +36,19 @@
   let currentProfile: any = null;
   let isLoading = true;
 
+  const loadingMessages = [
+    "Initialisation de la voûte céleste...",
+    "Cartographie des étoiles...",
+    "Synchronisation des constellations...",
+    "Calibration du télescope...",
+    "Déploiement de la galaxie...",
+  ];
+  let currentLoadingMessage =
+    loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+
+  // Correction de l'erreur de compilation en utilisant une syntaxe d'indexation plus simple
+  let imageErrors: { [id: string]: boolean } = {};
+
   // Derived values
   $: user = $page.data.user;
   $: isAuthenticated = !!user;
@@ -36,38 +57,52 @@
   // Create a map for efficient lookups by ID
   $: peopleMap = new Map(people.map((p) => [p.id, p]));
 
-  // Watch for selection changes (from Graph or Search)
+  // Watch for selection changes
   $: if ($selectedPersonId) {
     const person = peopleMap.get($selectedPersonId);
     if (person) {
-      openProfile(person);
+      currentProfile = person;
+      isProfileModalOpen = true;
     }
   } else {
-    // Fermer le profil si la sélection est annulée (ex: clic sur fond)
     isProfileModalOpen = false;
   }
 
   onMount(() => {
-    // Simulate loading done when mounted (or bind to graph loaded state if available)
-    setTimeout(() => {
+    // Rotation des messages de chargement
+    const messageInterval = setInterval(() => {
+      currentLoadingMessage =
+        loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+    }, 2000);
+
+    // Simulation du chargement initial
+    const timer = setTimeout(() => {
       isLoading = false;
-    }, 1000);
+      clearInterval(messageInterval);
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(messageInterval);
+    };
   });
 
-  // Normalize string for search: remove accents, lowercase
   function normalizeString(str: string): string {
-    return str
+    return (str || "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
   }
 
-  // Get avatar URL from MiGallery API via our proxy
   function getAvatarUrl(personId: string): string {
     return `/api/avatar/${personId}`;
   }
 
-  // Get icon component for link type
+  function handleImageError(id: string) {
+    imageErrors[id] = true;
+    imageErrors = imageErrors; // Déclenche la réactivité Svelte
+  }
+
   function getLinkIcon(type: string) {
     const normalizedType = type.toLowerCase();
     if (normalizedType.includes("linkedin")) return Linkedin;
@@ -83,57 +118,52 @@
   }
 
   function handleSearch() {
-    if (!searchTerm) {
+    if (!searchTerm.trim()) {
       isSearchActive = false;
+      searchResults = [];
       return;
     }
 
     const normalizedTerm = normalizeString(searchTerm.trim());
-    const terms = normalizedTerm.split(/\s+/); // Split by spaces
+    const terms = normalizedTerm.split(/\s+/);
 
-    searchResults = Object.values(people)
+    searchResults = people
       .filter((p: any) => {
         const normalizedName = normalizeString(getPersonName(p));
         const level = p.level?.toString() || "";
 
-        // Check if the full search term is in the name
         if (normalizedName.includes(normalizedTerm)) return true;
-
-        // Check if level matches
         if (level.includes(normalizedTerm)) return true;
 
-        // Check if all search terms are in the name (any order)
-        if (terms.length > 1) {
-          const allTermsMatch = terms.every((term) =>
-            normalizedName.includes(term),
-          );
-          if (allTermsMatch) return true;
-        }
-
-        return false;
+        return (
+          terms.length > 1 && terms.every((t) => normalizedName.includes(t))
+        );
       })
-      .slice(0, 10);
+      .slice(0, 8);
 
-    isSearchActive = searchResults.length > 0;
+    isSearchActive = true;
   }
 
   function selectResult(person: any) {
     selectedPersonId.set(person.id);
+    centerOnPerson(person.id);
     searchTerm = "";
     isSearchActive = false;
   }
 
-  function openProfile(person: any) {
-    currentProfile = person;
-    isProfileModalOpen = true;
+  function centerOnPerson(id: string) {
+    const pos = $graphStore.positions[id];
+    if (pos) {
+      cameraStore.setTarget(pos.x, pos.y, 0.6);
+    }
   }
 
   function closeProfile() {
     isProfileModalOpen = false;
-    // Sur mobile (portrait), ne pas réinitialiser la sélection pour garder la position de la caméra
-    const isMobile = window.innerHeight > window.innerWidth;
+    const isMobile =
+      typeof window !== "undefined" && window.innerHeight > window.innerWidth;
     if (!isMobile) {
-      selectedPersonId.set(null); // Clear selection on graph (desktop only)
+      selectedPersonId.set(null);
     }
   }
 
@@ -147,16 +177,9 @@
   }
 
   function goToMyProfile() {
-    if (user?.profile_id) {
-      const userId = user.profile_id;
-      if (peopleMap.has(userId)) {
-        selectedPersonId.set(userId);
-        // Center camera on user's star
-        const userPos = $graphStore.positions[userId];
-        if (userPos) {
-          cameraStore.setTarget(userPos.x, userPos.y, 0.5);
-        }
-      }
+    if (user?.profile_id && peopleMap.has(user.profile_id)) {
+      selectedPersonId.set(user.profile_id);
+      centerOnPerson(user.profile_id);
     }
   }
 
@@ -167,108 +190,128 @@
 </script>
 
 <svelte:head>
-  <title>Sky - Généalogie ICM</title>
+  <title>Sky — Cartographie Stellaire</title>
 </svelte:head>
 
-<!-- Background Starfield -->
 <StarfieldCanvas />
-
-<!-- Graph Canvas -->
 <GraphCanvas />
 
-<!-- Navigation Bar -->
-<nav class="navbar">
-  <div class="navbar-container">
-    <!-- Logo -->
-    <a href="/" class="navbar-brand">
-      <img src="/sky.png" alt="Sky" class="navbar-logo" />
-      <span class="navbar-title">SKY</span>
+<nav class="nav-glass">
+  <div class="nav-content">
+    <a
+      href="/"
+      class="brand"
+      onclick={(e) => {
+        e.preventDefault();
+        resetView();
+      }}
+    >
+      <div class="logo-wrapper">
+        <img
+          src="/sky.png"
+          alt="Sky"
+          class="logo"
+          onerror={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
+        />
+      </div>
+      <span class="brand-text">SKY</span>
     </a>
 
-    <!-- Search -->
-    <div class="navbar-search">
-      <input
-        type="text"
-        placeholder="Rechercher une étoile..."
-        bind:value={searchTerm}
-        oninput={handleSearch}
-        onfocus={() => {
-          if (searchTerm) isSearchActive = true;
-        }}
-        onblur={() => setTimeout(() => (isSearchActive = false), 200)}
-        class="search-input"
-      />
-      {#if isSearchActive && searchResults.length > 0}
-        <div class="search-results">
-          {#each searchResults as result}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div
-              class="search-result-item"
-              onclick={() => selectResult(result)}
-            >
-              <div class="result-name">{getPersonName(result)}</div>
-              <div class="result-info">
-                Promo {result.level || "N/A"}
-              </div>
-            </div>
-          {/each}
+    <div class="search-container">
+      <div class="search-box" class:has-focus={isSearchActive}>
+        <Search size={18} class="search-icon" />
+        <input
+          type="text"
+          placeholder="Rechercher une étoile, une promo..."
+          bind:value={searchTerm}
+          oninput={handleSearch}
+          onfocus={() => searchTerm && (isSearchActive = true)}
+          onblur={() => setTimeout(() => (isSearchActive = false), 200)}
+        />
+        {#if searchTerm}
+          <button
+            class="clear-search"
+            onclick={() => {
+              searchTerm = "";
+              handleSearch();
+            }}
+          >
+            <X size={14} />
+          </button>
+        {/if}
+      </div>
+
+      {#if isSearchActive}
+        <div class="search-dropdown" transition:fly={{ y: 10, duration: 200 }}>
+          {#if searchResults.length > 0}
+            {#each searchResults as result}
+              <button class="search-item" onclick={() => selectResult(result)}>
+                <div class="item-avatar">
+                  {#if imageErrors[result.id]}
+                    {getPersonInitials(result)}
+                  {:else}
+                    <img
+                      src={getAvatarUrl(result.id)}
+                      alt=""
+                      onerror={() => handleImageError(result.id)}
+                    />
+                  {/if}
+                </div>
+                <div class="item-meta">
+                  <span class="item-name">{getPersonName(result)}</span>
+                  <span class="item-sub">Promo {result.level || "—"}</span>
+                </div>
+              </button>
+            {/each}
+          {:else}
+            <div class="search-empty">Aucune étoile trouvée</div>
+          {/if}
         </div>
       {/if}
     </div>
 
-    <!-- User Actions -->
-    <div class="navbar-actions">
+    <div class="actions">
       {#if !isAuthenticated}
-        <button class="btn-login" onclick={handleLogin}> Se connecter </button>
+        <button class="login-trigger" onclick={handleLogin}> Connexion </button>
       {:else}
-        <div class="user-menu">
-          <button class="user-button">
-            <img
-              src={`/api/avatar/${user?.profile_id || user?.id}`}
-              alt={user?.name}
-              class="user-avatar"
-              onerror={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`;
-              }}
-            />
-            <span class="user-name"
-              >{user?.profile_id
-                ? (peopleMap.get(user.profile_id)?.prenom || "") +
-                    " " +
-                    (peopleMap.get(user.profile_id)?.nom || "") || user?.name
-                : user?.name || "Utilisateur"}</span
-            >
-            <svg
-              class="user-chevron"
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-              <path
-                d="M4 6L8 10L12 6"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+        <div class="user-dropdown-container">
+          <button class="user-trigger">
+            <div class="user-avatar-small">
+              <img
+                src={getAvatarUrl(user?.profile_id || user?.id)}
+                alt=""
+                onerror={(e) => {
+                  (e.currentTarget as HTMLImageElement).src =
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "U")}&background=random`;
+                }}
               />
-            </svg>
+            </div>
+            <span class="user-label">
+              {user?.profile_id
+                ? peopleMap.get(user.profile_id)?.prenom || user.name
+                : user.name}
+            </span>
+            <ChevronDown size={14} class="chevron" />
           </button>
-          <div class="user-dropdown">
-            <button class="dropdown-item" onclick={goToMyProfile}>
-              <User size={16} />
-              <span>Mon profil</span>
+
+          <div class="dropdown-menu">
+            <button onclick={goToMyProfile} class="menu-item">
+              <User size={16} /> Mon profil
             </button>
-            <a href="/profile/edit" class="dropdown-item">
-              <Edit size={16} />
-              <span>Éditer</span>
+            <a href="/profile/edit" class="menu-item">
+              <Edit size={16} /> Modifier
             </a>
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item danger" onclick={handleLogout}>
-              <LogOut size={16} />
-              <span>Déconnexion</span>
+            {#if user?.profile_id === "jolan.boudin"}
+              <div class="menu-divider"></div>
+              <a href="/admin" class="menu-item">
+                <Database size={16} /> Administration
+              </a>
+            {/if}
+            <div class="menu-divider"></div>
+            <button onclick={handleLogout} class="menu-item logout">
+              <LogOut size={16} /> Déconnexion
             </button>
           </div>
         </div>
@@ -277,669 +320,626 @@
   </div>
 </nav>
 
-<!-- Loading -->
-<div id="loading" class="loading" class:hidden={!isLoading}>
-  <div class="spinner"></div>
-  <div class="loading-text">Chargement des constellations...</div>
-</div>
-
-<!-- Focus Controls (only visible when someone is selected) -->
-{#if $selectedPersonId}
-  <div class="focus-controls">
-    <div class="focus-control-header">
-      <span class="focus-label">Mode Focus</span>
-      <button class="btn-reset" onclick={resetView}>Tout afficher</button>
-    </div>
-    <div class="focus-depth-control">
-      <label for="focusDepth">Profondeur: {$focusDepth} sauts</label>
-      <input
-        type="range"
-        id="focusDepth"
-        min="1"
-        max="5"
-        bind:value={$focusDepth}
-      />
+{#if isLoading}
+  <div class="loader-overlay" transition:fade>
+    <div class="loader-content">
+      <Loader2 class="spin" size={40} />
+      <span>{currentLoadingMessage}</span>
     </div>
   </div>
 {/if}
 
-<!-- Profile Sidebar Panel -->
-<aside
-  id="profilePanel"
-  class="profile-panel"
-  class:active={isProfileModalOpen}
->
-  <div class="panel-header">
-    <h2>Profil</h2>
-    <button class="panel-close" onclick={closeProfile}>×</button>
-  </div>
-
-  {#if currentProfile}
-    <div class="panel-content">
-      <div class="profile-avatar-section">
-        <div class="profile-avatar-large">
-          <img
-            src={getAvatarUrl(currentProfile.id)}
-            alt={getPersonName(currentProfile)}
-            onerror={(e) => {
-              const target = e.currentTarget as HTMLImageElement;
-              const sibling = target.nextElementSibling as HTMLElement;
-              if (sibling) {
-                target.style.display = "none";
-                sibling.style.display = "flex";
-              }
-            }}
-          />
-          <div class="avatar-placeholder-large" style="display: none;">
-            {getPersonInitials(currentProfile)}
-          </div>
-        </div>
-        <h3 class="profile-name">{getPersonName(currentProfile)}</h3>
-        <div class="profile-promo">Promo {currentProfile.level || "N/A"}</div>
+{#if $selectedPersonId}
+  <div
+    class="focus-hub"
+    transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
+  >
+    <div class="hub-header">
+      <div class="hub-title">
+        <Target size={16} />
+        <span>Mode Focus</span>
       </div>
-
-      <div class="profile-section">
-        <h4>Biographie</h4>
-        <p class="profile-bio">
-          {currentProfile.bio || "Aucune biographie disponible."}
-        </p>
-      </div>
-
-      {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}
-        <div class="profile-section">
-          <h4>Liens</h4>
-          <div class="profile-links">
-            {#each Object.entries(currentProfile.links) as [type, url]}
-              <a
-                href={String(url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="profile-link"
-              >
-                <svelte:component this={getLinkIcon(type)} size={16} />
-                <span>{type}</span>
-              </a>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
-      {#if currentProfile.associations && currentProfile.associations.length > 0}
-        <div class="profile-section">
-          <h4>Associations</h4>
-          <div class="profile-associations">
-            {#each currentProfile.associations as asso}
-              <div class="asso-item">
-                <span class="asso-name">{asso.name}</span>
-                <span class="asso-role">{asso.role}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
+      <button class="hub-reset" onclick={resetView}>Sortir</button>
     </div>
-  {/if}
-</aside>
+    <div class="hub-body">
+      <div class="range-group">
+        <div class="range-labels">
+          <label for="fdepth">Profondeur du réseau</label>
+          <span class="range-value"
+            >{$focusDepth} {$focusDepth > 1 ? "sauts" : "saut"}</span
+          >
+        </div>
+        <input
+          id="fdepth"
+          type="range"
+          min="1"
+          max="5"
+          bind:value={$focusDepth}
+        />
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if isProfileModalOpen && currentProfile}
+  <aside
+    class="profile-sidebar"
+    transition:fly={{ x: -400, duration: 400, easing: cubicOut }}
+  >
+    <button class="close-sidebar" onclick={closeProfile} aria-label="Fermer">
+      <X size={24} />
+    </button>
+
+    <div class="sidebar-scroll">
+      <header class="sidebar-hero">
+        <div class="hero-avatar">
+          <div class="avatar-ring"></div>
+          {#if imageErrors[currentProfile.id]}
+            <div class="avatar-initials">
+              {getPersonInitials(currentProfile)}
+            </div>
+          {:else}
+            <img
+              src={getAvatarUrl(currentProfile.id)}
+              alt=""
+              onerror={() => handleImageError(currentProfile.id)}
+            />
+          {/if}
+        </div>
+        <h2>{getPersonName(currentProfile)}</h2>
+        <div class="badge-promo">
+          Promotion {currentProfile.level || "Inconnue"}
+        </div>
+
+        <button
+          class="btn-center"
+          onclick={() => centerOnPerson(currentProfile.id)}
+        >
+          <Target size={16} /> Centrer la vue
+        </button>
+      </header>
+
+      <section class="sidebar-info">
+        <div class="info-block">
+          <h3>Bio</h3>
+          <p>
+            {currentProfile.bio ||
+              "Cette étoile n'a pas encore rédigé sa biographie."}
+          </p>
+        </div>
+
+        {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}
+          <div class="info-block">
+            <h3>Coordonnées</h3>
+            <div class="link-grid">
+              {#each Object.entries(currentProfile.links) as [type, url]}
+                <a
+                  href={String(url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link"
+                >
+                  <svelte:component this={getLinkIcon(type)} size={16} />
+                  <span>{type}</span>
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        {#if currentProfile.associations?.length > 0}
+          <div class="info-block">
+            <h3>Constellations (Associations)</h3>
+            <div class="asso-list">
+              {#each currentProfile.associations as asso}
+                <div class="asso-card">
+                  <span class="asso-n">{asso.name}</span>
+                  <span class="asso-r">{asso.role}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </section>
+    </div>
+  </aside>
+{/if}
 
 <style>
-  /* Navbar - Inspired by MiGallery */
-  .navbar {
+  :root {
+    --bg-dark: #05070a;
+    --glass-bg: rgba(10, 15, 30, 0.85);
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.5);
+    --text-main: #f8fafc;
+    --text-dim: #94a3b8;
+    --border: rgba(255, 255, 255, 0.1);
+    --nav-height: 72px;
+  }
+
+  .nav-glass {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    z-index: 100;
-    background: rgba(10, 15, 35, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(135, 206, 250, 0.2);
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+    height: var(--nav-height);
+    z-index: 1000;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
   }
 
-  .navbar-container {
+  .nav-content {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 24px;
-    max-width: 1400px;
-    margin: 0 auto;
+    gap: 20px;
   }
 
-  .navbar-brand {
+  .brand {
     display: flex;
     align-items: center;
     gap: 12px;
     text-decoration: none;
-    transition: opacity 0.2s;
   }
-
-  .navbar-brand:hover {
-    opacity: 0.8;
-  }
-
-  .navbar-logo {
+  .logo-wrapper {
+    width: 40px;
     height: 40px;
-    width: auto;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px var(--accent-glow);
   }
-
-  .navbar-title {
+  .logo {
+    height: 28px;
+  }
+  .brand-text {
     font-family: "Orbitron", sans-serif;
-    font-size: 24px;
-    font-weight: 700;
-    color: #87ceeb;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--text-main);
     letter-spacing: 2px;
   }
 
-  .navbar-search {
+  .search-container {
     flex: 1;
     max-width: 500px;
-    margin: 0 32px;
     position: relative;
   }
-
-  .search-input {
-    width: 100%;
-    padding: 12px 20px;
-    background: rgba(20, 30, 60, 0.8);
-    border: 1px solid rgba(135, 206, 250, 0.3);
-    border-radius: 24px;
-    color: #fff;
-    font-size: 15px;
-    font-family: "Space Grotesk", sans-serif;
-    outline: none;
-    transition: all 0.3s ease;
-  }
-
-  .search-input::placeholder {
-    color: rgba(135, 206, 250, 0.4);
-  }
-
-  .search-input:focus {
-    background: rgba(20, 30, 60, 1);
-    border-color: rgba(135, 206, 250, 0.6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-  }
-
-  .search-results {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    background: rgba(15, 20, 40, 0.98);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(135, 206, 250, 0.3);
-    border-radius: 12px;
-    max-height: 400px;
-    overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  }
-
-  .search-result-item {
-    padding: 12px 16px;
-    cursor: pointer;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: background 0.2s;
-  }
-
-  .search-result-item:last-child {
-    border-bottom: none;
-  }
-
-  .search-result-item:hover {
-    background: rgba(135, 206, 250, 0.1);
-  }
-
-  .result-name {
-    color: #fff;
-    font-weight: 500;
-    margin-bottom: 4px;
-  }
-
-  .result-info {
-    color: rgba(135, 206, 250, 0.7);
-    font-size: 13px;
-  }
-
-  .navbar-actions {
+  .search-box {
     display: flex;
     align-items: center;
-    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 0 16px;
+    height: 44px;
+    transition: all 0.2s ease;
   }
-
-  .btn-login {
-    padding: 10px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 24px;
-    color: white;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  }
-
-  .btn-login:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  }
-
-  .user-menu {
-    position: relative;
-  }
-
-  .user-button {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    background: rgba(20, 30, 60, 0.8);
-    border: 1px solid rgba(135, 206, 250, 0.3);
-    border-radius: 24px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .user-button:hover {
-    background: rgba(30, 40, 70, 0.9);
-    border-color: rgba(135, 206, 250, 0.5);
-  }
-
-  .user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 2px solid rgba(135, 206, 250, 0.5);
-  }
-
-  .user-name {
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .user-chevron {
-    color: rgba(135, 206, 250, 0.7);
-    transition: transform 0.2s;
-  }
-
-  .user-menu:hover .user-chevron {
-    transform: rotate(180deg);
-  }
-
-  .user-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 200px;
-    background: rgba(15, 20, 40, 0.98);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(135, 206, 250, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition:
-      opacity 0.15s,
-      visibility 0.15s,
-      transform 0.15s;
-    transition-delay: 0s;
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .user-menu:hover .user-dropdown,
-  .user-dropdown:hover {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    transition-delay: 0s, 0s, 0s;
-    pointer-events: auto;
-  }
-
-  /* Keep dropdown visible when moving from button to dropdown */
-  .user-menu:hover .user-dropdown {
-    transition-delay: 0.15s, 0.15s, 0.15s;
-  }
-
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 16px;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 14px;
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background 0.2s;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .dropdown-item:last-child {
-    border-bottom: none;
-  }
-
-  .dropdown-item:hover {
-    background: rgba(135, 206, 250, 0.1);
-  }
-
-  .dropdown-item.danger {
-    color: #ff6b6b;
-  }
-
-  .dropdown-item.danger:hover {
-    background: rgba(255, 107, 107, 0.1);
-  }
-
-  .dropdown-divider {
-    height: 1px;
+  .search-box.has-focus {
     background: rgba(255, 255, 255, 0.1);
-    margin: 4px 0;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
   }
-
-  /* Profile Sidebar Panel */
-  .profile-panel {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 400px;
-    height: 100vh;
-    background: rgba(17, 24, 39, 0.98);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(59, 130, 246, 0.3);
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
-    overflow-y: auto;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
-  }
-
-  .profile-panel.active {
-    transform: translateX(0);
-  }
-
-  .panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    position: sticky;
-    top: 0;
-    background: rgba(17, 24, 39, 0.98);
-    backdrop-filter: blur(20px);
-    z-index: 10;
-  }
-
-  .panel-header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: white;
-    margin: 0;
-  }
-
-  .panel-close {
+  .search-box input {
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 32px;
+    color: white;
+    width: 100%;
+    outline: none;
+    font-size: 15px;
+  }
+  .clear-search {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
-    padding: 0;
-    width: 32px;
-    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
-    transition: all 0.2s;
   }
 
-  .panel-close:hover {
-    background: rgba(255, 255, 255, 0.1);
+  .search-dropdown {
+    position: absolute;
+    top: 52px;
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+  .search-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .search-item:hover {
+    background: rgba(59, 130, 246, 0.1);
+  }
+  .item-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
     color: white;
   }
-
-  .panel-content {
-    padding: 24px;
-  }
-
-  .profile-avatar-section {
-    text-align: center;
-    margin-bottom: 32px;
-  }
-
-  .profile-avatar-large {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 16px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 3px solid rgba(59, 130, 246, 0.3);
-  }
-
-  .profile-avatar-large img {
+  .item-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-
-  .avatar-placeholder-large {
-    color: white;
-    font-size: 48px;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .profile-name {
-    font-size: 24px;
-    font-weight: 600;
-    color: white;
-    margin: 0 0 8px 0;
-  }
-
-  .profile-promo {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
-  }
-
-  .profile-section {
-    margin-bottom: 24px;
-  }
-
-  .profile-section h4 {
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0 0 12px 0;
-  }
-
-  .profile-bio {
-    color: rgba(255, 255, 255, 0.8);
-    line-height: 1.6;
-    margin: 0;
-  }
-
-  .profile-links {
+  .item-meta {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    align-items: flex-start;
+  }
+  .item-name {
+    color: white;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .item-sub {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .search-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-dim);
   }
 
-  .profile-link {
+  .user-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    padding: 6px 14px 6px 6px;
+    border-radius: 99px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .user-trigger:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .user-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--accent);
+  }
+  .user-avatar-small img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .user-dropdown-container {
+    position: relative;
+  }
+  .dropdown-menu {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    width: 200px;
+    background: #1e293b;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  .user-dropdown-container:hover .dropdown-menu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--text-main);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .menu-item.logout {
+    color: #f87171;
+  }
+  .menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+  }
+
+  .profile-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 400px;
+    background: #0f172a;
+    border-right: 1px solid var(--border);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+  }
+  .close-sidebar {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    z-index: 10;
+  }
+  .sidebar-scroll {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .sidebar-hero {
+    padding: 60px 40px 40px;
+    text-align: center;
+    background: linear-gradient(
+      to bottom,
+      rgba(59, 130, 246, 0.1),
+      transparent
+    );
+  }
+  .hero-avatar {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 24px;
+  }
+  .avatar-ring {
+    position: absolute;
+    inset: -8px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.3;
+  }
+  .hero-avatar img,
+  .avatar-initials {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+    color: white;
+  }
+  .sidebar-hero h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: white;
+  }
+  .badge-promo {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--accent);
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .btn-center {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin: 0 auto;
+    background: white;
+    color: black;
+    border: none;
     padding: 8px 16px;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 6px;
-    color: #60a5fa;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .sidebar-info {
+    padding: 0 32px 40px;
+  }
+  .info-block {
+    margin-bottom: 32px;
+  }
+  .info-block h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .info-block p {
+    line-height: 1.6;
+    color: #cbd5e1;
+    margin: 0;
+  }
+  .link-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .social-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: white;
     text-decoration: none;
+    font-size: 13px;
+  }
+  .asso-card {
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .asso-n {
+    display: block;
+    font-weight: 600;
     font-size: 14px;
-    transition: all 0.2s;
+    color: white;
+  }
+  .asso-r {
+    font-size: 12px;
+    color: var(--text-dim);
   }
 
-  .profile-link:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.5);
+  .focus-hub {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 280px;
+    background: #1e293b;
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   }
-
-  .profile-associations {
+  .hub-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .hub-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .hub-reset {
+    background: transparent;
+    border: none;
+    color: #f87171;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .range-group {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-
-  .asso-item {
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .asso-name {
-    display: block;
-    color: white;
-    font-weight: 500;
-    margin-bottom: 4px;
-  }
-
-  .asso-role {
-    display: block;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
-  }
-
-  /* Adjust canvas when panel is open */
-  :global(body:has(.profile-panel.active) #graph) {
-    transform: translateX(200px);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Focus Controls */
-  .focus-controls {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 50;
-    background: rgba(17, 24, 39, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 12px;
-    padding: 16px;
-    min-width: 250px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  }
-
-  .focus-control-header {
+  .range-labels {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .focus-label {
-    color: white;
-    font-weight: 600;
-    font-size: 14px;
-  }
-
-  .btn-reset {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #f87171;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
     font-size: 12px;
-    font-weight: 500;
-    transition: all 0.2s;
+    color: var(--text-dim);
+  }
+  .range-value {
+    font-weight: 700;
+    color: white;
   }
 
-  .btn-reset:hover {
-    background: rgba(239, 68, 68, 0.3);
-    border-color: rgba(239, 68, 68, 0.6);
+  .loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-dark);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-
-  .focus-depth-control {
+  .loader-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    gap: 16px;
+    color: var(--text-dim);
   }
 
-  .focus-depth-control label {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 13px;
+  :global(.spin) {
+    animation: spin 1s linear infinite;
   }
 
-  .focus-depth-control input[type="range"] {
-    width: 100%;
-    accent-color: #3b82f6;
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
-  /* Mobile Responsiveness */
+  .login-trigger {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   @media (max-width: 768px) {
-    .navbar-container {
-      padding: 12px 12px;
-      gap: 8px;
-    }
-
-    .navbar-title {
+    .brand-text,
+    .user-label {
       display: none;
     }
-
-    .navbar-search {
-      margin: 0 8px;
-    }
-
-    .user-name {
-      display: none;
-    }
-
-    .btn-login {
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
-    .user-button {
-      padding: 6px 8px;
-    }
-  }
-
-  /* Profile Panel - Bottom Sheet on Mobile & Portrait (screens taller than wide) */
-  @media (max-width: 768px), (orientation: portrait) {
-    .profile-panel {
+    .profile-sidebar {
       width: 100%;
-      height: 60vh;
+      height: 70vh;
       top: auto;
-      bottom: 0;
-      left: 0;
-      border-right: none;
-      border-top: 1px solid rgba(59, 130, 246, 0.3);
-      transform: translateY(100%);
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+      border-radius: 24px 24px 0 0;
     }
-
-    .profile-panel.active {
-      transform: translateY(0);
-    }
-
-    :global(body:has(.profile-panel.active) #graph) {
-      transform: none;
+    .focus-hub {
+      left: 20px;
+      right: 20px;
+      width: auto;
     }
   }
 </style>
