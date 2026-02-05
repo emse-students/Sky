@@ -18,6 +18,7 @@
     Search,
     Trash2,
     ChevronLeft,
+    ArrowLeft,
     UserPlus,
     X,
     Loader2,
@@ -244,26 +245,25 @@
 </script>
 
 <svelte:head>
-  <title>Édition Stellaire — {profile?.prenom || "Profil"}</title>
+  <title>Édition - {profile?.prenom || "Profil"}</title>
 </svelte:head>
 
 <div class="page-layout">
-  <!-- Header Minimaliste -->
-  <header class="top-nav">
-    <div class="nav-container">
-      <button class="btn-back" onclick={() => goto("/")}>
-        <ChevronLeft size={20} />
-        <span>Retour à la carte</span>
-      </button>
-      <h1 class="nav-title">Éditer mon profil</h1>
-      <button class="btn-save" disabled={saving} onclick={saveProfile}>
-        {#if saving}
-          <Loader2 size={18} class="spinner" />
-        {:else}
-          <Save size={18} />
-        {/if}
-      </button>
-    </div>
+  <header class="admin-header">
+    <button class="btn-back" onclick={() => goto("/")}>
+      <ArrowLeft size={20} />
+      <span>Retour à la carte</span>
+    </button>
+    <h1>Édition de profil</h1>
+    <button class="btn-primary" disabled={saving} onclick={saveProfile}>
+      {#if saving}
+        <Loader2 size={18} class="spinner" />
+        <span>Enregistrement...</span>
+      {:else}
+        <Save size={18} />
+        <span>Enregistrer</span>
+      {/if}
+    </button>
   </header>
 
   <main class="content">
@@ -518,64 +518,72 @@
     font-family: "Inter", sans-serif;
   }
 
-  .nav-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    padding: 0 24px;
-    gap: 32px;
-  }
-
-  .top-nav {
+  .admin-header {
     position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
-    height: 70px;
     background: rgba(10, 15, 25, 0.95);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    z-index: 100;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px 40px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    z-index: 100;
+  }
+
+  .admin-header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
   }
 
   .btn-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
     background: transparent;
-    color: var(--text-dim);
-    flex-shrink: 0;
-    justify-self: start;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
   }
 
-  .nav-title {
-    font-weight: 600;
-    font-size: 20px;
-    letter-spacing: 0.3px;
-    margin: 0;
-    white-space: nowrap;
-    justify-self: center;
-  }
-
-  .btn-save {
-    background: var(--accent);
+  .btn-back:hover {
     color: white;
-    padding: 10px;
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 99px;
     font-weight: 600;
-    width: 44px;
-    height: 44px;
-    justify-content: center;
-    flex-shrink: 0;
-    justify-self: end;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .content {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 20px 400px 20px;
+    padding: 40px;
     min-height: calc(100vh - 70px);
   }
 
@@ -709,7 +717,6 @@
 
   /* --- Buttons --- */
   .btn-back,
-  .btn-save,
   .btn-remove,
   .btn-create-trigger {
     display: flex;
@@ -722,11 +729,6 @@
 
   .btn-back:hover {
     color: white;
-  }
-
-  .btn-save:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   /* --- Relationships --- */

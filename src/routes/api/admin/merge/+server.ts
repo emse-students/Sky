@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { mergePeople } from '$lib/server/database';
+import { mergePeople, recalculatePositions } from '$lib/server/database';
 import type { RequestHandler } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -21,6 +21,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		mergePeople(sourceId, targetId);
+
+		// Trigger recalculation in background
+		recalculatePositions().catch(e => console.error('Recalc failed', e));
 
 		return json({ success: true });
 	} catch (error) {

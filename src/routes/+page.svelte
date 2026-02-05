@@ -190,7 +190,7 @@
 </script>
 
 <svelte:head>
-  <title>Sky — Cartographie Stellaire</title>
+  <title>Sky - Cartographie ICM</title>
 </svelte:head>
 
 <StarfieldCanvas />

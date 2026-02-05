@@ -28,6 +28,9 @@ bun run dev
 
 ```
 sky/
+├── .github/
+│   └── workflows/     # Configuration CI/CD
+├── tests/            # Tests unitaires et d'intégration (Vitest)
 ├── src/
 │   ├── lib/
 │   │   ├── components/     # Composants Svelte réutilisables
@@ -83,9 +86,18 @@ sky/
 ### Administration
 
 - ✅ Interface graphique Python (Tkinter)
+- ✅ Interface Web harmonisée (Svelte 5)
 - ✅ CRUD complet (personnes, relations, liens)
 - ✅ Fusion de profils (merge)
 - ✅ Gestion granulaire des relations (Officiel/Adoption)
+- ✅ **Recalcul automatique** du graphe lors des modifications
+
+## 🔄 CI/CD & Qualité
+
+- **GitHub Actions:** Pipeline de vérification automatique
+- **Linting:** ESLint + Prettier
+- **Tests:** Vitest pour les tests unitaires et d'API
+- **Type Checking:** Svelte-check strict
 
 ## 🛠️ Commandes Disponibles
 
@@ -192,7 +204,7 @@ git checkout -b feature/nouvelle-fonctionnalite
 git commit -m "feat: ajout de X"
 
 # Push et pull request
-git push origin feature/nouvelle-fonctionnalite
+git push origin feature/1 (Mise à jour CI/CD & API - 5
 ```
 
 ## 📝 Licence

@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { createPerson, getAllPeople } from '$lib/server/database';
+import { createPerson, getAllPeople, recalculatePositions } from '$lib/server/database';
 import type { RequestHandler } from './$types';
 import type { Person } from '$types/graph';
 
@@ -27,6 +27,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			level: person.level,
 			links: person.links
 		});
+
+		recalculatePositions().catch(console.error);
 
 		return json({ id: newId });
 	} catch (error) {
