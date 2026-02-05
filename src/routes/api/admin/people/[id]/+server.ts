@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/server/database';
+import { getDatabase, recalculatePositions } from '$lib/server/database';
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const user = locals.user;
@@ -62,6 +62,8 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
 
 		// Delete person
 		db.prepare('DELETE FROM people WHERE id = ?').run(id);
+
+		recalculatePositions().catch(console.error);
 
 		return json({ success: true });
 	} catch (error) {

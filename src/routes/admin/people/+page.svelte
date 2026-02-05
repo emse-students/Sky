@@ -139,7 +139,7 @@
 </script>
 
 <svelte:head>
-  <title>Gestion des utilisateurs — Admin</title>
+  <title>Gestion des utilisateurs - Admin</title>
 </svelte:head>
 
 <div class="admin-layout">

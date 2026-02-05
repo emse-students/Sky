@@ -25,6 +25,7 @@
     "*.config.js",
     "*.config.cjs",
     "database/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
   ]
 }

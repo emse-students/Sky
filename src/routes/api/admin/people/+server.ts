@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/server/database';
+import { getDatabase, recalculatePositions } from '$lib/server/database';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = locals.user;
@@ -40,6 +40,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			data.bio || null,
 			data.image_url || null
 		);
+
+		recalculatePositions().catch(console.error);
 
 		return json({ success: true, id: data.id });
 	} catch (error) {
