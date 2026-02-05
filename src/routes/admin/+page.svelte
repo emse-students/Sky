@@ -248,6 +248,14 @@
           Gérer les doublons
         </button>
       </div>
+
+      <div class="action-card">
+        <h2><Users size={24} /> Gestion des utilisateurs</h2>
+        <p>Éditer tous les profils : ID, nom, prénom, promo, bio, image...</p>
+        <button class="btn-secondary" onclick={() => goto("/admin/people")}>
+          Gérer les utilisateurs
+        </button>
+      </div>
     </div>
   </div>
 {/if}

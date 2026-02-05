@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { ArrowLeft, ArrowRight } from "lucide-svelte";
@@ -89,222 +91,389 @@
 </script>
 
 <svelte:head>
-  <title>Administration - Fusion de doublons</title>
+  <title>Fusion de doublons — Admin</title>
 </svelte:head>
 
-<div class="admin-merge">
-  <div class="header-nav">
-    <button class="back-btn" onclick={() => goto("/admin")}>
+<div class="admin-layout">
+  <header class="admin-header">
+    <button class="btn-back" onclick={() => goto("/admin")}>
       <ArrowLeft size={20} />
-      <span>Retour à l'admin</span>
+      <span>Retour</span>
     </button>
-  </div>
-  <h1>Fusion de doublons</h1>
+    <h1>Fusion de doublons</h1>
+    <div style="width: 86px"></div>
+    <!-- Spacer for alignment -->
+  </header>
 
-  <div class="cols">
-    <div class="col">
-      <h2>Source (sera SUPPRIMÉ)</h2>
-      <input type="text" placeholder="Rechercher..." bind:value={searchTerm1} />
-      {#if selectedSource}
-        <div class="selected card danger">
-          <h3>{selectedSource.prenom} {selectedSource.nom}</h3>
-          <p>{selectedSource.id}</p>
-          <button class="link-btn" onclick={() => (selectedSource = null)}
-            >Annuler</button
-          >
+  <div class="admin-content">
+    <div class="merge-grid">
+      <!-- Source Column -->
+      <div class="merge-col source">
+        <div class="col-header">
+          <h2>Source</h2>
+          <span class="badge danger">Sera supprimé</span>
         </div>
-      {:else}
-        <ul class="results">
-          {#each results1 as p}
-            <li>
-              <button onclick={() => (selectedSource = p)}
-                >{p.prenom} {p.nom} ({p.id})</button
-              >
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
 
-    <div class="col arrow">
-      <ArrowRight size={40} />
-    </div>
-
-    <div class="col">
-      <h2>Cible (sera CONSERVÉ)</h2>
-      <input type="text" placeholder="Rechercher..." bind:value={searchTerm2} />
-      {#if selectedTarget}
-        <div class="selected card success">
-          <h3>{selectedTarget.prenom} {selectedTarget.nom}</h3>
-          <p>{selectedTarget.id}</p>
-          <button class="link-btn" onclick={() => (selectedTarget = null)}
-            >Annuler</button
-          >
+        <div class="search-box">
+          <input
+            type="text"
+            placeholder="Rechercher la source..."
+            bind:value={searchTerm1}
+          />
         </div>
-      {:else}
-        <ul class="results">
-          {#each results2 as p}
-            <li>
-              <button onclick={() => (selectedTarget = p)}
-                >{p.prenom} {p.nom} ({p.id})</button
-              >
-            </li>
-          {/each}
-        </ul>
-      {/if}
+
+        {#if selectedSource}
+          <div class="selected-card danger" transition:fade>
+            <div class="card-content">
+              <h3>{selectedSource.prenom} {selectedSource.nom}</h3>
+              <p class="mono">{selectedSource.id}</p>
+            </div>
+            <button class="btn-remove" onclick={() => (selectedSource = null)}>
+              Changer
+            </button>
+          </div>
+        {:else if results1.length > 0}
+          <div class="results-list">
+            {#each results1 as p}
+              <button class="result-item" onclick={() => (selectedSource = p)}>
+                <span class="name">{p.prenom} {p.nom}</span>
+                <span class="id">{p.id}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Arrow -->
+      <div class="merge-arrow">
+        <div class="arrow-icon">
+          <ArrowRight size={24} />
+        </div>
+      </div>
+
+      <!-- Target Column -->
+      <div class="merge-col target">
+        <div class="col-header">
+          <h2>Cible</h2>
+          <span class="badge success">Sera conservé</span>
+        </div>
+
+        <div class="search-box">
+          <input
+            type="text"
+            placeholder="Rechercher la cible..."
+            bind:value={searchTerm2}
+          />
+        </div>
+
+        {#if selectedTarget}
+          <div class="selected-card success" transition:fade>
+            <div class="card-content">
+              <h3>{selectedTarget.prenom} {selectedTarget.nom}</h3>
+              <p class="mono">{selectedTarget.id}</p>
+            </div>
+            <button class="btn-remove" onclick={() => (selectedTarget = null)}>
+              Changer
+            </button>
+          </div>
+        {:else if results2.length > 0}
+          <div class="results-list">
+            {#each results2 as p}
+              <button class="result-item" onclick={() => (selectedTarget = p)}>
+                <span class="name">{p.prenom} {p.nom}</span>
+                <span class="id">{p.id}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
     </div>
-  </div>
 
-  <div class="actions">
-    {#if errorMsg}<p class="error">{errorMsg}</p>{/if}
-    {#if successMsg}<p class="success">{successMsg}</p>{/if}
+    <div class="actions-footer">
+      {#if errorMsg}
+        <div class="message error" transition:fade>{errorMsg}</div>
+      {/if}
+      {#if successMsg}
+        <div class="message success" transition:fade>{successMsg}</div>
+      {/if}
 
-    <button
-      class="merge-btn"
-      disabled={!selectedSource ||
-        !selectedTarget ||
-        loading ||
-        selectedSource.id === selectedTarget.id}
-      onclick={performMerge}
-    >
-      {loading ? "Fusion en cours..." : "Fusionner"}
-    </button>
+      <button
+        class="btn-merge"
+        disabled={!selectedSource ||
+          !selectedTarget ||
+          loading ||
+          selectedSource.id === selectedTarget.id}
+        onclick={performMerge}
+      >
+        {#if loading}
+          Fusion en cours...
+        {:else}
+          Confirmer la fusion
+        {/if}
+      </button>
+    </div>
   </div>
 </div>
 
 <style>
-  .header-nav {
-    margin-bottom: 2rem;
+  .admin-layout {
+    min-height: 100vh;
+    background: #05070a;
+    color: #f8fafc;
   }
 
-  .back-btn {
-    display: inline-flex;
+  .admin-header {
+    position: sticky;
+    top: 0;
+    background: rgba(10, 15, 25, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px 40px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-primary);
+    z-index: 100;
+  }
+
+  .admin-header h1 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .btn-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
     cursor: pointer;
-    font-size: 0.95rem;
+    border-radius: 8px;
     transition: all 0.2s;
   }
 
-  .back-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--primary);
-    color: var(--primary);
+  .btn-back:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
   }
 
-  .admin-merge {
-    padding: 40px;
-    color: white;
+  .admin-content {
     max-width: 1200px;
     margin: 0 auto;
+    padding: 40px;
   }
-  .cols {
-    display: flex;
-    gap: 20px;
+
+  .merge-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 40px;
     align-items: flex-start;
-    margin-top: 40px;
   }
-  .col {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 8px;
+
+  .merge-col {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 400px;
   }
-  .arrow {
-    flex: 0 0 50px;
-    font-size: 40px;
+
+  .col-header {
     display: flex;
-    justify-content: center;
-    align-self: center;
-    background: none;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
   }
-  input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    border: 1px solid #444;
-    background: #222;
-    color: white;
-  }
-  .results {
-    list-style: none;
-    padding: 0;
+
+  .col-header h2 {
     margin: 0;
+    font-size: 16px;
+    color: #94a3b8;
+  }
+
+  .badge {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .badge.danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .badge.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: white;
+    outline: none;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .search-box input:focus {
+    border-color: #3b82f6;
+  }
+
+  .results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     max-height: 300px;
     overflow-y: auto;
   }
-  .results li button {
-    width: 100%;
-    text-align: left;
-    padding: 10px;
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    border-bottom: 1px solid #333;
-  }
-  .results li button:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-  .card {
-    padding: 15px;
-    border-radius: 5px;
-    text-align: center;
-  }
-  .danger {
-    background: rgba(255, 0, 0, 0.2);
-    border: 1px solid red;
-  }
-  .success {
-    background: rgba(0, 255, 0, 0.2);
-    border: 1px solid green;
-  }
-  .actions {
-    margin-top: 40px;
-    text-align: center;
-  }
-  .error {
-    color: #ff6b6b;
-    margin-bottom: 10px;
-  }
-  .success {
-    color: #51cf66;
-    margin-bottom: 10px;
-  }
-  .link-btn {
-    background: none;
-    border: none;
-    color: #aaa;
-    text-decoration: underline;
-    cursor: pointer;
-    margin-top: 10px;
-  }
 
-  .merge-btn {
-    padding: 12px 32px;
-    background: var(--primary);
-    color: white;
-    border: none;
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
+    color: white;
     cursor: pointer;
     transition: all 0.2s;
   }
 
-  .merge-btn:hover:not(:disabled) {
-    background: var(--primary-hover);
-    transform: translateY(-1px);
+  .result-item:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 
-  .merge-btn:disabled {
+  .result-item .name {
+    font-weight: 500;
+  }
+
+  .result-item .id {
+    font-size: 12px;
+    color: #64748b;
+    font-family: monospace;
+  }
+
+  .selected-card {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .selected-card.danger {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .selected-card.success {
+    background: rgba(34, 197, 94, 0.05);
+    border-color: rgba(34, 197, 94, 0.3);
+  }
+
+  .card-content h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+
+  .card-content p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+
+  .btn-remove {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #94a3b8;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-remove:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .merge-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100px;
+    color: #64748b;
+  }
+
+  .arrow-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .actions-footer {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .message {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  .message.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .message.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+  }
+
+  .btn-merge {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 16px 48px;
+    border-radius: 99px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .btn-merge:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(59, 130, 246, 0.4);
+  }
+
+  .btn-merge:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    box-shadow: none;
   }
 </style>

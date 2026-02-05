@@ -464,6 +464,8 @@ export function getRelationships(personId: string): Array<{
   type: string;
   other_person_id: string;
   other_person_name: string;
+  target_name: string;
+  source_name: string;
 }> {
 	const database = getDatabase();
 	const stmt = database.prepare(`
@@ -479,7 +481,9 @@ export function getRelationships(personId: string): Array<{
 			CASE 
 				WHEN r.source_id = ? THEN p2.last_name || ' ' || p2.first_name
 				ELSE p1.last_name || ' ' || p1.first_name
-			END as other_person_name
+			END as other_person_name,
+			p2.first_name || ' ' || p2.last_name as target_name,
+			p1.first_name || ' ' || p1.last_name as source_name
 		FROM relationships r
 		LEFT JOIN people p1 ON r.source_id = p1.id
 		LEFT JOIN people p2 ON r.target_id = p2.id
@@ -494,6 +498,8 @@ export function getRelationships(personId: string): Array<{
     type: string;
     other_person_id: string;
     other_person_name: string;
+    target_name: string;
+    source_name: string;
   }>;
 }
 
