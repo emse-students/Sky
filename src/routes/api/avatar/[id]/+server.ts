@@ -4,8 +4,10 @@ import { getPersonInitials } from '$lib/utils/format';
 
 // Environment variable - loaded by Bun or SvelteKit
 const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
+const MIGALLERY_API_URL = process.env.MIGALLERY_API_URL || 'https://gallery.mitv.fr';
 
 console.debug('[Avatar API] MIGALLERY_API_KEY:', MIGALLERY_API_KEY ? '✓ Set' : '✗ Missing');
+console.debug('[Avatar API] MIGALLERY_API_URL:', MIGALLERY_API_URL);
 
 if (!MIGALLERY_API_KEY) {
 	console.error('[Avatar API] MIGALLERY_API_KEY is not set in environment variables');
@@ -38,7 +40,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 
 		// 2. Try MiGallery
-		const apiUrl = `https://gallery.mitv.fr/api/users/${id}/avatar`;
+		const apiUrl = `${MIGALLERY_API_URL}/api/users/${id}/avatar`;
 		console.debug(`[Avatar API] Calling: ${apiUrl}`);
 
 		const response = await fetch(apiUrl, {
