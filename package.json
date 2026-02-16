@@ -36,7 +36,7 @@
     "test": "echo 'No tests implemented yet'"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "^7.0.0",
+    "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/adapter-node": "^5.5.2",
     "@sveltejs/kit": "^2.50.2",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
