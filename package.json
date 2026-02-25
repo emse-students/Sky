@@ -69,6 +69,6 @@
   "dependencies": {
     "@auth/sveltekit": "^1.11.1",
     "better-sqlite3": "^12.6.2",
-    "lucide-svelte": "^0.563.0"
+    "lucide-svelte": "^0.564.0"
   }
 }
