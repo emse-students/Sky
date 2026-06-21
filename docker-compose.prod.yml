@@ -1,0 +1,25 @@
+# Stack de production Sky.
+# La CD build et pousse l image sur GHCR, puis fait `docker compose pull && up -d`
+# sur le serveur. Le .env (secrets) est genere par la CD depuis les secrets GitHub.
+#
+# database/ est monte depuis le dossier de deploiement pour conserver les bases
+# SQLite existantes (sky.db + auth.db) entre les versions.
+services:
+  sky:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-emse-students/sky}:${TAG:-latest}
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${SKY_HOST_PORT:-3001}:3001"
+    environment:
+      PORT: "3001"
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
+      AUTH_TRUSTED_HOST: "true"
+      AUTH_TRUST_HOST: "true"
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-10485760}
+      MIGALLERY_API_KEY: ${MIGALLERY_API_KEY:?MIGALLERY_API_KEY requis}
+    volumes:
+      - ./database:/app/database

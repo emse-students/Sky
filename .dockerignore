@@ -1,0 +1,15 @@
+node_modules
+.svelte-kit
+build
+database/*.db
+database/*.db-*
+database/*.backup-*
+.git
+.github
+tests
+coverage
+*.log
+.env
+.env.*
+!.env.example
+.vscode
