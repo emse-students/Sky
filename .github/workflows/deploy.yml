@@ -9,87 +9,113 @@ on:
       - main
 
 jobs:
-  deploy:
-    name: Deploy to production
-    runs-on: self-hosted
+  build-image:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Setup dependencies
-        run: bun install
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Type check and generate SvelteKit config
-        run: bun run check && bunx svelte-kit sync
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lint code
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/emse-students/sky
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=main-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to production
+    runs-on: self-hosted
+    needs: build-image
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_DIR: /home/mitv/Sky
+      COMPOSE: docker compose -f /home/mitv/Sky/docker-compose.prod.yml --project-directory /home/mitv/Sky
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Generate .env from secrets
         env:
-          NODE_OPTIONS: "--max-old-space-size=16384"
-        run: bun run lint
-
-      - name: Build project
-        run: bun run build
-
-      - name: Paste files to server
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          MIGALLERY_API_KEY: ${{ secrets.MIGALLERY_API_KEY }}
         run: |
-          cd ~/Sky
-          # Supprimer tout SAUF .env, database et .svelte-kit
-          # On préserve 'database' car il contient la DB et les fichiers permanents
-          find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'database' -not -name '.svelte-kit' -exec rm -rf {} +
+          for v in AUTH_SECRET MIGALLERY_API_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
+          done
+          mkdir -p "$DEPLOY_DIR"
+          umask 077
+          {
+            printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
+            printf 'MIGALLERY_API_KEY=%s\n' "$MIGALLERY_API_KEY"
+          } > "$DEPLOY_DIR/.env"
 
-          # Copier les nouveaux fichiers depuis le runner
-          # Utilisation directe de github.workspace pour éviter les erreurs de chemin
-          cp -r ${{ github.workspace }}/* .
-
-      - name: Install Python dependencies
+      - name: Sync deploy files
         run: |
-          cd ~/Sky
+          cp docker-compose.prod.yml "$DEPLOY_DIR/"
+          mkdir -p "$DEPLOY_DIR/scripts"
+          cp scripts/backup-offsite.sh scripts/restore-offsite.sh "$DEPLOY_DIR/scripts/"
+          chmod +x "$DEPLOY_DIR/scripts/backup-offsite.sh" "$DEPLOY_DIR/scripts/restore-offsite.sh"
 
-          # Check if pip is installed, if not try to install it using get-pip.py
-          if ! python3 -m pip --version > /dev/null 2>&1; then
-            echo "Pip module not found. Attempting to install pip locally..."
-            curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-            python3 get-pip.py --user
-            rm get-pip.py
-          fi
+      - name: Pull image
+        run: $COMPOSE pull
 
-          # Add user site-packages binary path to PATH (often ~/.local/bin)
-          export PATH=$PATH:$HOME/.local/bin
-
-          # Verify pip is now available
-          python3 -m pip --version
-
-          # Install dependencies
-          python3 -m pip install -r requirements.txt --user --break-system-packages || python3 -m pip install -r requirements.txt --user
-
-      - name: Initialize and Verify Database
+      - name: Stop legacy pm2 process (cutover idempotent)
         run: |
-          cd ~/Sky
-          # Rebuild better-sqlite3 for the current Node environment to ensure ABI compatibility
-          # This fixes possible mismatch between Bun install and Node execution
-          npm rebuild better-sqlite3
+          /home/mitv/.bun/bin/pm2 delete sky 2>/dev/null || true
+          /home/mitv/.bun/bin/pm2 save --force 2>/dev/null || true
 
-          # Run the integrity check script using Node (Bun does not support better-sqlite3 yet)
-          node scripts/check-db-integrity.js
+      - name: Deploy
+        run: $COMPOSE up -d --remove-orphans
 
-          # Run migrations
-          node scripts/migrate-add-bio.js || true
-
-          # Migration auto des IDs si nécessaire (DANGEREUX - ne lance que si vraiment nécessaire)
-          # node scripts/migrate-ids.js || true
-
-      - name: Restart server
+      - name: Health check
         run: |
-          cd ~/Sky
-          pm2 delete sky || true
-          pm2 start npm \
-            --name sky \
-            --cwd /home/mitv/Sky \
-            -- run start:prod
-          pm2 save
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || true)
+            if [ "$code" = "200" ]; then echo "✅ Sky healthy"; exit 0; fi
+            sleep 3
+          done
+          echo "::error::Health check KO apres deploiement"
+          $COMPOSE logs --tail 50
+          exit 1
+
+      - name: Cleanup Docker
+        run: |
+          docker image prune -af --filter 'until=24h' || true
+          docker builder prune -af --filter 'until=168h' || true
