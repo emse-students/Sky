@@ -44,9 +44,14 @@ export interface OidcClaims {
   formation: string | null;
 }
 
-/** Issuer Authentik sans slash final (ex: https://auth.canari-emse.fr/application/o/sky). */
-function getIssuerBaseUrl(): string {
-  return (process.env.MICONNECT_ISSUER || "").trim().replace(/\/+$/, "");
+/**
+ * Base Authentik sans slash final (ex: https://auth.canari-emse.fr). Comme
+ * Canari, les endpoints sont a un chemin global `/application/o/<endpoint>/` :
+ * le slug de l app n apparait que dans l issuer des tokens, pas dans les URLs
+ * d endpoint (un chemin slugge `/o/<slug>/authorize/` renvoie 404 sous Authentik).
+ */
+function getBaseUrl(): string {
+  return (process.env.MICONNECT_BASE_URL || "").trim().replace(/\/+$/, "");
 }
 
 function trimmedOrNull(value: unknown): string | null {
@@ -92,7 +97,7 @@ async function exchangeCodeForTokens(
   redirectUri: string,
 ): Promise<OidcToken | null> {
   try {
-    const response = await fetch(`${getIssuerBaseUrl()}/token/`, {
+    const response = await fetch(`${getBaseUrl()}/application/o/token/`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -124,7 +129,7 @@ async function fetchUserProfile(
   accessToken: string,
 ): Promise<OidcProfile | null> {
   try {
-    const response = await fetch(`${getIssuerBaseUrl()}/userinfo/`, {
+    const response = await fetch(`${getBaseUrl()}/application/o/userinfo/`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -156,7 +161,7 @@ export function generateAuthorizationUrl(
     state,
     nonce,
   });
-  return `${getIssuerBaseUrl()}/authorize/?${params.toString()}`;
+  return `${getBaseUrl()}/application/o/authorize/?${params.toString()}`;
 }
 
 /**

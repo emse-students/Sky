@@ -75,7 +75,7 @@ jobs:
         env:
           MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
           MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
-          MICONNECT_ISSUER: ${{ secrets.MICONNECT_ISSUER }}
+          MICONNECT_BASE_URL: ${{ secrets.MICONNECT_BASE_URL }}
           SKY_ADMIN_SUBS: ${{ secrets.SKY_ADMIN_SUBS }}
           MIGALLERY_API_KEY: ${{ secrets.MIGALLERY_API_KEY }}
           MIGALLERY_API_URL: ${{ secrets.MIGALLERY_API_URL }}
@@ -89,7 +89,7 @@ jobs:
             printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
             printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
             printf 'MIGALLERY_API_KEY=%s\n' "$MIGALLERY_API_KEY"
-            if [ -n "$MICONNECT_ISSUER" ]; then printf 'MICONNECT_ISSUER=%s\n' "$MICONNECT_ISSUER"; fi
+            if [ -n "$MICONNECT_BASE_URL" ]; then printf 'MICONNECT_BASE_URL=%s\n' "$MICONNECT_BASE_URL"; fi
             if [ -n "$SKY_ADMIN_SUBS" ]; then printf 'SKY_ADMIN_SUBS=%s\n' "$SKY_ADMIN_SUBS"; fi
             if [ -n "$MIGALLERY_API_URL" ]; then printf 'MIGALLERY_API_URL=%s\n' "$MIGALLERY_API_URL"; fi
           } > "$DEPLOY_DIR/.env"

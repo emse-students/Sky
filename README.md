@@ -183,7 +183,7 @@ node build/index.js
 Créer un fichier `.env` (voir `.env.example`) :
 
 ```bash
-MICONNECT_ISSUER=https://auth.canari-emse.fr/application/o/sky
+MICONNECT_BASE_URL=https://auth.canari-emse.fr
 MICONNECT_CLIENT_ID=<client OIDC de l app Sky>
 MICONNECT_CLIENT_SECRET=<secret OIDC associe>
 MIGALLERY_API_KEY=<cle API MiGallery>

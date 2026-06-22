@@ -32,24 +32,24 @@ doit pouvoir lancer `docker` (`usermod -aG docker <user>` + redemarrage du runne
 
 La CD genere `.env` depuis les secrets du repo :
 
-| Secret                    | Role                                                                  |
-| ------------------------- | --------------------------------------------------------------------- |
-| `MICONNECT_CLIENT_ID`     | client OIDC de l app Sky dans Authentik (miconnect)                   |
-| `MICONNECT_CLIENT_SECRET` | secret OIDC associe                                                   |
-| `MIGALLERY_API_KEY`       | acces a l API MiGallery (avatars)                                     |
-| `SKY_ADMIN_SUBS`          | (facultatif) sub Authentik admins, separes par des virgules           |
-| `MICONNECT_ISSUER`        | (facultatif) surcharge l issuer ; defaut `.../application/o/sky`       |
-| `MIGALLERY_API_URL`       | (facultatif) base de l API MiGallery ; defaut `https://gallery.mitv.fr`|
+| Secret                    | Role                                                                    |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | client OIDC de l app Sky dans Authentik (miconnect)                     |
+| `MICONNECT_CLIENT_SECRET` | secret OIDC associe                                                     |
+| `MIGALLERY_API_KEY`       | acces a l API MiGallery (avatars)                                       |
+| `SKY_ADMIN_SUBS`          | (facultatif) sub Authentik admins, separes par des virgules             |
+| `MICONNECT_BASE_URL`      | (facultatif) base Authentik ; defaut `https://auth.canari-emse.fr`      |
+| `MIGALLERY_API_URL`       | (facultatif) base de l API MiGallery ; defaut `https://gallery.mitv.fr` |
 
 Les trois premiers sont obligatoires (la CD echoue s ils manquent). Les valeurs
-non-secretes (PORT 3001, `MICONNECT_ISSUER`, `MIGALLERY_API_URL`, BODY_SIZE_LIMIT)
-ont des defauts dans `docker-compose.prod.yml`.
+non-secretes (PORT 3001, `MICONNECT_BASE_URL`, `MIGALLERY_API_URL`, BODY_SIZE_LIMIT)
+ont des defauts dans `docker-compose.prod.yml`. Les endpoints OIDC sont a
+`<base>/application/o/{authorize,token,userinfo}/` (globaux, sans slug, comme Canari).
 
 > Authentik : l app Sky doit avoir l URI de redirection
 > `https://sky.mitv.fr/auth/callback` et exposer les claims `given_name`,
 > `family_name`, `email`, `promo`, `formation` (scopes `openid profile promo name
-> formation`). Le slug de l app doit correspondre a `MICONNECT_ISSUER` (defaut
-> `sky`). Tout Sky est reserve a la formation ICM ; les `SKY_ADMIN_SUBS` y
+formation`). Tout Sky est reserve a la formation ICM ; les `SKY_ADMIN_SUBS` y
 > echappent. Les fiches `people` sont reliees a un compte par (nom, prenom,
 > promotion) ; sinon une nouvelle fiche est creee.
 
