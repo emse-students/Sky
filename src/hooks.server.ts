@@ -4,19 +4,21 @@ import { getSessionPerson } from "$server/database";
 import { SESSION_COOKIE_NAME } from "$server/session";
 
 /**
- * Prefixes accessibles sans session (flux de connexion, page de refus, sonde de
- * sante, et proxy d avatars appele par les balises <img>). Les fichiers statiques
- * (_app, assets) sont servis avant le hook et n y passent donc pas.
+ * Routes accessibles sans session. `/` (la landing avec le bouton Connexion) et
+ * `/unauthorized` sont publiques en correspondance EXACTE ; les autres sont des
+ * prefixes (flux de connexion, sonde de sante, proxy d avatars appele par <img>).
+ * Les fichiers statiques (_app, assets) sont servis avant le hook. Comme Canari,
+ * la landing publique evite la boucle de re-login silencieux apres deconnexion
+ * (la session SSO Authentik n est pas tuee : reconnexion en un clic).
  */
-const PUBLIC_PREFIXES = [
-  "/auth/",
-  "/unauthorized",
-  "/api/health",
-  "/api/avatar/",
-];
+const PUBLIC_EXACT = new Set(["/", "/unauthorized"]);
+const PUBLIC_PREFIXES = ["/auth/", "/api/health", "/api/avatar/"];
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+  return (
+    PUBLIC_EXACT.has(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+  );
 }
 
 /**
