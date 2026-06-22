@@ -4,7 +4,7 @@ import { getDatabase, recalculatePositions } from "$lib/server/database";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || user.profile_id !== "jolan.boudin") {
+  if (!user || user.role !== "admin") {
     return json({ error: "Unauthorized" }, { status: 403 });
   }
 

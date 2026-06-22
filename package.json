@@ -25,11 +25,9 @@
     "ci:build": "bun install --production && npm run build",
     "prebuild": "npm run deps:install || npm run deps:install:pnpm || npm run deps:install:npm || true",
     "start": "bun run dev",
-    "start:prod": "node scripts/init-db.js && node scripts/migrate-add-bio.js && node --env-file=.env build/index.js",
+    "start:prod": "node scripts/init-db.js && node scripts/migrate-add-bio.js && node scripts/migrate-auth.js && node --env-file=.env build/index.js",
     "db:init": "node scripts/init-db.js",
-    "auth:secret": "bun scripts/generate-auth-secret.js",
     "calcul": "python scripts/calcul_positions.py",
-    "migallery:sync": "bun run scripts/sync-migallery.ts",
     "package": "bun run build && bun ./scripts/pack-bun.js",
     "package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
     "version:show": "node -e \"console.log(require('./package.json').version)\"",
@@ -68,7 +66,6 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@auth/sveltekit": "^1.11.2",
     "better-sqlite3": "^12.6.2",
     "lucide-svelte": "^1.0.1"
   }

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# Restauration des bases Sky (sky.db + auth.db) depuis la sauvegarde offsite
+# Restauration de la base Sky (sky.db) depuis la sauvegarde offsite
 # (serveur canari). Pensee pour la reprise / migration vers un nouveau serveur.
 #
 #   ./scripts/restore-offsite.sh --yes
 #
-# OPERATION DESTRUCTIVE : remplace database/sky.db et database/auth.db par les
-# dernieres versions offsite. Exige --yes.
+# OPERATION DESTRUCTIVE : remplace database/sky.db par la derniere version
+# offsite. Exige --yes.
 #
 set -euo pipefail
 
 SKY_DIR="${SKY_DIR:-/home/mitv/Sky}"
 DB_DIR="${DB_DIR:-$SKY_DIR/database}"
-DATABASES="${DATABASES:-sky auth}"   # noms sans extension
+DATABASES="${DATABASES:-sky}"   # noms sans extension
 OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
 OFFSITE_PATH="${OFFSITE_PATH:-sky-offsite}"
 COMPOSE="docker compose -f $SKY_DIR/docker-compose.prod.yml --project-directory $SKY_DIR"

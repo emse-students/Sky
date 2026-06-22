@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Seme le schema dans le volume si absent, migrations idempotentes, puis demarrage.
-CMD ["sh", "-c", "mkdir -p database; [ -f database/schema.sql ] || cp db-seed/schema.sql database/schema.sql; node scripts/init-db.js; node scripts/migrate-add-bio.js || true; node build/index.js"]
+CMD ["sh", "-c", "mkdir -p database; [ -f database/schema.sql ] || cp db-seed/schema.sql database/schema.sql; node scripts/init-db.js; node scripts/migrate-add-bio.js || true; node scripts/migrate-auth.js || true; node build/index.js"]

@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { signIn, signOut } from "@auth/sveltekit/client";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { LogIn, LogOut, Map, Search, User } from "lucide-svelte";
 
-  let u = $derived(page.data?.session?.user);
+  let u = $derived(page.data?.user);
   let isAuthenticated = $derived(!!u);
   let searchQuery = $state("");
 
@@ -79,15 +78,15 @@
         <span class="user-name">{u.name || u.email}</span>
       </a>
 
-      <button class="btn-logout" onclick={() => signOut()}>
+      <a class="btn-logout" href="/auth/logout">
         <LogOut size={16} />
         <span>Déconnexion</span>
-      </button>
+      </a>
     {:else}
-      <button class="btn-login" onclick={() => signIn("cas-emse")}>
+      <a class="btn-login" href="/auth/login">
         <LogIn size={16} />
         <span>Connexion</span>
-      </button>
+      </a>
     {/if}
   </div>
 </nav>

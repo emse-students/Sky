@@ -20,7 +20,7 @@
   let messageType: "success" | "error" | "" = "";
 
   $: user = $page.data.user;
-  $: isAdmin = user?.profile_id === "jolan.boudin";
+  $: isAdmin = user?.role === "admin";
 
   // Debug: afficher les infos utilisateur
   $: if (user) {

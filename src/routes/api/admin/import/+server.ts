@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   // Check admin authorization
-  if (locals.user?.profile_id !== "jolan.boudin") {
+  if (locals.user?.role !== "admin") {
     return new Response("Unauthorized", { status: 403 });
   }
 

@@ -3,7 +3,7 @@ import { redirect } from "@sveltejs/kit";
 
 export const load: PageServerLoad = ({ locals }) => {
   // Check if user is admin
-  if (locals.user?.profile_id !== "jolan.boudin") {
+  if (locals.user?.role !== "admin") {
     throw redirect(303, "/");
   }
 

@@ -4,7 +4,7 @@ import { getDatabase, recalculatePositions } from "$lib/server/database";
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const user = locals.user;
-  if (!user || user.profile_id !== "jolan.boudin") {
+  if (!user || user.role !== "admin") {
     return json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -45,7 +45,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
   const user = locals.user;
-  if (!user || user.profile_id !== "jolan.boudin") {
+  if (!user || user.role !== "admin") {
     return json({ error: "Unauthorized" }, { status: 403 });
   }
 

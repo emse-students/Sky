@@ -3,7 +3,6 @@
   import { fade, fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { page } from "$app/stores";
-  import { signIn } from "@auth/sveltekit/client";
   import { graphStore, selectedPersonId, focusDepth } from "$stores/graphStore";
   import { cameraStore } from "$stores/cameraStore";
   import StarfieldCanvas from "$components/Canvas/StarfieldCanvas.svelte";
@@ -168,12 +167,11 @@
   }
 
   function handleLogin() {
-    signIn("cas-emse");
+    window.location.href = "/auth/login";
   }
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
+  function handleLogout() {
+    window.location.href = "/auth/logout";
   }
 
   function goToMyProfile() {
@@ -303,7 +301,7 @@
             <a href="/profile/edit" class="menu-item">
               <Edit size={16} /> Modifier
             </a>
-            {#if user?.profile_id === "jolan.boudin"}
+            {#if user?.role === "admin"}
               <div class="menu-divider"></div>
               <a href="/admin" class="menu-item">
                 <Database size={16} /> Administration
