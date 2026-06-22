@@ -68,7 +68,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@auth/sveltekit": "^1.11.1",
+    "@auth/sveltekit": "^1.11.2",
     "better-sqlite3": "^12.6.2",
     "lucide-svelte": "^0.564.0"
   }
