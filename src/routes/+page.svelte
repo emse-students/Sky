@@ -10,11 +10,8 @@
   import GraphCanvas from "$components/Canvas/GraphCanvas.svelte";
   import { getPersonName, getPersonInitials } from "$lib/utils/format";
   import {
-    Linkedin,
     Mail,
     Globe,
-    Github,
-    Instagram,
     Phone,
     Link,
     User,
@@ -27,6 +24,9 @@
     Loader2,
     Database,
   } from "lucide-svelte";
+  import Linkedin from "$components/icons/Linkedin.svelte";
+  import Github from "$components/icons/Github.svelte";
+  import Instagram from "$components/icons/Instagram.svelte";
 
   // UI State
   let searchTerm = "";

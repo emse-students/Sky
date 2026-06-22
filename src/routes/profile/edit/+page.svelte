@@ -6,11 +6,8 @@
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
   import {
-    Linkedin,
     Mail,
     Globe,
-    Github,
-    Instagram,
     Phone,
     User,
     Save,
@@ -25,6 +22,9 @@
     CheckCircle2,
     Info,
   } from "lucide-svelte";
+  import Linkedin from "$components/icons/Linkedin.svelte";
+  import Github from "$components/icons/Github.svelte";
+  import Instagram from "$components/icons/Instagram.svelte";
 
   // State
   let profile: any = $state(null);
