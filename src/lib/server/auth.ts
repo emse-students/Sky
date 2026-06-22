@@ -1,16 +1,16 @@
-import Database from 'better-sqlite3';
-import type { User, Session } from '$types/api';
+import Database from "better-sqlite3";
+import type { User, Session } from "$types/api";
 
 class AuthService {
-	private db: Database.Database;
+  private db: Database.Database;
 
-	constructor(dbPath: string = 'database/auth.db') {
-		this.db = new Database(dbPath);
-		this.initDatabase();
-	}
+  constructor(dbPath: string = "database/auth.db") {
+    this.db = new Database(dbPath);
+    this.initDatabase();
+  }
 
-	private initDatabase() {
-		this.db.exec(`
+  private initDatabase() {
+    this.db.exec(`
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
@@ -23,7 +23,7 @@ class AuthService {
             )
         `);
 
-		this.db.exec(`
+    this.db.exec(`
             CREATE TABLE IF NOT EXISTS sessions (
                 token TEXT PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -32,148 +32,148 @@ class AuthService {
             )
         `);
 
-		const adminExists = this.db
-			.prepare("SELECT id FROM users WHERE email = 'les.roots@etu.emse.fr'")
-			.get();
-		if (!adminExists) {
-			this.db
-				.prepare(
-					'INSERT INTO users (email, name, role, first_login) VALUES (?, ?, ?, ?)'
-				)
-				.run('les.roots@etu.emse.fr', 'Administrateur', 'les.roots', 0);
-		}
-	}
+    const adminExists = this.db
+      .prepare("SELECT id FROM users WHERE email = 'les.roots@etu.emse.fr'")
+      .get();
+    if (!adminExists) {
+      this.db
+        .prepare(
+          "INSERT INTO users (email, name, role, first_login) VALUES (?, ?, ?, ?)",
+        )
+        .run("les.roots@etu.emse.fr", "Administrateur", "les.roots", 0);
+    }
+  }
 
-	getOrCreateUser(email: string, name: string, profileId?: string): User {
-		let user = this.db
-			.prepare('SELECT * FROM users WHERE email = ?')
-			.get(email) as User | undefined;
+  getOrCreateUser(email: string, name: string, profileId?: string): User {
+    let user = this.db
+      .prepare("SELECT * FROM users WHERE email = ?")
+      .get(email) as User | undefined;
 
-		if (!user) {
-			this.db
-				.prepare('INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)')
-				.run(email, name, profileId || null);
-			user = this.db
-				.prepare('SELECT * FROM users WHERE email = ?')
-				.get(email) as User;
-		} else if (profileId && user.profile_id !== profileId) {
-			// Update profile_id if different and provided
-			this.db
-				.prepare('UPDATE users SET profile_id = ? WHERE email = ?')
-				.run(profileId, email);
-			user.profile_id = profileId;
-		}
-		return user;
-	}
+    if (!user) {
+      this.db
+        .prepare("INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)")
+        .run(email, name, profileId || null);
+      user = this.db
+        .prepare("SELECT * FROM users WHERE email = ?")
+        .get(email) as User;
+    } else if (profileId && user.profile_id !== profileId) {
+      // Update profile_id if different and provided
+      this.db
+        .prepare("UPDATE users SET profile_id = ? WHERE email = ?")
+        .run(profileId, email);
+      user.profile_id = profileId;
+    }
+    return user;
+  }
 
-	createSession(email: string, name: string): { token: string; user: User } {
-		// Extract ID from email (before @)
-		const userId = email.split('@')[0];
+  createSession(email: string, name: string): { token: string; user: User } {
+    // Extract ID from email (before @)
+    const userId = email.split("@")[0];
 
-		let user = this.db
-			.prepare('SELECT * FROM users WHERE email = ?')
-			.get(email) as User | undefined;
+    let user = this.db
+      .prepare("SELECT * FROM users WHERE email = ?")
+      .get(email) as User | undefined;
 
-		if (!user) {
-			this.db
-				.prepare('INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)')
-				.run(email, name, userId);
-			user = this.db
-				.prepare('SELECT * FROM users WHERE email = ?')
-				.get(email) as User;
-		} else if (!user.profile_id) {
-			// Update existing user with profile_id if missing
-			this.db
-				.prepare('UPDATE users SET profile_id = ? WHERE email = ?')
-				.run(userId, email);
-			user.profile_id = userId;
-		}
+    if (!user) {
+      this.db
+        .prepare("INSERT INTO users (email, name, profile_id) VALUES (?, ?, ?)")
+        .run(email, name, userId);
+      user = this.db
+        .prepare("SELECT * FROM users WHERE email = ?")
+        .get(email) as User;
+    } else if (!user.profile_id) {
+      // Update existing user with profile_id if missing
+      this.db
+        .prepare("UPDATE users SET profile_id = ? WHERE email = ?")
+        .run(userId, email);
+      user.profile_id = userId;
+    }
 
-		const token = crypto.randomUUID();
-		const expiresAt = Math.floor(Date.now() / 1000) + 86400 * 7;
+    const token = crypto.randomUUID();
+    const expiresAt = Math.floor(Date.now() / 1000) + 86400 * 7;
 
-		this.db
-			.prepare(
-				'INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)'
-			)
-			.run(token, user.id, expiresAt);
+    this.db
+      .prepare(
+        "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
+      )
+      .run(token, user.id, expiresAt);
 
-		return { token, user };
-	}
+    return { token, user };
+  }
 
-	validateSession(token: string): User | null {
-		const session = this.db
-			.prepare(
-				`
+  validateSession(token: string): User | null {
+    const session = this.db
+      .prepare(
+        `
             SELECT s.*, u.* FROM sessions s
             JOIN users u ON s.user_id = u.id
             WHERE s.token = ? AND s.expires_at > strftime('%s', 'now')
-        `
-			)
-			.get(token) as (Session & User) | undefined;
+        `,
+      )
+      .get(token) as (Session & User) | undefined;
 
-		return session
-			? {
-				id: session.id,
-				email: session.email,
-				name: session.name,
-				profile_id: session.profile_id,
-				role: session.role,
-				first_login: session.first_login,
-				avatar: session.avatar
-			}
-			: null;
-	}
+    return session
+      ? {
+          id: session.id,
+          email: session.email,
+          name: session.name,
+          profile_id: session.profile_id,
+          role: session.role,
+          first_login: session.first_login,
+          avatar: session.avatar,
+        }
+      : null;
+  }
 
-	deleteSession(token: string) {
-		this.db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-	}
+  deleteSession(token: string) {
+    this.db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  }
 
-	linkProfile(userId: number, profileId: string) {
-		this.db
-			.prepare('UPDATE users SET profile_id = ?, first_login = 0 WHERE id = ?')
-			.run(profileId, userId);
-	}
+  linkProfile(userId: number, profileId: string) {
+    this.db
+      .prepare("UPDATE users SET profile_id = ?, first_login = 0 WHERE id = ?")
+      .run(profileId, userId);
+  }
 
-	getUserById(id: number): User | null {
-		return (
-			(this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as
+  getUserById(id: number): User | null {
+    return (
+      (this.db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
         | User
         | undefined) || null
-		);
-	}
+    );
+  }
 
-	updateUser(userId: number, updates: Partial<User>) {
-		const fields = Object.keys(updates)
-			.filter((k) => k !== 'id')
-			.map((k) => `${k} = ?`)
-			.join(', ');
-		const values = Object.keys(updates)
-			.filter((k) => k !== 'id')
-			.map((k) => updates[k as keyof User]);
+  updateUser(userId: number, updates: Partial<User>) {
+    const fields = Object.keys(updates)
+      .filter((k) => k !== "id")
+      .map((k) => `${k} = ?`)
+      .join(", ");
+    const values = Object.keys(updates)
+      .filter((k) => k !== "id")
+      .map((k) => updates[k as keyof User]);
 
-		if (fields) {
-			this.db
-				.prepare(`UPDATE users SET ${fields} WHERE id = ?`)
-				.run(...values, userId);
-		}
-	}
+    if (fields) {
+      this.db
+        .prepare(`UPDATE users SET ${fields} WHERE id = ?`)
+        .run(...values, userId);
+    }
+  }
 }
 
 let authInstance: AuthService | null = null;
 
 export function getAuthService(): AuthService {
-	if (!authInstance) {
-		authInstance = new AuthService();
-	}
-	return authInstance;
+  if (!authInstance) {
+    authInstance = new AuthService();
+  }
+  return authInstance;
 }
 
 // For backward compatibility
 export const auth = new Proxy({} as AuthService, {
-	get(target, prop) {
-		const service = getAuthService();
-		const value = service[prop as keyof AuthService];
-		return typeof value === 'function' ? value.bind(service) : value;
-	}
+  get(target, prop) {
+    const service = getAuthService();
+    const value = service[prop as keyof AuthService];
+    return typeof value === "function" ? value.bind(service) : value;
+  },
 });

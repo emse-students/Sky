@@ -6,13 +6,13 @@ restauration des donnees.
 
 ## Architecture de deploiement
 
-| Element | Detail |
-| --- | --- |
-| Runtime | conteneur Docker `sky` (SvelteKit adapter-node, Node + Python), port 3001 |
-| Donnees | `database/` monte en volume : `sky.db` + `auth.db` (SQLite) + `schema.sql` |
-| Image | `ghcr.io/emse-students/sky:latest` (buildee par la CD) |
-| CD | `.github/workflows/deploy.yml` (workflow_run apres "CI (Bun)") : build-image -> deploy |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root) |
+| Element | Detail                                                                                 |
+| ------- | -------------------------------------------------------------------------------------- |
+| Runtime | conteneur Docker `sky` (SvelteKit adapter-node, Node + Python), port 3001              |
+| Donnees | `database/` monte en volume : `sky.db` + `auth.db` (SQLite) + `schema.sql`             |
+| Image   | `ghcr.io/emse-students/sky:latest` (buildee par la CD)                                 |
+| CD      | `.github/workflows/deploy.yml` (workflow_run apres "CI (Bun)") : build-image -> deploy |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root)                   |
 
 > Runtime Node (et non Bun) : `better-sqlite3` est utilise par des scripts non
 > bundles (`init-db.js`, migrations) que Bun ne sait pas charger. Python +
@@ -32,10 +32,10 @@ doit pouvoir lancer `docker` (`usermod -aG docker <user>` + redemarrage du runne
 
 La CD genere `.env` depuis les secrets du repo :
 
-| Secret | Role |
-| --- | --- |
-| `AUTH_SECRET` | signatures Auth.js (`openssl rand -base64 32`) |
-| `MIGALLERY_API_KEY` | acces a l API MiGallery |
+| Secret              | Role                                           |
+| ------------------- | ---------------------------------------------- |
+| `AUTH_SECRET`       | signatures Auth.js (`openssl rand -base64 32`) |
+| `MIGALLERY_API_KEY` | acces a l API MiGallery                        |
 
 Les valeurs non-secretes (PORT 3001, AUTH_TRUST_HOST, BODY_SIZE_LIMIT) ont des
 defauts dans `docker-compose.prod.yml`.

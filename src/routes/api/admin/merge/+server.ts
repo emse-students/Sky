@@ -1,34 +1,40 @@
-import { json } from '@sveltejs/kit';
-import { mergePeople, recalculatePositions } from '$lib/server/database';
-import type { RequestHandler } from '@sveltejs/kit';
+import { json } from "@sveltejs/kit";
+import { mergePeople, recalculatePositions } from "$lib/server/database";
+import type { RequestHandler } from "@sveltejs/kit";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const user = locals.user;
-	if (!user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+  const user = locals.user;
+  if (!user) {
+    return json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-	try {
-		const body = (await request.json()) as { sourceId: string; targetId: string };
-		const { sourceId, targetId } = body;
+  try {
+    const body = (await request.json()) as {
+      sourceId: string;
+      targetId: string;
+    };
+    const { sourceId, targetId } = body;
 
-		if (!sourceId || !targetId) {
-			return json({ error: 'Missing sourceId or targetId' }, { status: 400 });
-		}
+    if (!sourceId || !targetId) {
+      return json({ error: "Missing sourceId or targetId" }, { status: 400 });
+    }
 
-		if (sourceId === targetId) {
-			return json({ error: 'Cannot merge person into themselves' }, { status: 400 });
-		}
+    if (sourceId === targetId) {
+      return json(
+        { error: "Cannot merge person into themselves" },
+        { status: 400 },
+      );
+    }
 
-		mergePeople(sourceId, targetId);
+    mergePeople(sourceId, targetId);
 
-		// Trigger recalculation in background
-		recalculatePositions().catch(e => console.error('Recalc failed', e));
+    // Trigger recalculation in background
+    recalculatePositions().catch((e) => console.error("Recalc failed", e));
 
-		return json({ success: true });
-	} catch (error) {
-		console.error('Merge failed:', error);
-		const message = error instanceof Error ? error.message : 'Unknown error';
-		return json({ error: 'Merge failed', details: message }, { status: 500 });
-	}
+    return json({ success: true });
+  } catch (error) {
+    console.error("Merge failed:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return json({ error: "Merge failed", details: message }, { status: 500 });
+  }
 };

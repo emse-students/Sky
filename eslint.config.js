@@ -49,25 +49,9 @@ export default [
       "no-var": "error",
       eqeqeq: ["error", "always"],
       curly: ["error", "all"],
-      "brace-style": ["error", "1tbs"],
-      semi: ["error", "always"],
-      quotes: [
-        "error",
-        "single",
-        {
-          avoidEscape: true,
-        },
-      ],
-      indent: ["error", "tab", { SwitchCase: 1 }],
-      "comma-dangle": ["error", "never"],
-      "no-trailing-spaces": "error",
-      "no-multiple-empty-lines": [
-        "error",
-        {
-          max: 2,
-          maxEOF: 0,
-        },
-      ],
+      // Regles de mise en forme (quotes, indent, semi, virgules...) deleguees a
+      // Prettier (source de verite). eslint-config-prettier les desactive ; on ne
+      // les reactive plus ici pour eviter le conflit ESLint <-> Prettier.
       "object-shorthand": ["error", "always"],
       "prefer-template": "error",
     },

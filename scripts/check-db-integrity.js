@@ -46,15 +46,15 @@ try {
     }
 
     if (!columns.includes("image_url") && !columns.includes("image")) {
-         // Note: schema uses image_url, code might fallback
-         console.log("ℹ️ Vérification des colonnes d'image standard...");
+      // Note: schema uses image_url, code might fallback
+      console.log("ℹ️ Vérification des colonnes d'image standard...");
     }
   }
 
   // 3. Check associations table
   if (!tables.includes("associations")) {
-      console.log("⚠️ Table 'associations' manquante. Création...");
-      db.exec(`
+    console.log("⚠️ Table 'associations' manquante. Création...");
+    db.exec(`
         CREATE TABLE IF NOT EXISTS associations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             person_id TEXT NOT NULL,
@@ -67,14 +67,18 @@ try {
         );
         CREATE INDEX IF NOT EXISTS idx_associations_person ON associations(person_id);
       `);
-      console.log("✅ Table 'associations' créée.");
+    console.log("✅ Table 'associations' créée.");
   }
 
   // 4. Rebuild FTS index if corrupted or missing
   try {
-    const ftsTest = db.prepare("SELECT COUNT(*) as count FROM people_fts").get();
-    const peopleCount = db.prepare("SELECT COUNT(*) as count FROM people").get();
-    
+    const ftsTest = db
+      .prepare("SELECT COUNT(*) as count FROM people_fts")
+      .get();
+    const peopleCount = db
+      .prepare("SELECT COUNT(*) as count FROM people")
+      .get();
+
     if (!ftsTest || ftsTest.count !== peopleCount.count) {
       console.log("⚠️ Index FTS désynchronisé. Reconstruction...");
       rebuildFTS();
@@ -85,9 +89,11 @@ try {
   }
 
   console.log("✅ Intégrité de la base de données vérifiée.");
-
 } catch (error) {
-  console.error("❌ Erreur critique lors de la vérification de la base de données:", error);
+  console.error(
+    "❌ Erreur critique lors de la vérification de la base de données:",
+    error,
+  );
   process.exit(1);
 }
 
@@ -107,7 +113,8 @@ function applySchema() {
 function rebuildFTS() {
   try {
     db.prepare("DROP TABLE IF EXISTS people_fts").run();
-    db.prepare(`
+    db.prepare(
+      `
       CREATE VIRTUAL TABLE people_fts USING fts5(
         id,
         first_name,
@@ -115,11 +122,14 @@ function rebuildFTS() {
         content='people',
         content_rowid='rowid'
       )
-    `).run();
-    db.prepare(`
+    `,
+    ).run();
+    db.prepare(
+      `
       INSERT INTO people_fts(rowid, id, first_name, last_name)
       SELECT rowid, id, first_name, last_name FROM people
-    `).run();
+    `,
+    ).run();
     console.log("✅ Index FTS reconstruit.");
   } catch (error) {
     console.error("❌ Erreur lors de la reconstruction FTS:", error);
