@@ -9,7 +9,7 @@ restauration des donnees.
 | Element | Detail                                                                                 |
 | ------- | -------------------------------------------------------------------------------------- |
 | Runtime | conteneur Docker `sky` (SvelteKit adapter-node, Node + Python), port 3001              |
-| Donnees | `database/` monte en volume : `sky.db` + `auth.db` (SQLite) + `schema.sql`             |
+| Donnees | `database/` monte en volume : `sky.db` (SQLite, identites + sessions) + `schema.sql`   |
 | Image   | `ghcr.io/emse-students/sky:latest` (buildee par la CD)                                 |
 | CD      | `.github/workflows/deploy.yml` (workflow_run apres "CI (Bun)") : build-image -> deploy |
 | Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root)                   |
@@ -32,13 +32,26 @@ doit pouvoir lancer `docker` (`usermod -aG docker <user>` + redemarrage du runne
 
 La CD genere `.env` depuis les secrets du repo :
 
-| Secret              | Role                                           |
-| ------------------- | ---------------------------------------------- |
-| `AUTH_SECRET`       | signatures Auth.js (`openssl rand -base64 32`) |
-| `MIGALLERY_API_KEY` | acces a l API MiGallery                        |
+| Secret                    | Role                                                                  |
+| ------------------------- | --------------------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | client OIDC de l app Sky dans Authentik (miconnect)                   |
+| `MICONNECT_CLIENT_SECRET` | secret OIDC associe                                                   |
+| `MIGALLERY_API_KEY`       | acces a l API MiGallery (avatars)                                     |
+| `SKY_ADMIN_SUBS`          | (facultatif) sub Authentik admins, separes par des virgules           |
+| `MICONNECT_ISSUER`        | (facultatif) surcharge l issuer ; defaut `.../application/o/sky`       |
+| `MIGALLERY_API_URL`       | (facultatif) base de l API MiGallery ; defaut `https://gallery.mitv.fr`|
 
-Les valeurs non-secretes (PORT 3001, AUTH_TRUST_HOST, BODY_SIZE_LIMIT) ont des
-defauts dans `docker-compose.prod.yml`.
+Les trois premiers sont obligatoires (la CD echoue s ils manquent). Les valeurs
+non-secretes (PORT 3001, `MICONNECT_ISSUER`, `MIGALLERY_API_URL`, BODY_SIZE_LIMIT)
+ont des defauts dans `docker-compose.prod.yml`.
+
+> Authentik : l app Sky doit avoir l URI de redirection
+> `https://sky.mitv.fr/auth/callback` et exposer les claims `given_name`,
+> `family_name`, `email`, `promo`, `formation` (scopes `openid profile promo name
+> formation`). Le slug de l app doit correspondre a `MICONNECT_ISSUER` (defaut
+> `sky`). Tout Sky est reserve a la formation ICM ; les `SKY_ADMIN_SUBS` y
+> echappent. Les fiches `people` sont reliees a un compte par (nom, prenom,
+> promotion) ; sinon une nouvelle fiche est creee.
 
 ## 3. Acces SSH pour la sauvegarde offsite
 
@@ -59,7 +72,7 @@ la pousse sur GHCR, genere `.env` et `docker compose up -d` sur le serveur.
 ## 5. Restauration des donnees
 
 ```bash
-./scripts/restore-offsite.sh --yes     # dernieres sky.db + auth.db depuis canari
+./scripts/restore-offsite.sh --yes     # derniere sky.db depuis canari
 ```
 
 ## 6. Sauvegardes recurrentes

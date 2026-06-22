@@ -180,10 +180,14 @@ node build/index.js
 
 ### Variables d'environnement
 
-Créer un fichier `.env` :
+Créer un fichier `.env` (voir `.env.example`) :
 
 ```bash
-AUTH_SECRET=<généré avec scripts/generate-auth-secret.js>
+MICONNECT_ISSUER=https://auth.canari-emse.fr/application/o/sky
+MICONNECT_CLIENT_ID=<client OIDC de l app Sky>
+MICONNECT_CLIENT_SECRET=<secret OIDC associe>
+MIGALLERY_API_KEY=<cle API MiGallery>
+SKY_ADMIN_SUBS=<sub Authentik admins, separes par des virgules>
 ```
 
 ## 📚 Documentation
