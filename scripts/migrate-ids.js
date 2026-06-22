@@ -18,7 +18,9 @@ const db = new Database(DB_PATH);
 
 // Check if migration is needed
 const allPeople = db.prepare("SELECT id FROM people").all();
-const peopleWithUnderscores = allPeople.filter(p => p.id.includes("_") && !p.id.includes("."));
+const peopleWithUnderscores = allPeople.filter(
+  (p) => p.id.includes("_") && !p.id.includes("."),
+);
 const totalPeople = allPeople.length;
 
 console.log(`📊 Total people in database: ${totalPeople}`);
@@ -32,14 +34,20 @@ if (peopleWithUnderscores.length === 0) {
 }
 
 if (peopleWithUnderscores.length < totalPeople * 0.5) {
-  console.log(`⚠️  Only ${peopleWithUnderscores.length}/${totalPeople} people need migration (< 50%).`);
+  console.log(
+    `⚠️  Only ${peopleWithUnderscores.length}/${totalPeople} people need migration (< 50%).`,
+  );
   console.log("⚠️  This seems like a partially migrated or corrupted state.");
   console.log("⚠️  Migration ABORTED to prevent data loss.");
-  console.log("⚠️  Please verify manually or clean up underscore IDs individually.");
+  console.log(
+    "⚠️  Please verify manually or clean up underscore IDs individually.",
+  );
   process.exit(0);
 }
 
-console.log(`🔄 Migrating ${peopleWithUnderscores.length}/${totalPeople} people...`);
+console.log(
+  `🔄 Migrating ${peopleWithUnderscores.length}/${totalPeople} people...`,
+);
 
 // Disable foreign key checks during migration
 db.pragma("foreign_keys = OFF");

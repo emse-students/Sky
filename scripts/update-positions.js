@@ -8,10 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, "../database/sky.db");
 const oldPositionsPath = path.join(__dirname, "../database/positions.json");
-const newPositionsPath = path.join(
-  __dirname,
-  "../database/positions.json.new",
-);
+const newPositionsPath = path.join(__dirname, "../database/positions.json.new");
 
 console.log("📍 Mise à jour de positions.json avec les nouveaux IDs...\n");
 

@@ -1,4 +1,4 @@
-import type { User } from '$types/api';
+import type { User } from "$types/api";
 
 declare global {
   namespace App {

@@ -7,7 +7,7 @@ const config = {
   kit: {
     adapter: adapter({
       // Increase body size limit to 10MB for database imports
-      envPrefix: '',
+      envPrefix: "",
     }),
     alias: {
       $components: "src/lib/components",

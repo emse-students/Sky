@@ -30,7 +30,8 @@ try {
 
   // Recreate FTS table
   console.log("   Creating new FTS index...");
-  db.prepare(`
+  db.prepare(
+    `
     CREATE VIRTUAL TABLE people_fts USING fts5(
       id,
       first_name,
@@ -38,17 +39,22 @@ try {
       content='people',
       content_rowid='rowid'
     )
-  `).run();
+  `,
+  ).run();
 
   // Rebuild FTS index from people table
   console.log("   Populating FTS index...");
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO people_fts(rowid, id, first_name, last_name)
     SELECT rowid, id, first_name, last_name FROM people
-  `).run();
+  `,
+  ).run();
 
   const count = db.prepare("SELECT COUNT(*) as count FROM people_fts").get();
-  console.log(`✅ FTS index rebuilt successfully! Indexed ${count.count} people.`);
+  console.log(
+    `✅ FTS index rebuilt successfully! Indexed ${count.count} people.`,
+  );
 } catch (error) {
   console.error("❌ Error rebuilding FTS index:", error);
   process.exit(1);
