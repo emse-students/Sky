@@ -1,8 +1,9 @@
 version: 2
 updates:
-  # Maintenir les GitHub Actions à jour
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
+    rebase-strategy: auto
     schedule:
       interval: "weekly"
       day: "monday"
@@ -14,9 +15,12 @@ updates:
       - "github-actions"
     open-pull-requests-limit: 5
 
-  # Maintenir les dépendances npm à jour
+  # Dependances npm (racine)
+  # Les minor/patch de dev et les patch de prod sont groupes en une seule PR
+  # pour limiter le bruit ; les majors arrivent en PR individuelles a revoir.
   - package-ecosystem: "npm"
     directory: "/"
+    rebase-strategy: auto
     schedule:
       interval: "weekly"
       day: "monday"
@@ -26,4 +30,14 @@ updates:
     labels:
       - "dependencies"
       - "npm"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
