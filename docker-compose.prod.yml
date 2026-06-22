@@ -17,9 +17,9 @@ services:
     environment:
       PORT: "3001"
       NODE_ENV: production
-      # SSO Authentik (miconnect). Issuer non secret (defaut ci-dessous) ; le slug
-      # doit correspondre a l app Sky dans Authentik.
-      MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/sky}
+      # SSO Authentik (miconnect). Base non secrete (defaut ci-dessous) ; les
+      # endpoints sont a /application/o/<endpoint>/ (globaux, sans slug, comme Canari).
+      MICONNECT_BASE_URL: ${MICONNECT_BASE_URL:-https://auth.canari-emse.fr}
       MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
       MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
       # Liste de sub Authentik admins (separes par des virgules), facultative.
