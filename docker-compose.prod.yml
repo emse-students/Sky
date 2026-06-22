@@ -2,8 +2,9 @@
 # La CD build et pousse l image sur GHCR, puis fait `docker compose pull && up -d`
 # sur le serveur. Le .env (secrets) est genere par la CD depuis les secrets GitHub.
 #
-# database/ est monte depuis le dossier de deploiement pour conserver les bases
-# SQLite existantes (sky.db + auth.db) entre les versions.
+# database/ est monte depuis le dossier de deploiement pour conserver la base
+# SQLite existante (sky.db, qui contient desormais identites et sessions) entre
+# les versions.
 services:
   sky:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-emse-students/sky}:${TAG:-latest}
@@ -16,10 +17,15 @@ services:
     environment:
       PORT: "3001"
       NODE_ENV: production
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
-      AUTH_TRUSTED_HOST: "true"
-      AUTH_TRUST_HOST: "true"
+      # SSO Authentik (miconnect). Issuer non secret (defaut ci-dessous) ; le slug
+      # doit correspondre a l app Sky dans Authentik.
+      MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/sky}
+      MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
+      MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
+      # Liste de sub Authentik admins (separes par des virgules), facultative.
+      SKY_ADMIN_SUBS: ${SKY_ADMIN_SUBS:-}
       BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-10485760}
       MIGALLERY_API_KEY: ${MIGALLERY_API_KEY:?MIGALLERY_API_KEY requis}
+      MIGALLERY_API_URL: ${MIGALLERY_API_URL:-https://gallery.mitv.fr}
     volumes:
       - ./database:/app/database

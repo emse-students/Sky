@@ -73,17 +73,25 @@ jobs:
 
       - name: Generate .env from secrets
         env:
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
+          MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
+          MICONNECT_ISSUER: ${{ secrets.MICONNECT_ISSUER }}
+          SKY_ADMIN_SUBS: ${{ secrets.SKY_ADMIN_SUBS }}
           MIGALLERY_API_KEY: ${{ secrets.MIGALLERY_API_KEY }}
+          MIGALLERY_API_URL: ${{ secrets.MIGALLERY_API_URL }}
         run: |
-          for v in AUTH_SECRET MIGALLERY_API_KEY; do
+          for v in MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET MIGALLERY_API_KEY; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
           done
           mkdir -p "$DEPLOY_DIR"
           umask 077
           {
-            printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
+            printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
+            printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
             printf 'MIGALLERY_API_KEY=%s\n' "$MIGALLERY_API_KEY"
+            if [ -n "$MICONNECT_ISSUER" ]; then printf 'MICONNECT_ISSUER=%s\n' "$MICONNECT_ISSUER"; fi
+            if [ -n "$SKY_ADMIN_SUBS" ]; then printf 'SKY_ADMIN_SUBS=%s\n' "$SKY_ADMIN_SUBS"; fi
+            if [ -n "$MIGALLERY_API_URL" ]; then printf 'MIGALLERY_API_URL=%s\n' "$MIGALLERY_API_URL"; fi
           } > "$DEPLOY_DIR/.env"
 
       - name: Sync deploy files
