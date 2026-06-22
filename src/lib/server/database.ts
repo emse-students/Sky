@@ -1,7 +1,9 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { randomUUID } from "crypto";
 import type { Person, JsonRelation, GraphDataFile } from "$types/graph";
+import { normalizeName } from "$utils/format";
 
 const DB_PATH = path.join(process.cwd(), "database", "sky.db");
 const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
@@ -375,6 +377,258 @@ export function mergePeople(sourceId: string, targetId: string): void {
     // 4. Delete the source person
     database.prepare("DELETE FROM people WHERE id = ?").run(sourceId);
   })();
+}
+
+// ============================================
+// AUTH IDENTITY & SESSIONS
+// ============================================
+
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 jours
+
+function nowEpoch(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+/** Identite resolue depuis le SSO Authentik (claims). */
+export interface OidcIdentity {
+  sub: string;
+  firstName: string;
+  lastName: string;
+  level: number | null;
+  email: string | null;
+  formation: string | null;
+  role: string;
+}
+
+/** Fiche people resolue pour une session (locals.user cote serveur). */
+export interface SessionPerson {
+  id: string;
+  prenom: string;
+  nom: string;
+  level: number | null;
+  image: string | null;
+  auth_sub: string | null;
+  email: string | null;
+  formation: string | null;
+  role: string;
+}
+
+/** Fiche people deja liee a ce sub Authentik, sinon null. */
+export function getPersonIdByAuthSub(authSub: string): string | null {
+  const database = getDatabase();
+  const row = database
+    .prepare("SELECT id FROM people WHERE auth_sub = ?")
+    .get(authSub) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
+/**
+ * Cherche une fiche people NON liee correspondant a (nom, prenom, promotion).
+ * La comparaison des noms est faite en JS apres normalisation (SQLite ne sait
+ * pas retirer les accents). Retourne la 1re correspondance (log si ambiguite).
+ */
+export function findUnlinkedPersonIdByIdentity(
+  lastName: string,
+  firstName: string,
+  level: number | null,
+): string | null {
+  const database = getDatabase();
+  const rows = database
+    .prepare(
+      "SELECT id, first_name, last_name FROM people WHERE auth_sub IS NULL AND level IS ?",
+    )
+    .all(level ?? null) as {
+    id: string;
+    first_name: string;
+    last_name: string;
+  }[];
+
+  const nLast = normalizeName(lastName);
+  const nFirst = normalizeName(firstName);
+  const matches = rows.filter(
+    (r) =>
+      normalizeName(r.last_name) === nLast &&
+      normalizeName(r.first_name) === nFirst,
+  );
+
+  if (matches.length === 0) {
+    return null;
+  }
+  if (matches.length > 1) {
+    console.warn(
+      `[auth-link] ${matches.length} fiches non liees pour ${nFirst} ${nLast} (promo ${level ?? "?"}) ; liaison de la premiere (${matches[0].id})`,
+    );
+  }
+  return matches[0].id;
+}
+
+/** Lie une fiche existante a un compte Authentik et rafraichit ses infos SSO. */
+export function linkPersonAuth(id: string, identity: OidcIdentity): void {
+  const database = getDatabase();
+  database
+    .prepare(
+      `UPDATE people SET
+        auth_sub = ?,
+        email = COALESCE(?, email),
+        formation = COALESCE(?, formation),
+        role = ?,
+        last_login = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+    )
+    .run(
+      identity.sub,
+      identity.email,
+      identity.formation,
+      identity.role,
+      nowEpoch(),
+      id,
+    );
+}
+
+/** Rafraichit les champs d identite d une fiche deja liee (a chaque login SSO). */
+export function refreshPersonIdentity(id: string, identity: OidcIdentity): void {
+  const database = getDatabase();
+  database
+    .prepare(
+      `UPDATE people SET
+        first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
+        level = COALESCE(?, level),
+        email = COALESCE(?, email),
+        formation = COALESCE(?, formation),
+        role = ?,
+        last_login = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+    )
+    .run(
+      identity.firstName || null,
+      identity.lastName || null,
+      identity.level,
+      identity.email,
+      identity.formation,
+      identity.role,
+      nowEpoch(),
+      id,
+    );
+}
+
+/** Cree une nouvelle fiche people deja liee au compte Authentik. */
+export function createAuthedPerson(identity: OidcIdentity): string {
+  const database = getDatabase();
+  database
+    .prepare(
+      `INSERT INTO people
+        (id, first_name, last_name, level, image_url, auth_sub, email, formation, role, last_login)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      identity.sub,
+      identity.firstName,
+      identity.lastName,
+      identity.level,
+      "default.jpg",
+      identity.sub,
+      identity.email,
+      identity.formation,
+      identity.role,
+      nowEpoch(),
+    );
+  return identity.sub;
+}
+
+/**
+ * Resout (ou cree) la fiche people correspondant a une identite Authentik :
+ *   1. deja liee a ce sub      -> rafraichit
+ *   2. fiche non liee (nom, prenom, promo) -> lie
+ *   3. aucune                  -> cree une nouvelle fiche
+ * Retourne l id de la fiche people.
+ */
+export function linkOrCreateAuthPerson(identity: OidcIdentity): string {
+  const existing = getPersonIdByAuthSub(identity.sub);
+  if (existing) {
+    refreshPersonIdentity(existing, identity);
+    return existing;
+  }
+  const match = findUnlinkedPersonIdByIdentity(
+    identity.lastName,
+    identity.firstName,
+    identity.level,
+  );
+  if (match) {
+    linkPersonAuth(match, identity);
+    return match;
+  }
+  return createAuthedPerson(identity);
+}
+
+/** Cree une session opaque (7 jours) pour une fiche people. */
+export function createSession(personId: string): {
+  token: string;
+  expiresAt: number;
+} {
+  const database = getDatabase();
+  const token = randomUUID();
+  const expiresAt = nowEpoch() + SESSION_TTL_SECONDS;
+  database
+    .prepare(
+      "INSERT INTO sessions (token, person_id, expires_at) VALUES (?, ?, ?)",
+    )
+    .run(token, personId, expiresAt);
+  return { token, expiresAt };
+}
+
+/** Resout la fiche people d une session valide (non expiree), sinon null. */
+export function getSessionPerson(token: string): SessionPerson | null {
+  const database = getDatabase();
+  const row = database
+    .prepare(
+      `SELECT p.id, p.first_name, p.last_name, p.level, p.image_url,
+              p.auth_sub, p.email, p.formation, p.role
+       FROM sessions s
+       JOIN people p ON p.id = s.person_id
+       WHERE s.token = ? AND s.expires_at > ?`,
+    )
+    .get(token, nowEpoch()) as
+    | {
+        id: string;
+        first_name: string;
+        last_name: string;
+        level: number | null;
+        image_url: string | null;
+        auth_sub: string | null;
+        email: string | null;
+        formation: string | null;
+        role: string;
+      }
+    | undefined;
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    prenom: row.first_name,
+    nom: row.last_name,
+    level: row.level,
+    image: row.image_url,
+    auth_sub: row.auth_sub,
+    email: row.email,
+    formation: row.formation,
+    role: row.role,
+  };
+}
+
+/** Supprime une session (logout). */
+export function deleteSession(token: string): void {
+  getDatabase().prepare("DELETE FROM sessions WHERE token = ?").run(token);
+}
+
+/** Purge les sessions expirees (appele opportunement au login). */
+export function deleteExpiredSessions(): void {
+  getDatabase()
+    .prepare("DELETE FROM sessions WHERE expires_at <= ?")
+    .run(nowEpoch());
 }
 
 // ============================================

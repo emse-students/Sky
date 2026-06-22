@@ -22,11 +22,20 @@ CREATE TABLE IF NOT EXISTS people (
     -- Profile
     bio TEXT,
     image_url TEXT,  -- Can be from MiGallery API or local
-    
+
+    -- Auth / identite SSO (Authentik). NULL pour les fiches du graphe jamais
+    -- connectees. auth_sub = claim `sub` Authentik, sert aussi de cle pour la
+    -- photo MiGallery (/api/avatar/{auth_sub}).
+    auth_sub TEXT,           -- sub Authentik (unique quand non NULL)
+    email TEXT,
+    formation TEXT,          -- 'ICM', 'ISMIN'... (gating ICM)
+    role TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'admin'
+    last_login INTEGER,      -- epoch du dernier login SSO
+
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Full-text search optimization
     UNIQUE(id)
 );
@@ -35,6 +44,8 @@ CREATE TABLE IF NOT EXISTS people (
 CREATE INDEX IF NOT EXISTS idx_people_level ON people(level);
 CREATE INDEX IF NOT EXISTS idx_people_last_name ON people(last_name);
 CREATE INDEX IF NOT EXISTS idx_people_first_name ON people(first_name);
+-- Un seul compte Authentik par fiche (les NULL ne sont pas contraints par UNIQUE).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_people_auth_sub ON people(auth_sub) WHERE auth_sub IS NOT NULL;
 
 -- Full-text search virtual table
 CREATE VIRTUAL TABLE IF NOT EXISTS people_fts USING fts5(
@@ -142,6 +153,21 @@ CREATE TABLE IF NOT EXISTS associations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_associations_person ON associations(person_id);
+
+-- ============================================
+-- SESSIONS TABLE
+-- Sessions SSO (token opaque -> fiche people). Remplace l ancienne auth.db.
+-- ============================================
+CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    person_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_person ON sessions(person_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
 -- ============================================
 -- METADATA TABLE

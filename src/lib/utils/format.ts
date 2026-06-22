@@ -24,3 +24,21 @@ export function getPersonInitials(person: Person): string {
   }
   return `${person.prenom.charAt(0)}${person.nom.charAt(0)}`.toUpperCase();
 }
+
+/**
+ * Normalise un nom ou prenom pour comparaison tolerante : minuscule, sans
+ * accents, tirets/underscores ramenes a des espaces, espaces compactes.
+ *
+ * Sert a relier une identite Authentik a une fiche `people` existante via la cle
+ * quasi-unique (nom, prenom, promotion) malgre les variations de casse/accents
+ * entre le SSO et la base.
+ */
+export function normalizeName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
