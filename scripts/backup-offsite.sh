@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Sauvegarde offsite des bases Sky (sky.db + auth.db) vers le serveur canari
+# Sauvegarde offsite de la base Sky (sky.db) vers le serveur canari
 # (miroir reciproque entre les deux serveurs LAN).
 #
 # Dump SQLite coherent via l API de sauvegarde en ligne (sqlite3 ".backup",
@@ -11,7 +11,7 @@ set -euo pipefail
 # ── Configuration (surchargeable via l environnement) ─────────────────────────
 SKY_DIR="${SKY_DIR:-/home/mitv/Sky}"
 DB_DIR="${DB_DIR:-$SKY_DIR/database}"
-DATABASES="${DATABASES:-sky.db auth.db}"
+DATABASES="${DATABASES:-sky.db}"
 OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
 OFFSITE_PATH="${OFFSITE_PATH:-sky-offsite}"   # relatif au home du user canari
 RETENTION_DAYS="${RETENTION_DAYS:-14}"

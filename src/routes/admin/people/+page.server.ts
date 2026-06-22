@@ -3,7 +3,7 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
   const user = locals.user;
-  if (!user || user.profile_id !== "jolan.boudin") {
+  if (!user || user.role !== "admin") {
     throw redirect(302, "/");
   }
   return {};

@@ -1,48 +1,76 @@
+import { redirect, json, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import type { Handle } from "@sveltejs/kit";
-import { handle as authHandle } from "$lib/auth";
-import { auth } from "$lib/server/auth";
+import { getSessionPerson } from "$server/database";
+import { SESSION_COOKIE_NAME } from "$server/session";
 
-const protectHandle: Handle = async ({ event, resolve }) => {
-  // Check for session token cookie first (dev login)
-  const sessionToken = event.cookies.get("session_token");
+/**
+ * Prefixes accessibles sans session (flux de connexion, page de refus, sonde de
+ * sante, et proxy d avatars appele par les balises <img>). Les fichiers statiques
+ * (_app, assets) sont servis avant le hook et n y passent donc pas.
+ */
+const PUBLIC_PREFIXES = [
+  "/auth/",
+  "/unauthorized",
+  "/api/health",
+  "/api/avatar/",
+];
 
-  if (sessionToken) {
-    const user = auth.validateSession(sessionToken);
-    if (user) {
-      event.locals.user = user;
-      return resolve(event);
-    }
-  } else {
-    // console.log('No session token found');
-  }
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+}
 
-  // Fallback to Auth.js session
-  const session = await event.locals.getSession();
-  if (session?.user) {
-    const casId = session.user.id;
-    const email = session.user.email || (casId ? `${casId}@etu.emse.fr` : "");
-    const name = session.user.name || casId || "Unknown";
+/**
+ * Resout la session opaque (cookie -> table sessions -> fiche people) et peuple
+ * `event.locals.user`. Aucune redirection ici : seulement la resolution.
+ */
+const sessionHandler: Handle = async ({ event, resolve }) => {
+  const token = event.cookies.get(SESSION_COOKIE_NAME);
+  const person = token ? getSessionPerson(token) : null;
 
-    if (email && casId) {
-      const user = auth.getOrCreateUser(email, name, casId);
-      event.locals.user = user;
-    } else {
-      // Fallback stub if essential info is missing
-      event.locals.user = {
-        id: 0,
-        email,
-        name,
-        profile_id: casId || null,
-        role: "user",
-        first_login: 0,
-        avatar: session.user.image || undefined,
-      };
-    }
+  if (person) {
+    event.locals.user = {
+      id: person.id,
+      profile_id: person.id,
+      name: `${person.nom.toUpperCase()} ${person.prenom}`.trim(),
+      email: person.email,
+      role: person.role === "admin" ? "admin" : "user",
+      formation: person.formation,
+      promo: person.level,
+      image: person.image,
+    };
   } else {
     event.locals.user = null;
   }
   return resolve(event);
 };
 
-export const handle = sequence(authHandle, protectHandle);
+/**
+ * Gate global : tout Sky est reserve aux ICM. Sans session -> redirection vers la
+ * connexion (ou 401 sur une route API). Session non-ICM et non-admin -> page de
+ * refus (defense en profondeur : le callback OIDC gate deja a la connexion).
+ */
+const gateHandler: Handle = async ({ event, resolve }) => {
+  const { pathname } = event.url;
+  if (isPublic(pathname)) {
+    return resolve(event);
+  }
+
+  const user = event.locals.user;
+  if (!user) {
+    if (pathname.startsWith("/api/")) {
+      return json({ error: "Non authentifie" }, { status: 401 });
+    }
+    throw redirect(302, "/auth/login");
+  }
+
+  if (user.formation !== "ICM" && user.role !== "admin") {
+    if (pathname.startsWith("/api/")) {
+      return json({ error: "Reserve aux ICM" }, { status: 403 });
+    }
+    throw redirect(302, "/unauthorized");
+  }
+
+  return resolve(event);
+};
+
+export const handle = sequence(sessionHandler, gateHandler);

@@ -4,7 +4,7 @@ import { DB_PATH } from "$lib/server/database";
 
 export const GET: RequestHandler = ({ locals }) => {
   // Check admin authorization
-  if (locals.user?.profile_id !== "jolan.boudin") {
+  if (locals.user?.role !== "admin") {
     return new Response("Unauthorized", { status: 403 });
   }
 
