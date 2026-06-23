@@ -2,12 +2,15 @@ import { error, redirect, isRedirect, isHttpError } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { completeOIDCFlow } from "$server/oidc";
 import {
-  linkOrCreateAuthPerson,
+  resolveLogin,
+  createPendingLink,
   createSession,
   deleteExpiredSessions,
+  deleteExpiredPendingLinks,
   type OidcIdentity,
 } from "$server/database";
 import { setSessionCookie } from "$server/session";
+import { PENDING_COOKIE_NAME } from "$server/link";
 
 const STATE_COOKIE_NAME = "__oidc_state";
 const NONCE_COOKIE_NAME = "__oidc_nonce";
@@ -44,9 +47,6 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     throw error(400, "Validation du state echouee");
   }
 
-  let personId: string;
-  let expiresAt: number;
-  let token: string;
   try {
     const callbackUrl = new URL("/auth/callback", url.origin).toString();
     const claims = await completeOIDCFlow(code, callbackUrl);
@@ -78,22 +78,39 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
       role,
     };
 
-    personId = linkOrCreateAuthPerson(identity);
     deleteExpiredSessions();
-    const session = createSession(personId);
-    token = session.token;
-    expiresAt = session.expiresAt;
-    console.debug(`[CALLBACK] Session ouverte pour ${personId} (role=${role})`);
+    deleteExpiredPendingLinks();
+
+    const resolution = resolveLogin(identity);
+    if (resolution.kind === "choice") {
+      // Plusieurs fiches possibles : on demande a l utilisateur de choisir.
+      const pendingToken = createPendingLink(identity);
+      cookies.set(PENDING_COOKIE_NAME, pendingToken, {
+        path: "/",
+        maxAge: 60 * 15,
+        sameSite: "lax",
+        secure: true,
+        httpOnly: true,
+      });
+      console.debug(
+        `[CALLBACK] ${resolution.candidates.length} candidats pour ${claims.sub} -> /auth/link`,
+      );
+      throw redirect(302, "/auth/link");
+    }
+
+    const session = createSession(resolution.personId);
+    setSessionCookie(cookies, session.token, session.expiresAt);
+    console.debug(
+      `[CALLBACK] Session ouverte pour ${resolution.personId} (role=${role})`,
+    );
+    throw redirect(302, "/");
   } catch (e) {
-    // Le gate ICM (redirect) et les error() sont jetes comme objets SvelteKit :
-    // les relancer tels quels au lieu de les transformer en 500.
+    // Les redirections (choix de liaison, succes, gate ICM) et les error() sont
+    // jetes comme objets SvelteKit : les relancer tels quels.
     if (isRedirect(e) || isHttpError(e)) {
       throw e;
     }
     console.error("[CALLBACK] Erreur durant l authentification:", e);
     throw error(500, "Erreur d authentification");
   }
-
-  setSessionCookie(cookies, token, expiresAt);
-  throw redirect(302, "/");
 };

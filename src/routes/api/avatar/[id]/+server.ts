@@ -1,5 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { getPersonById } from "$lib/server/database";
+import { getPersonById, getPersonAuthSub } from "$lib/server/database";
 import { getPersonInitials } from "$lib/utils/format";
 
 // Environment variable - loaded by Bun or SvelteKit
@@ -45,21 +45,26 @@ export const GET: RequestHandler = async ({ params }) => {
       }
     }
 
-    // 2. Try MiGallery
-    const apiUrl = `${MIGALLERY_API_URL}/api/users/${id}/avatar`;
-    console.debug(`[Avatar API] Calling: ${apiUrl}`);
+    // 2. Try MiGallery via le sub Authentik (cle photo). Une fiche placeholder
+    // (sans compte lie) n a pas de photo MiGallery -> initiales directement.
+    const sub = getPersonAuthSub(id);
+    const response = sub
+      ? await fetch(`${MIGALLERY_API_URL}/api/users/${sub}/avatar`, {
+          headers: { "x-api-key": MIGALLERY_API_KEY },
+        })
+      : null;
 
-    const response = await fetch(apiUrl, {
-      headers: {
-        "x-api-key": MIGALLERY_API_KEY,
-      },
-    });
-
-    console.debug(`[Avatar API] Response status: ${response.status}`);
-
-    if (!response.ok) {
+    if (sub) {
       console.debug(
-        `[Avatar API] API returned error: ${response.status} ${response.statusText}`,
+        `[Avatar API] MiGallery status pour ${sub}: ${response?.status}`,
+      );
+    } else {
+      console.debug(`[Avatar API] ${id} sans compte lie -> initiales`);
+    }
+
+    if (!response || !response.ok) {
+      console.debug(
+        `[Avatar API] Pas de photo (${response?.status ?? "no-account"}) -> initiales`,
       );
       // Get person from database for proper initials
       let initials = "?";

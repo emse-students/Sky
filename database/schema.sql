@@ -172,6 +172,25 @@ CREATE INDEX IF NOT EXISTS idx_sessions_person ON sessions(person_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
 -- ============================================
+-- PENDING_LINKS TABLE
+-- Identites SSO en attente de choix de liaison (login ambigu -> ecran /auth/link).
+-- ============================================
+CREATE TABLE IF NOT EXISTS pending_links (
+    token TEXT PRIMARY KEY,
+    sub TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
+    level INTEGER,
+    email TEXT,
+    formation TEXT,
+    role TEXT NOT NULL DEFAULT 'user',
+    expires_at INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_links_expires ON pending_links(expires_at);
+
+-- ============================================
 -- METADATA TABLE
 -- Stores schema version and other metadata
 -- ============================================
