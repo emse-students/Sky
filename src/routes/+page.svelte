@@ -22,6 +22,7 @@
     ChevronDown,
     Loader2,
     Database,
+    Network,
   } from "lucide-svelte";
   import Linkedin from "$components/icons/Linkedin.svelte";
   import Github from "$components/icons/Github.svelte";
@@ -298,6 +299,9 @@
             <button onclick={goToMyProfile} class="menu-item">
               <User size={16} /> Mon profil
             </button>
+            <a href="/tree" class="menu-item">
+              <Network size={16} /> Mon arbre
+            </a>
             <a href="/profile/edit" class="menu-item">
               <Edit size={16} /> Modifier
             </a>
