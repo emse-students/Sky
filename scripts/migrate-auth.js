@@ -43,6 +43,7 @@ try {
   addColumn("people", "formation TEXT");
   addColumn("people", "role TEXT NOT NULL DEFAULT 'user'");
   addColumn("people", "last_login INTEGER");
+  addColumn("people", "created_by TEXT");
 
   // Un seul compte Authentik par fiche (NULL non contraints).
   db.prepare(

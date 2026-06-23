@@ -487,7 +487,10 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
 }
 
 /** Rafraichit les champs d identite d une fiche deja liee (a chaque login SSO). */
-export function refreshPersonIdentity(id: string, identity: OidcIdentity): void {
+export function refreshPersonIdentity(
+  id: string,
+  identity: OidcIdentity,
+): void {
   const database = getDatabase();
   database
     .prepare(
@@ -629,6 +632,159 @@ export function deleteExpiredSessions(): void {
   getDatabase()
     .prepare("DELETE FROM sessions WHERE expires_at <= ?")
     .run(nowEpoch());
+}
+
+// ============================================
+// ID GENERATION
+// ============================================
+
+/** Normalise un fragment de nom pour un id : minuscule, sans accents, alphanum. */
+function slugPart(value: string): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Genere un id `prenom.nom` unique pour une fiche placeholder. En cas de
+ * collision : ajoute `.promo` puis `.idx`. L id est stable (ne change jamais
+ * apres creation). Distinct des id de comptes crees ex nihilo (= sub Authentik).
+ */
+export function generatePersonId(
+  firstName: string,
+  lastName: string,
+  level: number | null,
+): string {
+  const database = getDatabase();
+  const exists = (id: string): boolean =>
+    database.prepare("SELECT 1 FROM people WHERE id = ?").get(id) !== undefined;
+
+  const base =
+    `${slugPart(firstName)}.${slugPart(lastName)}`.replace(/^\.|\.$/g, "") ||
+    "anonyme";
+  if (!exists(base)) {
+    return base;
+  }
+  const stem = level !== null ? `${base}.${level}` : base;
+  if (level !== null && !exists(stem)) {
+    return stem;
+  }
+  let idx = 2;
+  while (exists(`${stem}.${idx}`)) {
+    idx += 1;
+  }
+  return `${stem}.${idx}`;
+}
+
+// ============================================
+// LEGACY DB (lecture seule, fenetre /admin/legacy)
+// ============================================
+
+const LEGACY_DB_PATH = path.join(process.cwd(), "database", "sky-legacy.db");
+let legacyDb: Database.Database | null = null;
+
+/** Vrai si le snapshot legacy (ancienne base figee) existe. */
+export function legacyExists(): boolean {
+  return fs.existsSync(LEGACY_DB_PATH);
+}
+
+/** Ouvre (lazy) la base legacy en lecture seule, sinon null. */
+function getLegacyDatabase(): Database.Database | null {
+  if (!legacyExists()) {
+    return null;
+  }
+  if (!legacyDb) {
+    legacyDb = new Database(LEGACY_DB_PATH, { readonly: true });
+  }
+  return legacyDb;
+}
+
+/** Fiche de l ancienne base (schema v3 : pas de SSO). */
+export interface LegacyPerson {
+  id: string;
+  first_name: string;
+  last_name: string;
+  level: number | null;
+  bio: string | null;
+  image_url: string | null;
+}
+
+/** Compte des entites de l ancienne base. */
+export function getLegacyCounts(): {
+  people: number;
+  relationships: number;
+  links: number;
+} {
+  const ldb = getLegacyDatabase();
+  if (!ldb) {
+    return { people: 0, relationships: 0, links: 0 };
+  }
+  const count = (sql: string): number => {
+    try {
+      return (ldb.prepare(sql).get() as { c: number }).c;
+    } catch {
+      return 0;
+    }
+  };
+  return {
+    people: count("SELECT count(*) c FROM people"),
+    relationships: count("SELECT count(*) c FROM relationships"),
+    links: count("SELECT count(*) c FROM external_links"),
+  };
+}
+
+/** Recherche dans l ancienne base (nom, prenom, id, promo). */
+export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
+  const ldb = getLegacyDatabase();
+  if (!ldb) {
+    return [];
+  }
+  const q = search.trim().toLowerCase();
+  const rows = q
+    ? (ldb
+        .prepare(
+          `SELECT id, first_name, last_name, level, bio, image_url FROM people
+           WHERE lower(first_name) LIKE ? OR lower(last_name) LIKE ?
+              OR lower(id) LIKE ? OR CAST(level AS TEXT) LIKE ?
+           ORDER BY last_name, first_name LIMIT ?`,
+        )
+        .all(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, limit) as LegacyPerson[])
+    : (ldb
+        .prepare(
+          `SELECT id, first_name, last_name, level, bio, image_url FROM people
+           ORDER BY last_name, first_name LIMIT ?`,
+        )
+        .all(limit) as LegacyPerson[]);
+  return rows;
+}
+
+/** Relations (parrains entrants, fillots sortants) d une fiche legacy. */
+export function getLegacyPersonRelations(id: string): {
+  parrains: { id: string; name: string; type: string }[];
+  fillots: { id: string; name: string; type: string }[];
+} {
+  const ldb = getLegacyDatabase();
+  if (!ldb) {
+    return { parrains: [], fillots: [] };
+  }
+  // source = parrain -> target = fillot. Parrains de P : target_id = P.
+  const parrains = ldb
+    .prepare(
+      `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
+       FROM relationships r JOIN people p ON p.id = r.source_id
+       WHERE r.target_id = ? ORDER BY r.type`,
+    )
+    .all(id) as { id: string; name: string; type: string }[];
+  const fillots = ldb
+    .prepare(
+      `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
+       FROM relationships r JOIN people p ON p.id = r.target_id
+       WHERE r.source_id = ? ORDER BY r.type`,
+    )
+    .all(id) as { id: string; name: string; type: string }[];
+  return { parrains, fillots };
 }
 
 // ============================================
