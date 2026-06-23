@@ -50,6 +50,9 @@
   let newPerson = $state({ firstName: "", lastName: "", level: "" });
   let creatingPerson = $state(false);
   let successMessage = $state("");
+  let errorMessage = $state("");
+  // Homonymes proposes a la liaison quand on tente de creer un doublon.
+  let linkCandidates: any[] = $state([]);
 
   const loadingMessages = [
     "Initialisation de la voûte céleste...",
@@ -70,6 +73,21 @@
   );
   let parrains = $derived(
     relationships.filter((r) => r.person_id_2 === user?.profile_id),
+  );
+
+  // Compteurs par type pour afficher les maxima (1 officiel / 1 adoption en
+  // ascendant, 3 officiels / 2 adoption en descendant).
+  let fillotsOff = $derived(
+    fillots.filter((r) => r.type !== "adoption").length,
+  );
+  let fillotsAdo = $derived(
+    fillots.filter((r) => r.type === "adoption").length,
+  );
+  let parrainsOff = $derived(
+    parrains.filter((r) => r.type !== "adoption").length,
+  );
+  let parrainsAdo = $derived(
+    parrains.filter((r) => r.type === "adoption").length,
   );
 
   $effect(() => {
@@ -169,6 +187,34 @@
     }
   }
 
+  function showError(msg: string) {
+    errorMessage = msg;
+    setTimeout(() => (errorMessage = ""), 4000);
+  }
+
+  /**
+   * Traite la reponse d ajout : succes (reset + reload), demande de confirmation
+   * (homonymes a relier) ou erreur metier (contrainte 1/1/3/2, cycle, doublon).
+   */
+  async function handleAddResponse(res: Response) {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      searchTerm = "";
+      searchResults = [];
+      showCreatePerson = false;
+      linkCandidates = [];
+      newPerson = { firstName: "", lastName: "", level: "" };
+      showToast("Relation ajoutée");
+      await loadProfile();
+      return;
+    }
+    if (res.status === 409 && data.needsConfirmation) {
+      linkCandidates = data.candidates || [];
+      return;
+    }
+    showError(data.error || "Echec de l'ajout du lien");
+  }
+
   async function addRelationship(targetId: string) {
     try {
       const res = await fetch("/api/relationships", {
@@ -176,17 +222,16 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetId, type: addType, role: addRole }),
       });
-
-      if (res.ok) {
-        searchTerm = "";
-        searchResults = [];
-        showCreatePerson = false;
-        showToast("Relation ajoutée");
-        await loadProfile();
-      }
+      await handleAddResponse(res);
     } catch (error) {
       console.error("Add error:", error);
+      showError("Erreur reseau");
     }
+  }
+
+  function linkToCandidate(id: string) {
+    linkCandidates = [];
+    addRelationship(id);
   }
 
   async function removeRelationship(relationshipId: number) {
@@ -206,21 +251,34 @@
     }
   }
 
-  async function createNewPerson() {
+  /**
+   * Cree une fiche pour un membre d entourage et la relie. Si des homonymes
+   * existent et `confirmCreate` est faux, le serveur renvoie les candidats a
+   * relier (gere par handleAddResponse) plutot que de creer un doublon.
+   */
+  async function createNewPerson(confirmCreate = false) {
     if (!newPerson.firstName || !newPerson.lastName) return;
     creatingPerson = true;
+    errorMessage = "";
     try {
-      const res = await fetch("/api/people", {
+      const res = await fetch("/api/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prenom: newPerson.firstName,
-          nom: newPerson.lastName,
-          level: newPerson.level ? parseInt(newPerson.level) : null,
+          type: addType,
+          role: addRole,
+          confirmCreate,
+          newPerson: {
+            firstName: newPerson.firstName,
+            lastName: newPerson.lastName,
+            level: newPerson.level ? parseInt(newPerson.level) : null,
+          },
         }),
       });
-      const data = await res.json();
-      if (data.id) await addRelationship(data.id);
+      await handleAddResponse(res);
+    } catch (error) {
+      console.error("Create error:", error);
+      showError("Erreur reseau");
     } finally {
       creatingPerson = false;
     }
@@ -300,8 +358,7 @@
               id="bio"
               bind:value={bio}
               placeholder="Racontez votre parcours au sein de l'école..."
-              rows="5"
-            ></textarea>
+              rows="5"></textarea>
             <div class="textarea-footer">
               <Info size={14} />
               <span>Cette bio sera visible par tous les ICM.</span>
@@ -419,7 +476,7 @@
                 <button
                   class="btn-submit-create"
                   disabled={creatingPerson}
-                  onclick={createNewPerson}
+                  onclick={() => createNewPerson()}
                 >
                   {#if creatingPerson}
                     <Loader2 size={16} class="spinner" />
@@ -428,13 +485,42 @@
                 </button>
               </div>
             {/if}
+
+            {#if linkCandidates.length > 0}
+              <div class="create-form" transition:slide>
+                <p class="dedup-title">Une fiche existe déjà. La relier ?</p>
+                {#each linkCandidates as c (c.id)}
+                  <button
+                    class="result-btn"
+                    onclick={() => linkToCandidate(c.id)}
+                  >
+                    <UserPlus size={16} />
+                    <span>{c.firstName} {c.lastName}</span>
+                    <small>P{c.level || "?"}{c.linked ? " · compte" : ""}</small
+                    >
+                  </button>
+                {/each}
+                <button
+                  class="btn-submit-create ghost"
+                  disabled={creatingPerson}
+                  onclick={() => createNewPerson(true)}
+                >
+                  Créer une nouvelle fiche quand même
+                </button>
+              </div>
+            {/if}
+
+            {#if errorMessage}
+              <div class="rel-error" transition:fade>{errorMessage}</div>
+            {/if}
           </div>
 
           <!-- Fillots -->
           <div class="glass-card relationships-card">
             <div class="card-header">
               <h3>Mes Fillots</h3>
-              <span class="count">{fillots.length} / 3</span>
+              <span class="count">{fillotsOff}/3 · {fillotsAdo}/2 adoption</span
+              >
             </div>
             <div class="rel-list">
               {#each fillots as rel (rel.id)}
@@ -464,6 +550,9 @@
           <div class="glass-card relationships-card">
             <div class="card-header">
               <h3>Mes Parrains</h3>
+              <span class="count"
+                >{parrainsOff}/1 · {parrainsAdo}/1 adoption</span
+              >
             </div>
             <div class="rel-list">
               {#each parrains as rel (rel.id)}
@@ -895,6 +984,25 @@
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
+  }
+  .btn-submit-create.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .dedup-title {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .rel-error {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 8px;
+    font-size: 13px;
   }
 
   .toast {

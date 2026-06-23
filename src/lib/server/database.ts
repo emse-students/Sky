@@ -963,6 +963,336 @@ export function deleteRelationship(
 }
 
 // ============================================
+// ENTOURAGE / CONTRAINTES DE PARENTE
+// ============================================
+
+/** Type de lien de parrainage : officiel ou par adoption. */
+export type RelationKind = "parrainage" | "adoption";
+
+/** Vrai si la valeur est un type de lien connu. */
+export function isRelationKind(value: unknown): value is RelationKind {
+  return value === "parrainage" || value === "adoption";
+}
+
+/**
+ * Maxima d ascendants (parrains/marraines) par personne et par type. Une
+ * personne a au plus 1 parrain officiel et 1 parrain d adoption.
+ */
+export const MAX_PARRAINS: Record<RelationKind, number> = {
+  parrainage: 1,
+  adoption: 1,
+};
+
+/**
+ * Maxima de descendants (fillots/fillotes) par personne et par type. Une
+ * personne a au plus 3 fillots officiels et 2 fillots d adoption.
+ */
+export const MAX_FILLOTS: Record<RelationKind, number> = {
+  parrainage: 3,
+  adoption: 2,
+};
+
+/** Code machine d une violation de regle de parrainage. */
+export type RelationErrorCode =
+  | "INVALID_KIND"
+  | "SELF"
+  | "NOT_FOUND"
+  | "DUPLICATE"
+  | "MAX_PARRAIN"
+  | "MAX_FILLOT"
+  | "CYCLE";
+
+/**
+ * Erreur metier d un lien de parrainage refuse (regles 1/1/3/2, cycle, doublon).
+ * Le `message` est en francais, pret a etre affiche a l utilisateur.
+ */
+export class RelationError extends Error {
+  code: RelationErrorCode;
+  constructor(code: RelationErrorCode, message: string) {
+    super(message);
+    this.name = "RelationError";
+    this.code = code;
+  }
+}
+
+/** Nombre de parrains d un type donne pointant vers `personId` (liens entrants). */
+function countIncoming(personId: string, kind: RelationKind): number {
+  const row = getDatabase()
+    .prepare(
+      "SELECT COUNT(*) AS c FROM relationships WHERE target_id = ? AND type = ?",
+    )
+    .get(personId, kind) as { c: number };
+  return row.c;
+}
+
+/** Nombre de fillots d un type donne issus de `personId` (liens sortants). */
+function countOutgoing(personId: string, kind: RelationKind): number {
+  const row = getDatabase()
+    .prepare(
+      "SELECT COUNT(*) AS c FROM relationships WHERE source_id = ? AND type = ?",
+    )
+    .get(personId, kind) as { c: number };
+  return row.c;
+}
+
+/** Vrai s il existe deja un lien (quel que soit le type) de source vers target. */
+function edgeExists(sourceId: string, targetId: string): boolean {
+  return (
+    getDatabase()
+      .prepare(
+        "SELECT 1 FROM relationships WHERE source_id = ? AND target_id = ?",
+      )
+      .get(sourceId, targetId) !== undefined
+  );
+}
+
+/** Vrai si une fiche existe. */
+function personExists(id: string): boolean {
+  return (
+    getDatabase().prepare("SELECT 1 FROM people WHERE id = ?").get(id) !==
+    undefined
+  );
+}
+
+/**
+ * Vrai si `toId` est atteignable depuis `fromId` en suivant les liens
+ * parrain -> fillot (source -> target). Sert a detecter les cycles : ajouter
+ * source -> target creerait un cycle si target peut deja atteindre source.
+ */
+function canReach(fromId: string, toId: string): boolean {
+  const database = getDatabase();
+  const stmt = database.prepare(
+    "SELECT target_id FROM relationships WHERE source_id = ?",
+  );
+  const visited = new Set<string>();
+  const queue: string[] = [fromId];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    if (current === toId) {
+      return true;
+    }
+    if (visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    const rows = stmt.all(current) as { target_id: string }[];
+    for (const r of rows) {
+      if (!visited.has(r.target_id)) {
+        queue.push(r.target_id);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Cree un lien de parrainage `sourceId` (parrain) -> `targetId` (fillot) du type
+ * donne, en appliquant toutes les regles : pas d auto-lien, fiches existantes,
+ * pas de doublon, maxima 1/1/3/2, pas de cycle. Leve `RelationError` sinon.
+ */
+export function addParrainage(
+  sourceId: string,
+  targetId: string,
+  kind: RelationKind,
+): void {
+  console.debug(
+    `[Entourage] addParrainage source=${sourceId} target=${targetId} kind=${kind}`,
+  );
+  if (!isRelationKind(kind)) {
+    throw new RelationError("INVALID_KIND", "Type de lien invalide.");
+  }
+  if (sourceId === targetId) {
+    throw new RelationError(
+      "SELF",
+      "Une personne ne peut pas se parrainer elle-meme.",
+    );
+  }
+  if (!personExists(sourceId) || !personExists(targetId)) {
+    throw new RelationError("NOT_FOUND", "Personne introuvable.");
+  }
+  if (edgeExists(sourceId, targetId)) {
+    throw new RelationError("DUPLICATE", "Ce lien existe deja.");
+  }
+  if (countOutgoing(sourceId, kind) >= MAX_FILLOTS[kind]) {
+    throw new RelationError(
+      "MAX_FILLOT",
+      kind === "parrainage"
+        ? "Limite de 3 fillots officiels atteinte."
+        : "Limite de 2 fillots d'adoption atteinte.",
+    );
+  }
+  if (countIncoming(targetId, kind) >= MAX_PARRAINS[kind]) {
+    throw new RelationError(
+      "MAX_PARRAIN",
+      kind === "parrainage"
+        ? "Un parrain officiel existe deja."
+        : "Un parrain d'adoption existe deja.",
+    );
+  }
+  if (canReach(targetId, sourceId)) {
+    throw new RelationError("CYCLE", "Ce lien creerait un cycle dans l'arbre.");
+  }
+  getDatabase()
+    .prepare(
+      "INSERT INTO relationships (source_id, target_id, type) VALUES (?, ?, ?)",
+    )
+    .run(sourceId, targetId, kind);
+}
+
+/** Lien de parrainage brut (ligne `relationships`), sinon null. */
+export function getRelationshipById(id: number): {
+  id: number;
+  source_id: string;
+  target_id: string;
+  type: string;
+} | null {
+  const row = getDatabase()
+    .prepare(
+      "SELECT id, source_id, target_id, type FROM relationships WHERE id = ?",
+    )
+    .get(id) as
+    | { id: number; source_id: string; target_id: string; type: string }
+    | undefined;
+  return row ?? null;
+}
+
+/** Supprime un lien de parrainage par son id. Vrai si une ligne a ete retiree. */
+export function removeRelationshipById(id: number): boolean {
+  return (
+    getDatabase().prepare("DELETE FROM relationships WHERE id = ?").run(id)
+      .changes > 0
+  );
+}
+
+/** Un membre de l entourage (parrain ou fillot) d une personne. */
+export interface EntourageMember {
+  relId: number;
+  kind: RelationKind;
+  id: string;
+  prenom: string;
+  nom: string;
+  level: number | null;
+}
+
+/** Entourage direct d une personne : parrains entrants, fillots sortants. */
+export interface Entourage {
+  parrains: EntourageMember[];
+  fillots: EntourageMember[];
+}
+
+/** Ligne brute d une jointure relationship + people. */
+interface EntourageRow {
+  relId: number;
+  type: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  level: number | null;
+}
+
+function toMember(row: EntourageRow): EntourageMember {
+  return {
+    relId: row.relId,
+    kind: row.type === "adoption" ? "adoption" : "parrainage",
+    id: row.id,
+    prenom: row.first_name,
+    nom: row.last_name,
+    level: row.level,
+  };
+}
+
+/**
+ * Entourage direct d une personne. `parrains` = liens entrants (source = parrain),
+ * `fillots` = liens sortants (target = fillot).
+ */
+export function getEntourage(personId: string): Entourage {
+  const database = getDatabase();
+  const parrains = (
+    database
+      .prepare(
+        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level
+         FROM relationships r JOIN people p ON p.id = r.source_id
+         WHERE r.target_id = ? ORDER BY r.type, p.last_name`,
+      )
+      .all(personId) as EntourageRow[]
+  ).map(toMember);
+  const fillots = (
+    database
+      .prepare(
+        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level
+         FROM relationships r JOIN people p ON p.id = r.target_id
+         WHERE r.source_id = ? ORDER BY r.type, p.last_name`,
+      )
+      .all(personId) as EntourageRow[]
+  ).map(toMember);
+  return { parrains, fillots };
+}
+
+/** Fiche homonyme proposee comme candidate de liaison (dedup a la creation). */
+export interface NamesakeCandidate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  level: number | null;
+  linked: boolean;
+}
+
+/**
+ * Fiches dont le nom+prenom normalises correspondent, liees ou non (dedup a la
+ * creation d un membre d entourage : on propose de relier plutot que dupliquer).
+ */
+export function findPeopleByName(
+  lastName: string,
+  firstName: string,
+): NamesakeCandidate[] {
+  const rows = getDatabase()
+    .prepare("SELECT id, first_name, last_name, level, auth_sub FROM people")
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    auth_sub: string | null;
+  }[];
+  const nLast = normalizeName(lastName);
+  const nFirst = normalizeName(firstName);
+  return rows
+    .filter(
+      (r) =>
+        normalizeName(r.last_name) === nLast &&
+        normalizeName(r.first_name) === nFirst,
+    )
+    .map((r) => ({
+      id: r.id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      level: r.level,
+      linked: r.auth_sub !== null,
+    }));
+}
+
+/**
+ * Cree une fiche placeholder (sans compte) pour un membre d entourage. L id est
+ * genere en `prenom.nom[.promo][.idx]`. `createdBy` trace l auteur de la fiche.
+ */
+export function createPlaceholderPerson(
+  firstName: string,
+  lastName: string,
+  level: number | null,
+  createdBy: string,
+): string {
+  const id = generatePersonId(firstName, lastName, level);
+  console.debug(`[Entourage] createPlaceholderPerson id=${id} by=${createdBy}`);
+  getDatabase()
+    .prepare(
+      `INSERT INTO people (id, first_name, last_name, level, image_url, created_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(id, firstName, lastName, level, "default.jpg", createdBy);
+  return id;
+}
+
+// ============================================
 // GRAPH DATA EXPORT (for GraphCanvas)
 // ============================================
 

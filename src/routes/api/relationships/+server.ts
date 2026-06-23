@@ -1,7 +1,19 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { getDatabase, recalculatePositions } from "$lib/server/database";
+import {
+  getDatabase,
+  recalculatePositions,
+  addParrainage,
+  removeRelationshipById,
+  getRelationshipById,
+  findPeopleByName,
+  createPlaceholderPerson,
+  isRelationKind,
+  RelationError,
+  type RelationKind,
+} from "$lib/server/database";
 
+/** Liste brute des liens (lecture). */
 export const GET: RequestHandler = () => {
   try {
     const db = getDatabase();
@@ -13,166 +25,136 @@ export const GET: RequestHandler = () => {
   }
 };
 
+/** Description d une fiche a creer (membre d entourage inexistant en base). */
+interface NewPersonInput {
+  firstName?: string;
+  lastName?: string;
+  level?: number | string | null;
+}
+
+/** Corps attendu pour l ajout d un lien d entourage. */
+interface AddRelationBody {
+  type?: string;
+  role?: "parrain" | "fillot";
+  targetId?: string;
+  newPerson?: NewPersonInput;
+  confirmCreate?: boolean;
+}
+
+/** Convertit une promo (number | string) en entier, sinon null. */
+function parseLevel(value: number | string | null | undefined): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const n = parseInt(value, 10);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+/**
+ * Ajoute un lien d entourage pour l utilisateur connecte (son nœud = `me`).
+ * `role=parrain` -> l autre est mon parrain (autre -> me) ; `role=fillot` ->
+ * l autre est mon fillot (me -> autre). L autre est soit une fiche existante
+ * (`targetId`), soit une nouvelle fiche (`newPerson`) ; dans ce dernier cas, si
+ * des homonymes existent et que `confirmCreate` est faux, on renvoie les
+ * candidats pour proposer une liaison plutot qu un doublon. Les regles 1/1/3/2
+ * et l anti-cycle sont appliquees par le moteur (`addParrainage`).
+ */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: "Not authenticated" }, { status: 401 });
+    return json({ error: "Non authentifie" }, { status: 401 });
   }
 
-  try {
-    const db = getDatabase();
-    const body = (await request.json()) as {
-      targetId?: string;
-      type?: string;
-      role?: "parrain" | "fillot";
-    };
-    const { targetId, type, role = "fillot" } = body;
+  const body = (await request.json()) as AddRelationBody;
+  const { type, role = "fillot", targetId, newPerson, confirmCreate } = body;
 
-    // Validate inputs
-    if (!targetId || !type) {
-      return json({ error: "Missing targetId or type" }, { status: 400 });
-    }
+  if (!isRelationKind(type)) {
+    return json({ error: "Type de lien invalide" }, { status: 400 });
+  }
+  const kind: RelationKind = type;
 
-    // Validate type
-    if (!["parrainage", "adoption"].includes(type)) {
-      return json({ error: "Invalid relationship type" }, { status: 400 });
-    }
-
-    // Determine who is source and who is target
-    // parrain = source, fillot = target
-    let sourceId: string;
-    let targetUser: string;
-
-    if (role === "parrain") {
-      sourceId = targetId; // The person I selected is the Parrain (Source)
-      targetUser = user.profile_id; // I am the Fillot (Target)
-    } else {
-      sourceId = user.profile_id; // I am the Parrain (Source)
-      targetUser = targetId; // The person I selected is the Fillot (Target)
-    }
-
-    // Check if relationship already exists
-    const existing = db
-      .prepare(
-        `
-			SELECT id FROM relationships 
-			WHERE source_id = ? AND target_id = ?
-		`,
-      )
-      .get(sourceId, targetUser);
-
-    if (existing) {
-      return json({ error: "Relationship already exists" }, { status: 400 });
-    }
-
-    // Check total fillots limit for the SOURCE (Parrain)
-    // Max 3 fillots (official + adoption included)
-    const totalFillotsQuery = `
-			SELECT COUNT(*) as count FROM relationships 
-			WHERE source_id = ?
-              AND type IN ('parrainage', 'adoption')
-		`;
-    const totalFillots = db.prepare(totalFillotsQuery).get(sourceId) as {
-      count: number;
-    };
-
-    if (totalFillots.count >= 3) {
-      return json(
-        {
-          error:
-            role === "fillot"
-              ? "Vous avez déjà atteint la limite de 3 fillots."
-              : "Ce parrain a déjà atteint la limite de 3 fillots.",
-        },
-        { status: 400 },
+  // Resoudre l autre extremite du lien : fiche existante ou nouvelle (dedup).
+  let otherId: string;
+  if (targetId) {
+    otherId = targetId;
+  } else if (newPerson?.firstName && newPerson?.lastName) {
+    const level = parseLevel(newPerson.level);
+    if (!confirmCreate) {
+      const candidates = findPeopleByName(
+        newPerson.lastName,
+        newPerson.firstName,
       );
-    }
-
-    // Check if I (Target) already have a Parrain of this type (if official)
-    // Usually you only have 1 official Parrain
-    if (type === "parrainage") {
-      const existingParrain = db
-        .prepare(
-          "SELECT id FROM relationships WHERE target_id = ? AND type = 'parrainage'",
-        )
-        .get(targetUser);
-
-      if (existingParrain) {
-        return json(
-          {
-            error:
-              role === "parrain"
-                ? "Vous avez déjà un parrain officiel."
-                : "Cette personne a déjà un parrain officiel.",
-          },
-          { status: 400 },
-        );
+      if (candidates.length > 0) {
+        return json({ needsConfirmation: true, candidates }, { status: 409 });
       }
     }
-
-    // Create relationship
-    db.prepare(
-      `
-			INSERT INTO relationships (source_id, target_id, type)
-			VALUES (?, ?, ?)
-		`,
-    ).run(sourceId, targetUser, type);
-
-    // Recalculate positions in background
-    recalculatePositions().catch((err) =>
-      console.error("Failed to recalculate positions:", err),
+    otherId = createPlaceholderPerson(
+      newPerson.firstName,
+      newPerson.lastName,
+      level,
+      user.profile_id,
     );
-
-    return json({ success: true });
-  } catch (error) {
-    console.error("Error creating relationship:", error);
-    return json({ error: "Failed to create relationship" }, { status: 500 });
+  } else {
+    return json({ error: "targetId ou newPerson requis" }, { status: 400 });
   }
+
+  // parrain = source, fillot = target.
+  const sourceId = role === "parrain" ? otherId : user.profile_id;
+  const targetUser = role === "parrain" ? user.profile_id : otherId;
+
+  try {
+    addParrainage(sourceId, targetUser, kind);
+  } catch (error) {
+    if (error instanceof RelationError) {
+      return json({ error: error.message, code: error.code }, { status: 409 });
+    }
+    console.error("Error creating relationship:", error);
+    return json({ error: "Echec de creation du lien" }, { status: 500 });
+  }
+
+  // Recalcul des positions en tache de fond (meilleur effort).
+  recalculatePositions().catch((err) =>
+    console.error("Failed to recalculate positions:", err),
+  );
+
+  return json({ success: true, personId: otherId });
 };
 
+/**
+ * Supprime un lien d entourage. Reserve a un lien touchant l utilisateur
+ * (parrain ou fillot), sauf pour un admin qui peut retirer n importe quel lien.
+ */
 export const DELETE: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: "Not authenticated" }, { status: 401 });
+    return json({ error: "Non authentifie" }, { status: 401 });
   }
 
-  try {
-    const db = getDatabase();
-    const body = (await request.json()) as { relationshipId?: number };
-    const { relationshipId } = body;
-
-    if (!relationshipId) {
-      return json({ error: "Missing relationshipId" }, { status: 400 });
-    }
-
-    // Verify ownership
-    const relationship = db
-      .prepare(
-        `
-			SELECT * FROM relationships 
-			WHERE id = ? AND (source_id = ? OR target_id = ?)
-		`,
-      )
-      .get(relationshipId, user.profile_id, user.profile_id);
-
-    if (!relationship) {
-      return json(
-        { error: "Relationship not found or unauthorized" },
-        { status: 404 },
-      );
-    }
-
-    // Delete relationship
-    db.prepare("DELETE FROM relationships WHERE id = ?").run(relationshipId);
-
-    // Recalculate positions in background
-    recalculatePositions().catch((err) =>
-      console.error("Failed to recalculate positions:", err),
-    );
-
-    return json({ success: true });
-  } catch (error) {
-    console.error("Error deleting relationship:", error);
-    return json({ error: "Failed to delete relationship" }, { status: 500 });
+  const body = (await request.json()) as { relationshipId?: number };
+  const { relationshipId } = body;
+  if (!relationshipId) {
+    return json({ error: "relationshipId manquant" }, { status: 400 });
   }
+
+  const rel = getRelationshipById(relationshipId);
+  if (!rel) {
+    return json({ error: "Lien introuvable" }, { status: 404 });
+  }
+
+  const touchesMe =
+    rel.source_id === user.profile_id || rel.target_id === user.profile_id;
+  if (!touchesMe && user.role !== "admin") {
+    return json({ error: "Non autorise" }, { status: 403 });
+  }
+
+  removeRelationshipById(relationshipId);
+
+  recalculatePositions().catch((err) =>
+    console.error("Failed to recalculate positions:", err),
+  );
+
+  return json({ success: true });
 };
