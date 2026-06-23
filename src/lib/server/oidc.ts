@@ -19,10 +19,17 @@ interface OidcToken {
   scope?: string;
 }
 
-/** Profil brut renvoye par /userinfo/ (claims arbitraires inclus). */
+/**
+ * Profil brut renvoye par /userinfo/ (claims arbitraires inclus). Cette instance
+ * miconnect expose le prenom/nom en claims custom `firstName`/`lastName`
+ * (camelCase, comme les lit Canari) ; les `given_name`/`family_name` standards ne
+ * sont qu un repli (et peuvent contenir le nom complet sur certains comptes).
+ */
 interface OidcProfile {
   sub?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   given_name?: string;
   family_name?: string;
   email?: string;
@@ -194,8 +201,12 @@ export async function completeOIDCFlow(
   // Certains claims (promo/formation) peuvent n etre que dans l id_token.
   const idClaims = decodeJWT(tokens.id_token) || {};
 
-  const firstName = trimmedOrNull(profile.given_name) ?? "";
-  const lastName = trimmedOrNull(profile.family_name) ?? "";
+  // Cette instance fournit firstName/lastName (camelCase) ; given_name/family_name
+  // en repli (peuvent contenir le nom complet -> a eviter en priorite).
+  const firstName =
+    trimmedOrNull(profile.firstName) ?? trimmedOrNull(profile.given_name) ?? "";
+  const lastName =
+    trimmedOrNull(profile.lastName) ?? trimmedOrNull(profile.family_name) ?? "";
   const promo = parsePromo(profile.promo ?? idClaims.promo);
   const formation =
     trimmedOrNull(profile.formation) ?? trimmedOrNull(idClaims.formation);
