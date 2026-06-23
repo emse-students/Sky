@@ -1,6 +1,7 @@
--- Sky Database Schema v3.0
--- Cleaned schema for storing ICM family tree data
--- Migration date: 1er février 2026
+-- Sky Database Schema v4.0
+-- Modele reconstruit : fiches placeholder (id prenom.nom[.promo][.idx]) + comptes
+-- Authentik (auth_sub). Une personne peut exister sans compte. Relations
+-- parrainage/adoption avec contraintes appliquees cote serveur.
 
 -- Enable foreign keys
 PRAGMA foreign_keys = ON;
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS people (
     formation TEXT,          -- 'ICM', 'ISMIN'... (gating ICM)
     role TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'admin'
     last_login INTEGER,      -- epoch du dernier login SSO
+    created_by TEXT,         -- id de la personne qui a cree cette fiche (placeholder)
 
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -179,5 +181,5 @@ CREATE TABLE IF NOT EXISTS metadata (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '3.0');
+INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '4.0');
 INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_migration', datetime('now'));

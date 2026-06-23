@@ -25,7 +25,7 @@
     "ci:build": "bun install --production && npm run build",
     "prebuild": "npm run deps:install || npm run deps:install:pnpm || npm run deps:install:npm || true",
     "start": "bun run dev",
-    "start:prod": "node scripts/init-db.js && node scripts/migrate-add-bio.js && node scripts/migrate-auth.js && node --env-file=.env build/index.js",
+    "start:prod": "node scripts/init-db.js && node scripts/migrate-add-bio.js && node scripts/migrate-auth.js && node scripts/rebuild-db.js && node --env-file=.env build/index.js",
     "db:init": "node scripts/init-db.js",
     "calcul": "python scripts/calcul_positions.py",
     "package": "bun run build && bun ./scripts/pack-bun.js",

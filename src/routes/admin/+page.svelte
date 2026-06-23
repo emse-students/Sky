@@ -256,6 +256,17 @@
           Gérer les utilisateurs
         </button>
       </div>
+
+      <div class="action-card">
+        <h2><Database size={24} /> Ancienne base (lecture seule)</h2>
+        <p>
+          Consulter le snapshot de l'ancienne base pour reconstruire les données
+          à la main (recherche, relations par personne).
+        </p>
+        <button class="btn-secondary" onclick={() => goto("/admin/legacy")}>
+          Consulter l'ancienne base
+        </button>
+      </div>
     </div>
   </div>
 {/if}
