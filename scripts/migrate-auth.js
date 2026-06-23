@@ -67,6 +67,25 @@ try {
     "CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)",
   ).run();
 
+  // Table pending_links (ecran de choix de liaison au login).
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS pending_links (
+      token TEXT PRIMARY KEY,
+      sub TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      level INTEGER,
+      email TEXT,
+      formation TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      expires_at INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+  ).run();
+  db.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_pending_links_expires ON pending_links(expires_at)",
+  ).run();
+
   console.log("[migrate-auth] Migration terminee.");
 } catch (error) {
   console.error("[migrate-auth] Echec de la migration:", error);

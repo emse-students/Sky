@@ -422,44 +422,61 @@ export function getPersonIdByAuthSub(authSub: string): string | null {
   return row?.id ?? null;
 }
 
+/** Fiche candidate a une liaison (meme nom/prenom, non liee). */
+export interface MatchCandidate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  level: number | null;
+}
+
 /**
- * Cherche une fiche people NON liee correspondant a (nom, prenom, promotion).
- * La comparaison des noms est faite en JS apres normalisation (SQLite ne sait
- * pas retirer les accents). Retourne la 1re correspondance (log si ambiguite).
+ * Fiches people NON liees dont le nom+prenom normalises correspondent (la promo
+ * ne filtre PAS ici : elle ne sert qu a departager, cf. promoMatches). La
+ * comparaison se fait en JS (SQLite ne retire pas les accents).
  */
-export function findUnlinkedPersonIdByIdentity(
+export function findUnlinkedCandidatesByName(
   lastName: string,
   firstName: string,
-  level: number | null,
-): string | null {
+): MatchCandidate[] {
   const database = getDatabase();
   const rows = database
     .prepare(
-      "SELECT id, first_name, last_name FROM people WHERE auth_sub IS NULL AND level IS ?",
+      "SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL",
     )
-    .all(level ?? null) as {
+    .all() as {
     id: string;
     first_name: string;
     last_name: string;
+    level: number | null;
   }[];
 
   const nLast = normalizeName(lastName);
   const nFirst = normalizeName(firstName);
-  const matches = rows.filter(
-    (r) =>
-      normalizeName(r.last_name) === nLast &&
-      normalizeName(r.first_name) === nFirst,
-  );
+  return rows
+    .filter(
+      (r) =>
+        normalizeName(r.last_name) === nLast &&
+        normalizeName(r.first_name) === nFirst,
+    )
+    .map((r) => ({
+      id: r.id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      level: r.level,
+    }));
+}
 
-  if (matches.length === 0) {
-    return null;
+/**
+ * Vrai si la promo SSO (annee d entree) colle a la fiche. Le `level` stocke est
+ * l annee de DIPLOME ; un ICM entre en `promo` sort en `promo + 3`. On tolere
+ * aussi l egalite stricte (donnees saisies en annee d entree).
+ */
+function promoMatches(level: number | null, promo: number | null): boolean {
+  if (level === null || promo === null) {
+    return false;
   }
-  if (matches.length > 1) {
-    console.warn(
-      `[auth-link] ${matches.length} fiches non liees pour ${nFirst} ${nLast} (promo ${level ?? "?"}) ; liaison de la premiere (${matches[0].id})`,
-    );
-  }
-  return matches[0].id;
+  return level === promo || level === promo + 3;
 }
 
 /** Lie une fiche existante a un compte Authentik et rafraichit ses infos SSO. */
@@ -541,29 +558,49 @@ export function createAuthedPerson(identity: OidcIdentity): string {
   return identity.sub;
 }
 
+/** Resultat de la resolution d un login. */
+export type LoginResolution =
+  | { kind: "linked"; personId: string }
+  | { kind: "choice"; candidates: MatchCandidate[] };
+
 /**
- * Resout (ou cree) la fiche people correspondant a une identite Authentik :
- *   1. deja liee a ce sub      -> rafraichit
- *   2. fiche non liee (nom, prenom, promo) -> lie
- *   3. aucune                  -> cree une nouvelle fiche
- * Retourne l id de la fiche people.
+ * Resout un login Authentik :
+ *   1. sub deja lie               -> rafraichit, lie.
+ *   2. 1 candidat sur (nom/prenom + promo concordante) -> lie automatiquement.
+ *   3. aucun candidat (nom/prenom) -> cree une fiche compte (id = sub).
+ *   4. plusieurs candidats / doute -> "choice" (ecran de selection au login).
  */
-export function linkOrCreateAuthPerson(identity: OidcIdentity): string {
+export function resolveLogin(identity: OidcIdentity): LoginResolution {
   const existing = getPersonIdByAuthSub(identity.sub);
   if (existing) {
     refreshPersonIdentity(existing, identity);
-    return existing;
+    return { kind: "linked", personId: existing };
   }
-  const match = findUnlinkedPersonIdByIdentity(
+
+  const candidates = findUnlinkedCandidatesByName(
     identity.lastName,
     identity.firstName,
-    identity.level,
   );
-  if (match) {
-    linkPersonAuth(match, identity);
-    return match;
+  const confident = candidates.filter((c) =>
+    promoMatches(c.level, identity.level),
+  );
+  if (confident.length === 1) {
+    linkPersonAuth(confident[0].id, identity);
+    return { kind: "linked", personId: confident[0].id };
   }
-  return createAuthedPerson(identity);
+  if (candidates.length === 0) {
+    return { kind: "linked", personId: createAuthedPerson(identity) };
+  }
+  return { kind: "choice", candidates };
+}
+
+/** auth_sub d une fiche (cle photo MiGallery), sinon null. */
+export function getPersonAuthSub(id: string): string | null {
+  const database = getDatabase();
+  const row = database
+    .prepare("SELECT auth_sub FROM people WHERE id = ?")
+    .get(id) as { auth_sub: string | null } | undefined;
+  return row?.auth_sub ?? null;
 }
 
 /** Cree une session opaque (7 jours) pour une fiche people. */
@@ -631,6 +668,85 @@ export function deleteSession(token: string): void {
 export function deleteExpiredSessions(): void {
   getDatabase()
     .prepare("DELETE FROM sessions WHERE expires_at <= ?")
+    .run(nowEpoch());
+}
+
+// ============================================
+// PENDING LINKS (ecran de choix au login)
+// ============================================
+
+const PENDING_TTL_SECONDS = 60 * 15; // 15 minutes
+
+/**
+ * Stocke une identite SSO en attente de choix de liaison (cas ambigu). Le token
+ * opaque est pose en cookie ; l identite (sub verifie) reste cote serveur pour
+ * eviter toute falsification du choix.
+ */
+export function createPendingLink(identity: OidcIdentity): string {
+  const database = getDatabase();
+  const token = randomUUID();
+  database
+    .prepare(
+      `INSERT INTO pending_links
+        (token, sub, first_name, last_name, level, email, formation, role, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      token,
+      identity.sub,
+      identity.firstName,
+      identity.lastName,
+      identity.level,
+      identity.email,
+      identity.formation,
+      identity.role,
+      nowEpoch() + PENDING_TTL_SECONDS,
+    );
+  return token;
+}
+
+/** Recupere l identite en attente (non expiree) pour un token, sinon null. */
+export function getPendingLink(token: string): OidcIdentity | null {
+  const database = getDatabase();
+  const row = database
+    .prepare(
+      `SELECT sub, first_name, last_name, level, email, formation, role
+       FROM pending_links WHERE token = ? AND expires_at > ?`,
+    )
+    .get(token, nowEpoch()) as
+    | {
+        sub: string;
+        first_name: string;
+        last_name: string;
+        level: number | null;
+        email: string | null;
+        formation: string | null;
+        role: string;
+      }
+    | undefined;
+  if (!row) {
+    return null;
+  }
+  return {
+    sub: row.sub,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    level: row.level,
+    email: row.email,
+    formation: row.formation,
+    role: row.role,
+  };
+}
+
+/** Supprime une demande de liaison (apres resolution ou expiration). */
+export function deletePendingLink(token: string): void {
+  getDatabase().prepare("DELETE FROM pending_links WHERE token = ?").run(token);
+}
+
+/** Purge les demandes de liaison expirees. */
+export function deleteExpiredPendingLinks(): void {
+  getDatabase()
+    .prepare("DELETE FROM pending_links WHERE expires_at <= ?")
     .run(nowEpoch());
 }
 
