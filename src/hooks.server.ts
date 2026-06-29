@@ -33,6 +33,7 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
     event.locals.user = {
       id: person.id,
       profile_id: person.id,
+      auth_sub: person.auth_sub,
       name: `${person.nom.toUpperCase()} ${person.prenom}`.trim(),
       email: person.email,
       role: person.role === "admin" ? "admin" : "user",

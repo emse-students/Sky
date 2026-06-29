@@ -12,6 +12,7 @@
     ChevronUp,
     Crown,
     Home,
+    ExternalLink,
   } from "lucide-svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import type {
@@ -220,7 +221,17 @@
 
       {#if canari?.linked && canari.profile}
         <section class="canari" in:fade>
-          <h2>Profil Canari</h2>
+          <div class="canari-head">
+            <h2>Profil</h2>
+            <a
+              class="profil-link"
+              href={`${$page.data.canariUrl}/profile/${canari.profile.sub}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={14} /> Voir sur Canari
+            </a>
+          </div>
           {#if canari.profile.bio}
             <p class="bio">{canari.profile.bio}</p>
           {/if}
@@ -528,10 +539,33 @@
     border-radius: 16px;
     padding: 1.5rem;
   }
+  .canari-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
   .canari h2 {
-    margin: 0 0 0.75rem;
+    margin: 0;
     font-size: 1rem;
     color: #f8fafc;
+  }
+  .profil-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 99px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .profil-link:hover {
+    background: rgba(59, 130, 246, 0.25);
   }
   .canari h3 {
     margin: 1.25rem 0 0.5rem;

@@ -12,6 +12,7 @@
     Network,
     Shield,
     Unlink,
+    GitMerge,
   } from "lucide-svelte";
   import { goto } from "$app/navigation";
 
@@ -80,6 +81,34 @@
       body: JSON.stringify({ action: "set-role", role }),
     });
     if (res.ok) await loadPeople();
+  }
+
+  /**
+   * Fusionne les 2 fiches selectionnees : la 1ere (selectionnee en premier) est
+   * conservee et recupere les liens de parrainage de la 2eme, qui est supprimee.
+   */
+  async function mergeSelected() {
+    if (selectedIds.length !== 2) return;
+    const target = people.find((p) => p.id === selectedIds[0]);
+    const source = people.find((p) => p.id === selectedIds[1]);
+    if (!target || !source) return;
+    if (
+      !confirm(
+        `Fusionner "${source.prenom} ${source.nom}" dans "${target.prenom} ${target.nom}" ?\n\n` +
+          `La 1ere fiche est conservee et recupere les liens de la 2eme, puis la 2eme est supprimee.`,
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/admin/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceId: source.id, targetId: target.id }),
+    });
+    if (res.ok) {
+      selectedIds = [];
+      await loadPeople();
+    }
   }
 
   /** Delie le compte Authentik : la fiche redevient un placeholder. */
@@ -251,10 +280,18 @@
                 >Tout désélectionner</button
               >
             </div>
-            <button class="btn-danger-outline" onclick={deleteSelected}>
-              <Trash2 size={16} />
-              <span>Supprimer</span>
-            </button>
+            <div class="selection-actions">
+              {#if selectedIds.length === 2}
+                <button class="btn-merge" onclick={mergeSelected}>
+                  <GitMerge size={16} />
+                  <span>Fusionner</span>
+                </button>
+              {/if}
+              <button class="btn-danger-outline" onclick={deleteSelected}>
+                <Trash2 size={16} />
+                <span>Supprimer</span>
+              </button>
+            </div>
           </div>
         {/if}
         <div class="table-container">
@@ -802,5 +839,27 @@
 
   .btn-danger-outline:hover {
     background: rgba(239, 68, 68, 0.2);
+  }
+
+  .selection-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-merge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-merge:hover {
+    background: rgba(59, 130, 246, 0.2);
   }
 </style>
