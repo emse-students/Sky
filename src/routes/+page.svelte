@@ -14,7 +14,6 @@
     Phone,
     Link,
     User,
-    Edit,
     LogOut,
     Search,
     Target,
@@ -27,6 +26,7 @@
   import Linkedin from "$components/icons/Linkedin.svelte";
   import Github from "$components/icons/Github.svelte";
   import Instagram from "$components/icons/Instagram.svelte";
+  import type { CanariProfileResponse } from "$types/graph";
 
   // UI State
   let searchTerm = "";
@@ -66,6 +66,29 @@
     }
   } else {
     isProfileModalOpen = false;
+  }
+
+  // Profil Canari (bio, associations) de la personne selectionnee : source de
+  // verite hors parrainage (Sky n edite que les liens, le reste vient de Canari).
+  let canariProfile: CanariProfileResponse | null = null;
+  let canariLoadedId: string | null = null;
+  $: loadCanariProfile($selectedPersonId);
+
+  async function loadCanariProfile(id: string | null) {
+    if (!id) {
+      canariProfile = null;
+      canariLoadedId = null;
+      return;
+    }
+    if (id === canariLoadedId) return;
+    canariLoadedId = id;
+    canariProfile = null;
+    try {
+      const r = await fetch(`/api/canari/${id}`);
+      if (r.ok) canariProfile = await r.json();
+    } catch (e) {
+      console.error("[Home] echec chargement profil Canari:", e);
+    }
   }
 
   onMount(() => {
@@ -302,9 +325,6 @@
             <a href="/tree" class="menu-item">
               <Network size={16} /> Mon arbre
             </a>
-            <a href="/profile/edit" class="menu-item">
-              <Edit size={16} /> Modifier
-            </a>
             {#if user?.role === "admin"}
               <div class="menu-divider"></div>
               <a href="/admin" class="menu-item">
@@ -405,8 +425,10 @@
         <div class="info-block">
           <h3>Bio</h3>
           <p>
-            {currentProfile.bio ||
-              "Cette étoile n'a pas encore rédigé sa biographie."}
+            {canariProfile?.profile?.bio ||
+              (canariProfile && !canariProfile.linked
+                ? "Fiche non liee a un compte Canari."
+                : "Pas de biographie sur Canari.")}
           </p>
         </div>
 
@@ -429,14 +451,32 @@
           </div>
         {/if}
 
-        {#if currentProfile.associations?.length > 0}
+        {#if canariProfile?.profile?.associations?.length}
           <div class="info-block">
             <h3>Constellations (Associations)</h3>
             <div class="asso-list">
-              {#each currentProfile.associations as asso}
+              {#each canariProfile.profile.associations as asso (asso.slug)}
                 <div class="asso-card">
                   <span class="asso-n">{asso.name}</span>
                   <span class="asso-r">{asso.role}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        {#if canariProfile?.profile?.formerAssociations?.length}
+          <div class="info-block">
+            <h3>Anciennes associations</h3>
+            <div class="asso-list">
+              {#each canariProfile.profile.formerAssociations as asso, i (i)}
+                <div class="asso-card">
+                  <span class="asso-n">{asso.name}</span>
+                  <span class="asso-r"
+                    >{asso.role}{asso.startYear
+                      ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ""})`
+                      : ""}</span
+                  >
                 </div>
               {/each}
             </div>

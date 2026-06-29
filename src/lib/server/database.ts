@@ -1405,53 +1405,6 @@ export function getPerson(id: string): Person | null {
   return getPersonById(id);
 }
 
-// Get relationships for a specific person with details
-export function getRelationships(personId: string): Array<{
-  id: number;
-  person_id_1: string;
-  person_id_2: string;
-  type: string;
-  other_person_id: string;
-  other_person_name: string;
-  target_name: string;
-  source_name: string;
-}> {
-  const database = getDatabase();
-  const stmt = database.prepare(`
-		SELECT 
-			r.id,
-			r.source_id as person_id_1,
-			r.target_id as person_id_2,
-			r.type,
-			CASE 
-				WHEN r.source_id = ? THEN r.target_id
-				ELSE r.source_id
-			END as other_person_id,
-			CASE 
-				WHEN r.source_id = ? THEN p2.last_name || ' ' || p2.first_name
-				ELSE p1.last_name || ' ' || p1.first_name
-			END as other_person_name,
-			p2.first_name || ' ' || p2.last_name as target_name,
-			p1.first_name || ' ' || p1.last_name as source_name
-		FROM relationships r
-		LEFT JOIN people p1 ON r.source_id = p1.id
-		LEFT JOIN people p2 ON r.target_id = p2.id
-		WHERE r.source_id = ? OR r.target_id = ?
-		ORDER BY r.type, other_person_name
-	`);
-
-  return stmt.all(personId, personId, personId, personId) as Array<{
-    id: number;
-    person_id_1: string;
-    person_id_2: string;
-    type: string;
-    other_person_id: string;
-    other_person_name: string;
-    target_name: string;
-    source_name: string;
-  }>;
-}
-
 // ============================================
 // POSITIONS CALCULATION
 // ============================================

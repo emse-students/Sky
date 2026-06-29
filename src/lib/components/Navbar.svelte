@@ -48,7 +48,7 @@
   <div class="user">
     {#if u}
       <a
-        href="/profile/edit"
+        href="/tree"
         class="user-link"
         style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;"
       >
