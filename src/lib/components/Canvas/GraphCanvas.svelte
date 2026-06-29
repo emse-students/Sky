@@ -14,6 +14,13 @@
   let ctx: CanvasRenderingContext2D;
   let animationFrame: number;
 
+  // Rendu a la demande : on ne redessine que lorsque la camera bouge ou qu un
+  // etat visible change (dirty), pour ne rien calculer quand la scene est stable.
+  let dirty = true;
+  function requestRedraw() {
+    dirty = true;
+  }
+
   // State
   let isDragging = false;
   let hasDragged = false;
@@ -25,13 +32,23 @@
   $: ({ people, relations, positions } = $filteredGraph);
   $: camera = $cameraStore;
 
+  // Toute modification des donnees visibles declenche un redraw.
+  $: {
+    void people;
+    void relations;
+    void positions;
+    requestRedraw();
+  }
+
   // Watch for selection changes and auto-zoom to focus area
   let lastSelectedId: string | null = null;
   $: if ($selectedPersonId && $selectedPersonId !== lastSelectedId) {
     lastSelectedId = $selectedPersonId;
+    requestRedraw();
     autoZoomToSelection($selectedPersonId);
   } else if (!$selectedPersonId && lastSelectedId) {
     lastSelectedId = null;
+    requestRedraw();
     // Reset zoom when deselecting
     cameraStore.setTarget(0, 0, 0.1);
   }
@@ -101,10 +118,13 @@
     // Load data
     graphStore.load();
 
-    // Animation loop
+    // Animation loop : ne dessine que si la camera bouge ou si un etat a change.
     const animate = () => {
-      cameraStore.updateSmooth();
-      draw();
+      const moved = cameraStore.updateSmooth();
+      if (moved || dirty) {
+        draw();
+        dirty = false;
+      }
       animationFrame = requestAnimationFrame(animate);
     };
     animate();
@@ -118,6 +138,7 @@
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    requestRedraw();
   }
 
   function draw() {
@@ -138,41 +159,38 @@
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
-    // Draw relations (lines) - seulement si bien zoomé
+    // Draw relations (lines) - seulement si bien zoomé. On regroupe les traits par
+    // type (officiel plein, adoption pointillé) en un seul path/stroke par style :
+    // les changements d etat canvas (strokeStyle/setLineDash) sont couteux, donc
+    // on n en fait que deux pour tout le graphe au lieu de deux par lien.
     if (camera.zoom > 0.03) {
       ctx.lineWidth = 1 / camera.zoom;
-      relations.forEach((rel) => {
-        const pos1 = positions[rel.id1];
-        const pos2 = positions[rel.id2];
-        if (pos1 && pos2) {
-          // Viewport culling pour les lignes aussi
+      const dash = 5 / camera.zoom;
+      for (const adoption of [false, true]) {
+        ctx.strokeStyle = adoption
+          ? "rgba(150, 100, 255, 0.4)"
+          : "rgba(100, 150, 255, 0.3)";
+        ctx.setLineDash(adoption ? [dash, dash] : []);
+        ctx.beginPath();
+        for (const rel of relations) {
+          if ((rel.type === "adoption") !== adoption) continue;
+          const pos1 = positions[rel.id1];
+          const pos2 = positions[rel.id2];
+          if (!pos1 || !pos2) continue;
+          // Viewport culling : ignorer les liens entierement hors champ.
           if (
             (pos1.x < viewLeft && pos2.x < viewLeft) ||
             (pos1.x > viewRight && pos2.x > viewRight) ||
             (pos1.y < viewTop && pos2.y < viewTop) ||
             (pos1.y > viewBottom && pos2.y > viewBottom)
           ) {
-            return;
+            continue;
           }
-
-          // Style différent selon le type de lien
-          if (rel.type === "adoption") {
-            // Adoption - ligne pointillée
-            ctx.strokeStyle = "rgba(150, 100, 255, 0.4)";
-            ctx.setLineDash([5 / camera.zoom, 5 / camera.zoom]);
-          } else {
-            // Parrainage (officiel) - ligne continue
-            ctx.strokeStyle = "rgba(100, 150, 255, 0.3)";
-            ctx.setLineDash([]);
-          }
-
-          ctx.beginPath();
           ctx.moveTo(pos1.x, pos1.y);
           ctx.lineTo(pos2.x, pos2.y);
-          ctx.stroke();
         }
-      });
-      // Reset line dash
+        ctx.stroke();
+      }
       ctx.setLineDash([]);
     }
 
@@ -260,7 +278,10 @@
 
       const found = findNodeAt(e.clientX, e.clientY);
 
-      hoveredPerson = found;
+      if (found !== hoveredPerson) {
+        hoveredPerson = found;
+        requestRedraw();
+      }
       canvas.style.cursor = found
         ? "pointer"
         : isDragging
