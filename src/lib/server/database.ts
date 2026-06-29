@@ -603,6 +603,91 @@ export function getPersonAuthSub(id: string): string | null {
   return row?.auth_sub ?? null;
 }
 
+/**
+ * Role stocke en base pour un compte Authentik, sinon null (sub non lie). Permet
+ * au login de ne jamais retrograder un admin promu en base : l env SKY_ADMIN_SUBS
+ * ne fait qu amorcer (bootstrap), la base reste la source de verite.
+ */
+export function getPersonRoleByAuthSub(authSub: string): string | null {
+  const row = getDatabase()
+    .prepare("SELECT role FROM people WHERE auth_sub = ?")
+    .get(authSub) as { role: string } | undefined;
+  return row?.role ?? null;
+}
+
+/** Definit le role d une fiche (gestion des admins, source de verite en base). */
+export function setPersonRole(id: string, role: "user" | "admin"): boolean {
+  console.debug(`[Admin] setPersonRole id=${id} role=${role}`);
+  return (
+    getDatabase()
+      .prepare(
+        "UPDATE people SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      )
+      .run(role, id).changes > 0
+  );
+}
+
+/**
+ * Delie une fiche de son compte Authentik : la fiche redevient un placeholder
+ * (auth_sub NULL, role 'user') et ses sessions sont revoquees. Le graphe et les
+ * liens de parrainage sont conserves.
+ */
+export function unlinkPersonAuth(id: string): boolean {
+  console.debug(`[Admin] unlinkPersonAuth id=${id}`);
+  const database = getDatabase();
+  const tx = database.transaction(() => {
+    database.prepare("DELETE FROM sessions WHERE person_id = ?").run(id);
+    return database
+      .prepare(
+        `UPDATE people SET auth_sub = NULL, role = 'user',
+           updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .run(id);
+  });
+  return tx().changes > 0;
+}
+
+/** Fiche enrichie pour l administration (role + etat de liaison du compte). */
+export interface AdminPersonRow {
+  id: string;
+  prenom: string;
+  nom: string;
+  level: number | null;
+  role: string;
+  linked: boolean;
+  email: string | null;
+  formation: string | null;
+}
+
+/** Toutes les fiches avec leurs metadonnees admin (role, liaison, formation). */
+export function getAllPeopleAdmin(): AdminPersonRow[] {
+  const rows = getDatabase()
+    .prepare(
+      `SELECT id, first_name, last_name, level, role, auth_sub, email, formation
+       FROM people ORDER BY last_name, first_name`,
+    )
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    role: string;
+    auth_sub: string | null;
+    email: string | null;
+    formation: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    prenom: r.first_name,
+    nom: r.last_name,
+    level: r.level,
+    role: r.role,
+    linked: r.auth_sub !== null,
+    email: r.email,
+    formation: r.formation,
+  }));
+}
+
 /** Cree une session opaque (7 jours) pour une fiche people. */
 export function createSession(personId: string): {
   token: string;

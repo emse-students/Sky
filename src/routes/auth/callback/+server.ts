@@ -7,6 +7,7 @@ import {
   createSession,
   deleteExpiredSessions,
   deleteExpiredPendingLinks,
+  getPersonRoleByAuthSub,
   type OidcIdentity,
 } from "$server/database";
 import { setSessionCookie } from "$server/session";
@@ -58,7 +59,12 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     cookies.delete(STATE_COOKIE_NAME, { path: "/" });
     cookies.delete(NONCE_COOKIE_NAME, { path: "/" });
 
-    const role = isAdminSub(claims.sub) ? "admin" : "user";
+    // Source de verite du role : la base. L env SKY_ADMIN_SUBS ne fait qu amorcer
+    // (bootstrap) ; un admin promu en base n est jamais retrograde au login.
+    const role =
+      isAdminSub(claims.sub) || getPersonRoleByAuthSub(claims.sub) === "admin"
+        ? "admin"
+        : "user";
 
     // Gate ICM : Sky est reserve a la formation ICM (les admins passent aussi).
     if (claims.formation !== "ICM" && role !== "admin") {

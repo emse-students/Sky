@@ -39,6 +39,8 @@ interface AddRelationBody {
   targetId?: string;
   newPerson?: NewPersonInput;
   confirmCreate?: boolean;
+  /** Personne au centre du lien (defaut: l utilisateur). Admin requis si autre. */
+  centerId?: string;
 }
 
 /** Convertit une promo (number | string) en entier, sinon null. */
@@ -69,12 +71,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const body = (await request.json()) as AddRelationBody;
-  const { type, role = "fillot", targetId, newPerson, confirmCreate } = body;
+  const {
+    type,
+    role = "fillot",
+    targetId,
+    newPerson,
+    confirmCreate,
+    centerId,
+  } = body;
 
   if (!isRelationKind(type)) {
     return json({ error: "Type de lien invalide" }, { status: 400 });
   }
   const kind: RelationKind = type;
+
+  // Personne au centre du lien : soi-meme par defaut, ou n importe qui en admin
+  // (edition de l entourage d autrui depuis l arbre).
+  const center = centerId ?? user.profile_id;
+  if (center !== user.profile_id && user.role !== "admin") {
+    return json({ error: "Non autorise" }, { status: 403 });
+  }
 
   // Resoudre l autre extremite du lien : fiche existante ou nouvelle (dedup).
   let otherId: string;
@@ -101,9 +117,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: "targetId ou newPerson requis" }, { status: 400 });
   }
 
-  // parrain = source, fillot = target.
-  const sourceId = role === "parrain" ? otherId : user.profile_id;
-  const targetUser = role === "parrain" ? user.profile_id : otherId;
+  // parrain = source, fillot = target (relatif a la personne centrale).
+  const sourceId = role === "parrain" ? otherId : center;
+  const targetUser = role === "parrain" ? center : otherId;
 
   try {
     addParrainage(sourceId, targetUser, kind);

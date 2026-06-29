@@ -9,6 +9,9 @@
     Save,
     X,
     ArrowLeft,
+    Network,
+    Shield,
+    Unlink,
   } from "lucide-svelte";
   import { goto } from "$app/navigation";
 
@@ -55,7 +58,7 @@
   async function loadPeople() {
     loading = true;
     try {
-      const res = await fetch("/api/people");
+      const res = await fetch("/api/admin/people");
       if (res.ok) {
         const data = await res.json();
         people = Array.isArray(data) ? data : data.people || [];
@@ -63,6 +66,37 @@
     } finally {
       loading = false;
     }
+  }
+
+  /** Promeut/retrograde une fiche (gestion des admins). */
+  async function toggleRole(person: any) {
+    const role = person.role === "admin" ? "user" : "admin";
+    if (!confirm(`Definir ${person.prenom} ${person.nom} comme ${role} ?`)) {
+      return;
+    }
+    const res = await fetch(`/api/admin/people/${person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set-role", role }),
+    });
+    if (res.ok) await loadPeople();
+  }
+
+  /** Delie le compte Authentik : la fiche redevient un placeholder. */
+  async function unlinkAccount(person: any) {
+    if (
+      !confirm(
+        `Delier le compte de ${person.prenom} ${person.nom} ? La fiche redevient un placeholder (le graphe est conserve).`,
+      )
+    ) {
+      return;
+    }
+    const res = await fetch(`/api/admin/people/${person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "unlink" }),
+    });
+    if (res.ok) await loadPeople();
   }
 
   function toggleAll() {
@@ -238,7 +272,8 @@
                 <th>Nom</th>
                 <th>Prénom</th>
                 <th>Promo</th>
-                <th>Bio</th>
+                <th>Compte</th>
+                <th>Rôle</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -259,12 +294,48 @@
                   <td>{person.nom}</td>
                   <td>{person.prenom}</td>
                   <td>{person.level || "—"}</td>
-                  <td class="bio-cell"
-                    >{person.bio
-                      ? person.bio.substring(0, 50) + "..."
-                      : "—"}</td
-                  >
+                  <td>
+                    {#if person.linked}
+                      <span class="badge linked">Compte</span>
+                    {:else}
+                      <span class="badge ghost">Fiche</span>
+                    {/if}
+                  </td>
+                  <td>
+                    <span
+                      class="badge"
+                      class:admin={person.role === "admin"}
+                      class:ghost={person.role !== "admin"}
+                    >
+                      {person.role === "admin" ? "Admin" : "User"}
+                    </span>
+                  </td>
                   <td class="actions">
+                    <button
+                      class="btn-icon"
+                      title="Voir/editer son arbre"
+                      onclick={() => goto(`/tree?id=${person.id}`)}
+                    >
+                      <Network size={16} />
+                    </button>
+                    <button
+                      class="btn-icon"
+                      title={person.role === "admin"
+                        ? "Retirer admin"
+                        : "Promouvoir admin"}
+                      onclick={() => toggleRole(person)}
+                    >
+                      <Shield size={16} />
+                    </button>
+                    {#if person.linked}
+                      <button
+                        class="btn-icon"
+                        title="Delier le compte"
+                        onclick={() => unlinkAccount(person)}
+                      >
+                        <Unlink size={16} />
+                      </button>
+                    {/if}
                     <button class="btn-icon" onclick={() => startEdit(person)}>
                       <Edit size={16} />
                     </button>
@@ -358,8 +429,7 @@
               id="bio"
               bind:value={form.bio}
               placeholder="Parcours au sein de l'école..."
-              rows="5"
-            ></textarea>
+              rows="5"></textarea>
           </div>
         </div>
 
@@ -492,12 +562,24 @@
     color: #94a3b8;
   }
 
-  .bio-cell {
-    max-width: 300px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #cbd5e1;
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.linked {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+  }
+  .badge.admin {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+  }
+  .badge.ghost {
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
   }
 
   .actions {

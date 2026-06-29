@@ -1,6 +1,12 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { getDatabase, recalculatePositions } from "$lib/server/database";
+import {
+  getDatabase,
+  recalculatePositions,
+  setPersonRole,
+  unlinkPersonAuth,
+} from "$lib/server/database";
+import { requireAdmin } from "$lib/server/guards";
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const user = locals.user;
@@ -41,6 +47,37 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
     console.error("Update person error:", error);
     return json({ error: "Failed to update person" }, { status: 500 });
   }
+};
+
+/**
+ * Actions admin sur une fiche : changer le role (`set-role`) ou delier le compte
+ * Authentik (`unlink`, la fiche redevient un placeholder). Liaison/fusion de
+ * fiches separees se fait via /api/admin/merge.
+ */
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
+  requireAdmin(locals);
+  const { id } = params;
+  const body = (await request.json()) as {
+    action?: string;
+    role?: "user" | "admin";
+  };
+
+  if (body.action === "set-role") {
+    if (body.role !== "user" && body.role !== "admin") {
+      return json({ error: "Role invalide" }, { status: 400 });
+    }
+    return setPersonRole(id, body.role)
+      ? json({ success: true })
+      : json({ error: "Fiche introuvable" }, { status: 404 });
+  }
+
+  if (body.action === "unlink") {
+    return unlinkPersonAuth(id)
+      ? json({ success: true })
+      : json({ error: "Fiche introuvable" }, { status: 404 });
+  }
+
+  return json({ error: "Action inconnue" }, { status: 400 });
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
