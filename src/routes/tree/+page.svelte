@@ -19,11 +19,13 @@
     EntourageMember,
     RelationKind,
     RelationRole,
+    CanariProfileResponse,
   } from "$types/graph";
 
   let user = $derived($page.data.user);
 
   let data = $state<EntourageResponse | null>(null);
+  let canari = $state<CanariProfileResponse | null>(null);
   let loading = $state(true);
   let modal: { role: RelationRole; kind: RelationKind; title: string } | null =
     $state(null);
@@ -52,6 +54,7 @@
   /** Charge l entourage d une personne et la place au centre de l arbre. */
   async function load(id: string) {
     loading = true;
+    canari = null;
     try {
       const res = await fetch(`/api/entourage?id=${encodeURIComponent(id)}`);
       if (res.ok) {
@@ -61,6 +64,19 @@
       console.error("[Tree] load error", e);
     } finally {
       loading = false;
+    }
+    loadCanari(id);
+  }
+
+  /** Charge le profil Canari (bio, associations) de la personne centrale. */
+  async function loadCanari(id: string) {
+    try {
+      const res = await fetch(`/api/canari/${encodeURIComponent(id)}`);
+      if (res.ok) {
+        canari = (await res.json()) as CanariProfileResponse;
+      }
+    } catch (e) {
+      console.error("[Tree] canari load error", e);
     }
   }
 
@@ -201,6 +217,44 @@
           {@render slotCard(s.member, "fillot", "adoption")}
         {/each}
       </div>
+
+      {#if canari?.linked && canari.profile}
+        <section class="canari" in:fade>
+          <h2>Profil Canari</h2>
+          {#if canari.profile.bio}
+            <p class="bio">{canari.profile.bio}</p>
+          {/if}
+          {#if canari.profile.associations.length > 0}
+            <h3>Associations</h3>
+            <div class="chips">
+              {#each canari.profile.associations as a (a.slug)}
+                <span class="chip">{a.name}<small>{a.role}</small></span>
+              {/each}
+            </div>
+          {/if}
+          {#if canari.profile.formerAssociations.length > 0}
+            <h3>Anciennes associations</h3>
+            <div class="chips">
+              {#each canari.profile.formerAssociations as a, i (i)}
+                <span class="chip ghost"
+                  >{a.name}<small
+                    >{a.role}{a.startYear
+                      ? ` (${a.startYear}${a.endYear ? `-${a.endYear}` : ""})`
+                      : ""}</small
+                  ></span
+                >
+              {/each}
+            </div>
+          {/if}
+          {#if !canari.profile.bio && canari.profile.associations.length === 0 && canari.profile.formerAssociations.length === 0}
+            <p class="muted">Aucune information de profil sur Canari.</p>
+          {/if}
+        </section>
+      {:else if canari && !canari.linked}
+        <section class="canari" in:fade>
+          <p class="muted">Fiche non liee a un compte Canari.</p>
+        </section>
+      {/if}
     </div>
   {/if}
 </div>
@@ -464,6 +518,63 @@
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+  .canari {
+    margin-top: 2.5rem;
+    width: 100%;
+    max-width: 640px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+  .canari h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: #f8fafc;
+  }
+  .canari h3 {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+  }
+  .canari .bio {
+    margin: 0;
+    color: #cbd5e1;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .canari .muted {
+    margin: 0;
+    color: #64748b;
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 99px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+  .chip small {
+    color: #94a3b8;
+    font-size: 0.7rem;
+  }
+  .chip.ghost {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
   }
   :global(.spin) {
     animation: spin 1s linear infinite;

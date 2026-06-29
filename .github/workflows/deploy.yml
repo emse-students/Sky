@@ -79,6 +79,8 @@ jobs:
           SKY_ADMIN_SUBS: ${{ secrets.SKY_ADMIN_SUBS }}
           MIGALLERY_API_KEY: ${{ secrets.MIGALLERY_API_KEY }}
           MIGALLERY_API_URL: ${{ secrets.MIGALLERY_API_URL }}
+          CANARI_API_KEY: ${{ secrets.CANARI_API_KEY }}
+          CANARI_API_URL: ${{ secrets.CANARI_API_URL }}
         run: |
           for v in MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET MIGALLERY_API_KEY; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
@@ -92,6 +94,8 @@ jobs:
             if [ -n "$MICONNECT_BASE_URL" ]; then printf 'MICONNECT_BASE_URL=%s\n' "$MICONNECT_BASE_URL"; fi
             if [ -n "$SKY_ADMIN_SUBS" ]; then printf 'SKY_ADMIN_SUBS=%s\n' "$SKY_ADMIN_SUBS"; fi
             if [ -n "$MIGALLERY_API_URL" ]; then printf 'MIGALLERY_API_URL=%s\n' "$MIGALLERY_API_URL"; fi
+            if [ -n "$CANARI_API_KEY" ]; then printf 'CANARI_API_KEY=%s\n' "$CANARI_API_KEY"; fi
+            if [ -n "$CANARI_API_URL" ]; then printf 'CANARI_API_URL=%s\n' "$CANARI_API_URL"; fi
           } > "$DEPLOY_DIR/.env"
 
       - name: Sync deploy files
