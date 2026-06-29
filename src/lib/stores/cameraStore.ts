@@ -63,16 +63,48 @@ function createCameraStore() {
         };
       });
     },
-    updateSmooth: () => {
+    /**
+     * Fait avancer la camera vers sa cible d un pas amorti. Renvoie `true` si la
+     * camera a bouge ce frame, `false` si elle est au repos (figee sur sa cible).
+     * Permet au rendu de ne dessiner qu a la demande (idle = 0 calcul) au lieu de
+     * 60 fps en continu, essentiel sur mobile/PC peu puissants.
+     */
+    updateSmooth: (): boolean => {
+      let moved = false;
       update((state) => {
-        const SMOOTH = 0.1;
+        const SMOOTH = 0.15;
+        const dx = state.targetX - state.x;
+        const dy = state.targetY - state.y;
+        const dz = state.targetZoom - state.zoom;
+        // Au repos quand le deplacement restant est sous le demi-pixel ecran.
+        const panRest =
+          Math.abs(dx) < 0.5 / state.zoom && Math.abs(dy) < 0.5 / state.zoom;
+        const zoomRest = Math.abs(dz) < 0.0002;
+        if (panRest && zoomRest) {
+          if (
+            state.x !== state.targetX ||
+            state.y !== state.targetY ||
+            state.zoom !== state.targetZoom
+          ) {
+            moved = true;
+            return {
+              ...state,
+              x: state.targetX,
+              y: state.targetY,
+              zoom: state.targetZoom,
+            };
+          }
+          return state;
+        }
+        moved = true;
         return {
           ...state,
-          x: state.x + (state.targetX - state.x) * SMOOTH,
-          y: state.y + (state.targetY - state.y) * SMOOTH,
-          zoom: state.zoom + (state.targetZoom - state.zoom) * SMOOTH,
+          x: state.x + dx * SMOOTH,
+          y: state.y + dy * SMOOTH,
+          zoom: state.zoom + dz * SMOOTH,
         };
       });
+      return moved;
     },
   };
 }
