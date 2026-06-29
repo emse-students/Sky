@@ -9,10 +9,13 @@ import type { Person } from "$types/graph";
  * Format: "LAST_NAME First_name"
  */
 export function getPersonName(person: Person): string {
-  if (!person.nom || !person.prenom) {
-    return person.id; // Fallback to ID if missing
+  const nom = (person.nom ?? "").trim();
+  const prenom = (person.prenom ?? "").trim();
+  if (nom && prenom) {
+    return `${nom.toUpperCase()} ${prenom}`;
   }
-  return `${person.nom.toUpperCase()} ${person.prenom}`;
+  // Jamais d id brut a l ecran : on montre ce qu on a, sinon un libelle neutre.
+  return nom.toUpperCase() || prenom || "Sans nom";
 }
 
 /**

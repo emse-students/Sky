@@ -3,91 +3,70 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import {
-    Database,
-    Download,
-    Upload,
     Users,
     Link2,
+    Download,
+    Upload,
+    Archive,
     AlertCircle,
-    UserCheck,
+    ChevronRight,
   } from "lucide-svelte";
 
-  let stats = { people: 0, relationships: 0, links: 0 };
-  let loadingExport = false;
-  let loadingImport = false;
-  let loadingRecalc = false;
-  let message = "";
-  let messageType: "success" | "error" | "" = "";
+  let stats = $state({ people: 0, relationships: 0 });
+  let message = $state("");
+  let messageType: "success" | "error" | "" = $state("");
+  let busy = $state(false);
 
-  $: user = $page.data.user;
-  $: isAdmin = user?.role === "admin";
+  let user = $derived($page.data.user);
+  let isAdmin = $derived(user?.role === "admin");
 
-  // Debug: afficher les infos utilisateur
-  $: if (user) {
-    console.log("User info:", {
-      profile_id: user.profile_id,
-      email: user.email,
-      name: user.name,
-      isAdmin,
-    });
-  }
-
-  onMount(async () => {
-    if (!isAdmin) return;
-    await loadStats();
+  onMount(() => {
+    if (isAdmin) loadStats();
   });
 
+  /** Charge les compteurs (personnes, liens de parrainage). */
   async function loadStats() {
     try {
       const [peopleRes, relRes] = await Promise.all([
-        fetch("/api/people"),
+        fetch("/api/admin/people"),
         fetch("/api/relationships"),
       ]);
-
-      if (!peopleRes.ok)
-        throw new Error(`People API error: ${peopleRes.status}`);
-      if (!relRes.ok)
-        throw new Error(`Relationships API error: ${relRes.status}`);
-
-      const people = await peopleRes.json();
-      const relationships = await relRes.json();
-
-      stats.people = people.length;
-      stats.relationships = relationships.length;
-      stats.links = people.reduce(
-        (acc: number, p: any) =>
-          acc + (p.links ? Object.keys(p.links).length : 0),
-        0,
-      );
-    } catch (error) {
-      console.error("Failed to load stats:", error);
+      if (peopleRes.ok) {
+        const people = await peopleRes.json();
+        stats.people = Array.isArray(people) ? people.length : 0;
+      }
+      if (relRes.ok) {
+        const rels = await relRes.json();
+        stats.relationships = Array.isArray(rels) ? rels.length : 0;
+      }
+    } catch (e) {
+      console.error("[Admin] stats error", e);
     }
   }
 
-  async function exportDatabase() {
-    loadingExport = true;
-    message = "";
-    try {
-      const response = await fetch("/api/admin/export");
-      if (!response.ok) throw new Error("Export failed");
+  function flash(msg: string, type: "success" | "error") {
+    message = msg;
+    messageType = type;
+    setTimeout(() => (message = ""), 4000);
+  }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+  async function exportDatabase() {
+    busy = true;
+    try {
+      const res = await fetch("/api/admin/export");
+      if (!res.ok) throw new Error("export");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `sky-backup-${new Date().toISOString().split("T")[0]}.db`;
-      document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      message = "Base de données exportée avec succès !";
-      messageType = "success";
-    } catch (error) {
-      message = "Erreur lors de l'export";
-      messageType = "error";
+      URL.revokeObjectURL(url);
+      flash("Base exportee.", "success");
+    } catch {
+      flash("Echec de l'export.", "error");
     } finally {
-      loadingExport = false;
+      busy = false;
     }
   }
 
@@ -95,348 +74,267 @@
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-
-    loadingImport = true;
-    message = "";
-
+    if (
+      !confirm(
+        "Remplacer la base actuelle par ce fichier ? Une sauvegarde est faite avant, mais l'operation reecrit les donnees en cours.",
+      )
+    ) {
+      input.value = "";
+      return;
+    }
+    busy = true;
     try {
       const formData = new FormData();
       formData.append("database", file);
-
-      const response = await fetch("/api/admin/import", {
+      const res = await fetch("/api/admin/import", {
         method: "POST",
         body: formData,
       });
-
-      if (!response.ok) throw new Error("Import failed");
-
-      message = "Base de données importée avec succès ! Rechargement...";
-      messageType = "success";
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch (error) {
-      message = "Erreur lors de l'import";
-      messageType = "error";
+      if (!res.ok) throw new Error("import");
+      flash("Base importee. Rechargement...", "success");
+      setTimeout(() => window.location.reload(), 1200);
+    } catch {
+      flash("Echec de l'import.", "error");
     } finally {
-      loadingImport = false;
+      busy = false;
       input.value = "";
-    }
-  }
-
-  async function recalculatePositions() {
-    loadingRecalc = true;
-    message = "";
-    try {
-      const response = await fetch("/api/admin/recalculate", {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error("Recalculation failed");
-
-      message = "Recalcul des positions lancé en arrière-plan";
-      messageType = "success";
-    } catch (error) {
-      message = "Erreur lors du recalcul";
-      messageType = "error";
-    } finally {
-      loadingRecalc = false;
     }
   }
 </script>
 
+<svelte:head>
+  <title>Administration - Sky</title>
+</svelte:head>
+
 {#if !isAdmin}
-  <div class="unauthorized">
+  <div class="denied">
     <AlertCircle size={48} />
-    <h1>Accès refusé</h1>
-    <p>Vous devez être administrateur pour accéder à cette page.</p>
+    <h1>Acces refuse</h1>
+    <p>Reserve aux administrateurs.</p>
   </div>
 {:else}
-  <div class="admin-container">
+  <div class="admin">
     <header>
       <h1>Administration</h1>
-      <p>Gestion de la base de données Sky</p>
+      <p>Gestion des personnes et des liens de parrainage.</p>
     </header>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <Users size={32} />
-        <div class="stat-content">
-          <div class="stat-value">{stats.people}</div>
-          <div class="stat-label">Personnes</div>
+    {#if message}
+      <div class="flash {messageType}">{message}</div>
+    {/if}
+
+    <div class="stats">
+      <div class="stat">
+        <Users size={28} />
+        <div>
+          <div class="num">{stats.people}</div>
+          <div class="lbl">Personnes</div>
         </div>
       </div>
-
-      <div class="stat-card">
-        <Link2 size={32} />
-        <div class="stat-content">
-          <div class="stat-value">{stats.relationships}</div>
-          <div class="stat-label">Relations</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <Database size={32} />
-        <div class="stat-content">
-          <div class="stat-value">{stats.links}</div>
-          <div class="stat-label">Liens externes</div>
+      <div class="stat">
+        <Link2 size={28} />
+        <div>
+          <div class="num">{stats.relationships}</div>
+          <div class="lbl">Liens de parrainage</div>
         </div>
       </div>
     </div>
 
-    {#if message}
-      <div class="message message-{messageType}">
-        {message}
-      </div>
-    {/if}
-
-    <div class="actions-grid">
-      <div class="action-card">
-        <h2><Download size={24} /> Exporter la base</h2>
-        <p>
-          Télécharger une copie complète de la base de données SQLite pour
-          sauvegarde ou migration.
-        </p>
-        <button
-          class="btn-primary"
-          onclick={exportDatabase}
-          disabled={loadingExport}
+    <!-- Action principale -->
+    <button class="primary-card" onclick={() => goto("/admin/people")}>
+      <Users size={28} />
+      <div class="pc-text">
+        <span class="pc-title">Gerer les personnes</span>
+        <span class="pc-sub"
+          >Rechercher, editer, fusionner, lier un compte, definir les admins,
+          editer l'arbre de chacun.</span
         >
-          {loadingExport ? "Export en cours..." : "Exporter"}
-        </button>
       </div>
+      <ChevronRight size={22} />
+    </button>
 
-      <div class="action-card">
-        <h2><Upload size={24} /> Importer une base</h2>
-        <p>
-          Remplacer la base de données actuelle par un fichier de sauvegarde.
-          Attention : opération irréversible !
-        </p>
-        <label class="btn-primary" class:disabled={loadingImport}>
-          {loadingImport ? "Import en cours..." : "Choisir un fichier"}
+    <!-- Outils avances -->
+    <h2 class="section">Outils avances</h2>
+    <div class="tools">
+      <div class="tool">
+        <h3><Download size={18} /> Exporter</h3>
+        <p>Telecharger une copie de la base (sauvegarde).</p>
+        <button class="btn" disabled={busy} onclick={exportDatabase}
+          >Exporter</button
+        >
+      </div>
+      <div class="tool">
+        <h3><Upload size={18} /> Importer</h3>
+        <p>Remplacer la base par une sauvegarde. Sensible.</p>
+        <label class="btn" class:disabled={busy}>
+          Choisir un fichier
           <input
             type="file"
             accept=".db,.sqlite,.sqlite3"
             onchange={importDatabase}
-            disabled={loadingImport}
-            style="display: none;"
+            disabled={busy}
+            hidden
           />
         </label>
       </div>
-
-      <div class="action-card">
-        <h2><Database size={24} /> Recalculer les positions</h2>
-        <p>
-          Relancer l'algorithme de positionnement des nœuds du graphe (peut
-          prendre ~30 secondes).
-        </p>
-        <button
-          class="btn-secondary"
-          onclick={recalculatePositions}
-          disabled={loadingRecalc}
+      <div class="tool">
+        <h3><Archive size={18} /> Ancienne base</h3>
+        <p>Consulter le snapshot historique (lecture seule).</p>
+        <button class="btn" onclick={() => goto("/admin/legacy")}
+          >Consulter</button
         >
-          {loadingRecalc ? "Calcul en cours..." : "Recalculer"}
-        </button>
-      </div>
-
-      <div class="action-card">
-        <h2><UserCheck size={24} /> Fusion de doublons</h2>
-        <p>
-          Identifier et fusionner les entrées en double dans la base de données.
-        </p>
-        <button class="btn-secondary" onclick={() => goto("/admin/duplicates")}>
-          Gérer les doublons
-        </button>
-      </div>
-
-      <div class="action-card">
-        <h2><Users size={24} /> Gestion des utilisateurs</h2>
-        <p>Éditer tous les profils : ID, nom, prénom, promo, bio, image...</p>
-        <button class="btn-secondary" onclick={() => goto("/admin/people")}>
-          Gérer les utilisateurs
-        </button>
-      </div>
-
-      <div class="action-card">
-        <h2><Database size={24} /> Ancienne base (lecture seule)</h2>
-        <p>
-          Consulter le snapshot de l'ancienne base pour reconstruire les données
-          à la main (recherche, relations par personne).
-        </p>
-        <button class="btn-secondary" onclick={() => goto("/admin/legacy")}>
-          Consulter l'ancienne base
-        </button>
       </div>
     </div>
   </div>
 {/if}
 
 <style>
-  .unauthorized {
+  .denied {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 80vh;
-    gap: 1.5rem;
-    color: var(--text-secondary);
+    gap: 1rem;
+    color: #94a3b8;
   }
-
-  .unauthorized h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .admin-container {
-    max-width: 1200px;
+  .admin {
+    max-width: 1000px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 2.5rem 1.5rem;
+    color: #f8fafc;
   }
-
-  header {
-    margin-bottom: 3rem;
-  }
-
   header h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    margin: 0 0 0.4rem;
   }
-
   header p {
-    color: var(--text-secondary);
-    font-size: 1.1rem;
+    color: #94a3b8;
+    margin: 0 0 2rem;
   }
-
-  .stats-grid {
+  .flash {
+    padding: 0.85rem 1.2rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+  }
+  .flash.success {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+  }
+  .flash.error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+  }
+  .stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
     margin-bottom: 2rem;
   }
-
-  .stat-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
+  .stat {
     display: flex;
     align-items: center;
     gap: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
   }
-
-  .stat-card :global(svg) {
-    color: var(--primary);
-    flex-shrink: 0;
+  .stat :global(svg) {
+    color: #3b82f6;
   }
-
-  .stat-content {
-    flex: 1;
-  }
-
-  .stat-value {
-    font-size: 2rem;
+  .num {
+    font-size: 1.8rem;
     font-weight: 700;
-    color: var(--text-primary);
   }
-
-  .stat-label {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+  .lbl {
+    color: #94a3b8;
+    font-size: 0.85rem;
   }
-
-  .message {
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-    font-weight: 500;
-  }
-
-  .message-success {
-    background: rgba(34, 197, 94, 0.1);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-  }
-
-  .message-error {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-
-  .actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-  }
-
-  .action-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 2rem;
-  }
-
-  .action-card h2 {
+  .primary-card {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 1rem;
+    gap: 1.25rem;
+    text-align: left;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), transparent);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 16px;
+    padding: 1.5rem;
+    color: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.2s;
   }
-
-  .action-card p {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
+  .primary-card:hover {
+    border-color: #3b82f6;
   }
-
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-    padding: 0.75rem 1.5rem;
+  .primary-card :global(svg) {
+    color: #3b82f6;
+    flex-shrink: 0;
+  }
+  .pc-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pc-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+  .pc-sub {
+    color: #94a3b8;
+    font-size: 0.9rem;
+  }
+  .section {
+    margin: 2.5rem 0 1rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+  }
+  .tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .tool {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .tool h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+  .tool p {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin: 0 0 1rem;
+    min-height: 2.4em;
+  }
+  .btn {
+    display: inline-block;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+    padding: 0.6rem 1rem;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 1rem;
-    border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    width: 100%;
   }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+  .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-
-  .btn-secondary {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--bg-elevated);
-    border-color: var(--primary);
-  }
-
-  .btn-primary:disabled,
-  .btn-secondary:disabled,
-  .disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  label.btn-primary {
-    display: block;
-    text-align: center;
+  .btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
   }
 </style>

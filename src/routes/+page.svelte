@@ -22,6 +22,7 @@
     Loader2,
     Database,
     Network,
+    ExternalLink,
   } from "lucide-svelte";
   import Linkedin from "$components/icons/Linkedin.svelte";
   import Github from "$components/icons/Github.svelte";
@@ -413,12 +414,24 @@
           Promotion {currentProfile.level || "Inconnue"}
         </div>
 
-        <button
-          class="btn-center"
-          onclick={() => centerOnPerson(currentProfile.id)}
-        >
-          <Target size={16} /> Centrer la vue
-        </button>
+        <div class="hero-actions">
+          <button
+            class="btn-center"
+            onclick={() => centerOnPerson(currentProfile.id)}
+          >
+            <Target size={16} /> Centrer la vue
+          </button>
+          {#if canariProfile?.profile?.sub}
+            <a
+              class="btn-profil"
+              href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={16} /> Profil
+            </a>
+          {/if}
+        </div>
       </header>
 
       <section class="sidebar-info">
@@ -812,11 +825,16 @@
     font-weight: 600;
     margin-bottom: 20px;
   }
+  .hero-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
   .btn-center {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0 auto;
     background: white;
     color: black;
     border: none;
@@ -826,6 +844,22 @@
     font-size: 13px;
     cursor: pointer;
     transition: transform 0.2s;
+  }
+  .btn-profil {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--accent);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .btn-profil:hover {
+    background: rgba(59, 130, 246, 0.3);
   }
   .sidebar-info {
     padding: 0 32px 40px;

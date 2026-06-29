@@ -202,11 +202,26 @@ export async function completeOIDCFlow(
   const idClaims = decodeJWT(tokens.id_token) || {};
 
   // Cette instance fournit firstName/lastName (camelCase) ; given_name/family_name
-  // en repli (peuvent contenir le nom complet -> a eviter en priorite).
-  const firstName =
-    trimmedOrNull(profile.firstName) ?? trimmedOrNull(profile.given_name) ?? "";
-  const lastName =
-    trimmedOrNull(profile.lastName) ?? trimmedOrNull(profile.family_name) ?? "";
+  // en repli (peuvent contenir le nom complet -> a eviter en priorite). Si l un
+  // des deux manque, on derive du claim `name` (nom complet) pour ne jamais
+  // afficher un id brut a la place du nom (cf. getPersonName).
+  let firstName =
+    trimmedOrNull(profile.firstName) ?? trimmedOrNull(profile.given_name);
+  let lastName =
+    trimmedOrNull(profile.lastName) ?? trimmedOrNull(profile.family_name);
+  if (!firstName || !lastName) {
+    const full =
+      trimmedOrNull(profile.name) ??
+      trimmedOrNull(idClaims.name) ??
+      trimmedOrNull(profile.given_name);
+    const parts = full ? full.split(/\s+/) : [];
+    if (parts.length > 0) {
+      firstName = firstName ?? parts[0];
+      lastName = lastName ?? (parts.length > 1 ? parts.slice(1).join(" ") : "");
+    }
+  }
+  firstName = firstName ?? "";
+  lastName = lastName ?? "";
   const promo = parsePromo(profile.promo ?? idClaims.promo);
   const formation =
     trimmedOrNull(profile.formation) ?? trimmedOrNull(idClaims.formation);
