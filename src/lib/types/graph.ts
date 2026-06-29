@@ -36,6 +36,42 @@ export interface EntourageMember {
   level: number | null;
 }
 
+/** Association actuelle d un membre (projection publique Canari). */
+export interface CanariAssociation {
+  name: string;
+  slug: string;
+  role: string;
+  logoUrl: string | null;
+}
+
+/** Association passee ou role honorifique (CV Canari). */
+export interface CanariFormerAssociation {
+  name: string;
+  role: string;
+  startYear: number | null;
+  endYear: number | null;
+}
+
+/** Profil public Canari agrege (bio + associations), keye par sub Authentik. */
+export interface CanariProfile {
+  sub: string;
+  displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  promo: number | null;
+  formation: string | null;
+  bio: string | null;
+  associations: CanariAssociation[];
+  formerAssociations: CanariFormerAssociation[];
+}
+
+/** Reponse de /api/canari/[id] : etat de liaison + profil Canari eventuel. */
+export interface CanariProfileResponse {
+  linked: boolean;
+  profile?: CanariProfile | null;
+  error?: string;
+}
+
 /** Reponse de /api/entourage : personne ciblee + parrains/fillots + maxima. */
 export interface EntourageResponse {
   person: { id: string; prenom: string; nom: string; level: number | null };

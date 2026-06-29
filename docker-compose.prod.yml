@@ -27,5 +27,9 @@ services:
       BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-10485760}
       MIGALLERY_API_KEY: ${MIGALLERY_API_KEY:?MIGALLERY_API_KEY requis}
       MIGALLERY_API_URL: ${MIGALLERY_API_URL:-https://gallery.mitv.fr}
+      # API profil public de Canari (bio, associations). La cle doit etre identique
+      # a EXTERNAL_API_KEY cote Canari. Vide = pas d enrichissement Canari.
+      CANARI_API_URL: ${CANARI_API_URL:-https://canari-emse.fr}
+      CANARI_API_KEY: ${CANARI_API_KEY:-}
     volumes:
       - ./database:/app/database
