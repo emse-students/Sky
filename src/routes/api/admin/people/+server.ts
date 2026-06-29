@@ -1,6 +1,17 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { getDatabase, recalculatePositions } from "$lib/server/database";
+import {
+  getDatabase,
+  recalculatePositions,
+  getAllPeopleAdmin,
+} from "$lib/server/database";
+import { requireAdmin } from "$lib/server/guards";
+
+/** Liste enrichie (role, etat de liaison du compte) pour l administration. */
+export const GET: RequestHandler = ({ locals }) => {
+  requireAdmin(locals);
+  return json(getAllPeopleAdmin());
+};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;

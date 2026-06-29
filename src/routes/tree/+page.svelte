@@ -28,17 +28,22 @@
   let modal: { role: RelationRole; kind: RelationKind; title: string } | null =
     $state(null);
 
-  // Editable uniquement quand l arbre est centre sur l utilisateur connecte
-  // (on construit son propre entourage ; les autres sont en lecture seule).
+  // Editable quand l arbre est centre sur soi (on construit son entourage) ou
+  // pour un admin (edition de l entourage d autrui depuis l arbre).
   let isMe = $derived(!!data && !!user && data.person.id === user.profile_id);
+  let isAdmin = $derived(user?.role === "admin");
+  let canEdit = $derived(isMe || isAdmin);
 
   $effect(() => {
     if (browser && !user) goto("/");
   });
 
   onMount(() => {
-    if (user?.profile_id) {
-      load(user.profile_id);
+    // ?id permet a un admin d ouvrir l arbre d une autre personne directement.
+    const requested = $page.url.searchParams.get("id");
+    const start = requested || user?.profile_id;
+    if (start) {
+      load(start);
     } else {
       loading = false;
     }
@@ -91,7 +96,7 @@
     const result: { member: EntourageMember | null }[] = filled.map((m) => ({
       member: m,
     }));
-    if (isMe) {
+    if (canEdit) {
       for (let i = filled.length; i < max; i++) {
         result.push({ member: null });
       }
@@ -227,7 +232,7 @@
           <span class="promo">P{member.level || "?"} · {KIND_LABEL[kind]}</span>
         </div>
       </button>
-      {#if isMe}
+      {#if canEdit}
         <button
           class="del"
           onclick={() => removeRelation(member.relId)}
@@ -254,6 +259,7 @@
     role={modal.role}
     kind={modal.kind}
     title={modal.title}
+    centerId={data?.person.id}
     onClose={() => (modal = null)}
     {onAdded}
   />

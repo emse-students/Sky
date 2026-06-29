@@ -13,12 +13,15 @@
     role,
     kind,
     title,
+    centerId,
     onClose,
     onAdded,
   }: {
     role: RelationRole;
     kind: RelationKind;
     title: string;
+    /** Personne au centre du lien (defaut serveur: l utilisateur connecte). */
+    centerId?: string;
     onClose: () => void;
     onAdded: () => void;
   } = $props();
@@ -87,7 +90,7 @@
       const res = await fetch("/api/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetId, type: kind, role }),
+        body: JSON.stringify({ targetId, type: kind, role, centerId }),
       });
       await handleResponse(res);
     } catch {
@@ -111,6 +114,7 @@
           type: kind,
           role,
           confirmCreate,
+          centerId,
           newPerson: {
             firstName: newPerson.firstName,
             lastName: newPerson.lastName,
