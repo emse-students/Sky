@@ -12,7 +12,14 @@ import { SESSION_COOKIE_NAME } from "$server/session";
  * (la session SSO Authentik n est pas tuee : reconnexion en un clic).
  */
 const PUBLIC_EXACT = new Set(["/", "/unauthorized"]);
-const PUBLIC_PREFIXES = ["/auth/", "/api/health", "/api/avatar/"];
+// `/api/external/` est protege par sa propre cle (SKY_API_KEY), pas par la
+// session ICM : il est consomme par Canari (serveur a serveur).
+const PUBLIC_PREFIXES = [
+  "/auth/",
+  "/api/health",
+  "/api/avatar/",
+  "/api/external/",
+];
 
 function isPublic(pathname: string): boolean {
   return (
