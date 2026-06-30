@@ -1313,6 +1313,74 @@ export function getEntourage(personId: string): Entourage {
   return { parrains, fillots };
 }
 
+/** Membre d entourage expose a une app externe (Canari) : keye par sub. */
+export interface ExternalEntourageMember {
+  prenom: string;
+  nom: string;
+  level: number | null;
+  kind: RelationKind;
+  sub: string | null; // sub Authentik du membre (pour lier vers son profil Canari)
+}
+
+/** Entourage (parrains/fillots) d une personne, keye par son sub Authentik. */
+export interface ExternalEntourage {
+  found: boolean;
+  parrains: ExternalEntourageMember[];
+  fillots: ExternalEntourageMember[];
+}
+
+interface ExternalRow {
+  type: string;
+  first_name: string;
+  last_name: string;
+  level: number | null;
+  auth_sub: string | null;
+}
+
+function toExternalMember(row: ExternalRow): ExternalEntourageMember {
+  return {
+    prenom: row.first_name,
+    nom: row.last_name,
+    level: row.level,
+    kind: row.type === "adoption" ? "adoption" : "parrainage",
+    sub: row.auth_sub,
+  };
+}
+
+/**
+ * Entourage d une personne resolue par son sub Authentik (= cle commune avec
+ * Canari). Renvoie `found: false` si aucune fiche n est liee a ce sub. Chaque
+ * membre porte son propre sub pour permettre a Canari de lier vers son profil.
+ */
+export function getEntourageBySub(sub: string): ExternalEntourage {
+  const database = getDatabase();
+  const person = database
+    .prepare("SELECT id FROM people WHERE auth_sub = ?")
+    .get(sub) as { id: string } | undefined;
+  if (!person) {
+    return { found: false, parrains: [], fillots: [] };
+  }
+  const parrains = (
+    database
+      .prepare(
+        `SELECT r.type, p.first_name, p.last_name, p.level, p.auth_sub
+         FROM relationships r JOIN people p ON p.id = r.source_id
+         WHERE r.target_id = ? ORDER BY r.type, p.last_name`,
+      )
+      .all(person.id) as ExternalRow[]
+  ).map(toExternalMember);
+  const fillots = (
+    database
+      .prepare(
+        `SELECT r.type, p.first_name, p.last_name, p.level, p.auth_sub
+         FROM relationships r JOIN people p ON p.id = r.target_id
+         WHERE r.source_id = ? ORDER BY r.type, p.last_name`,
+      )
+      .all(person.id) as ExternalRow[]
+  ).map(toExternalMember);
+  return { found: true, parrains, fillots };
+}
+
 /** Fiche homonyme proposee comme candidate de liaison (dedup a la creation). */
 export interface NamesakeCandidate {
   id: string;

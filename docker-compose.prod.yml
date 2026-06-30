@@ -31,5 +31,8 @@ services:
       # a EXTERNAL_API_KEY cote Canari. Vide = pas d enrichissement Canari.
       CANARI_API_URL: ${CANARI_API_URL:-https://canari-emse.fr}
       CANARI_API_KEY: ${CANARI_API_KEY:-}
+      # Cle de l API publique entrante (Canari lit l arbre de parrainage). Doit
+      # etre identique a SKY_API_KEY cote Canari. Vide = endpoint refuse.
+      SKY_API_KEY: ${SKY_API_KEY:-}
     volumes:
       - ./database:/app/database
