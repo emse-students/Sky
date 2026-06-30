@@ -9,6 +9,15 @@ const CANARI_API_URL = (
 ).replace(/\/+$/, "");
 const CANARI_API_KEY = process.env.CANARI_API_KEY;
 
+/** Resout un logo d association en URL absolue (chemin relatif -> domaine Canari). */
+function resolveCanariLogo(logoUrl: string | null): string | null {
+  const u = logoUrl?.trim();
+  if (!u) {
+    return null;
+  }
+  return u.startsWith("/") ? `${CANARI_API_URL}${u}` : u;
+}
+
 /**
  * Proxy le profil Canari (bio, associations actuelles/anciennes) d une fiche Sky.
  * Resout d abord le sub Authentik de la fiche (cle commune) ; une fiche
@@ -39,6 +48,12 @@ export const GET: RequestHandler = async ({ params }) => {
       return json({ linked: true, error: "upstream" });
     }
     const profile = (await res.json()) as CanariProfile;
+    // Resout les logos d associations en URL absolue (logoUrl = chemin
+    // same-origin `/api/media/public/:id` cote Canari, public et sans auth).
+    profile.associations = (profile.associations ?? []).map((a) => ({
+      ...a,
+      logo: resolveCanariLogo(a.logoUrl),
+    }));
     return json({ linked: true, profile });
   } catch (e) {
     console.error("[Canari] echec de recuperation du profil:", e);

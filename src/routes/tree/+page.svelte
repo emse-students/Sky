@@ -239,7 +239,12 @@
             <h3>Associations</h3>
             <div class="chips">
               {#each canari.profile.associations as a (a.slug)}
-                <span class="chip">{a.name}<small>{a.role}</small></span>
+                <span class="chip">
+                  {#if a.logo}
+                    <img class="chip-logo" src={a.logo} alt="" />
+                  {/if}
+                  {a.name}<small>{a.role}</small>
+                </span>
               {/each}
             </div>
           {/if}
@@ -605,6 +610,13 @@
   .chip small {
     color: #94a3b8;
     font-size: 0.7rem;
+  }
+  .chip-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.1);
   }
   .chip.ghost {
     background: rgba(255, 255, 255, 0.04);
