@@ -24,8 +24,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     prenom: string;
     nom: string;
     level: number | null;
-    bio?: string;
-    image_url?: string;
   };
 
   try {
@@ -41,18 +39,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Insert person
     const insertStmt = db.prepare(`
-			INSERT INTO people (id, first_name, last_name, level, bio, image_url)
-			VALUES (?, ?, ?, ?, ?, ?)
+			INSERT INTO people (id, first_name, last_name, level, image_url)
+			VALUES (?, ?, ?, ?, ?)
 		`);
 
-    insertStmt.run(
-      data.id,
-      data.prenom,
-      data.nom,
-      data.level,
-      data.bio || null,
-      data.image_url || null,
-    );
+    insertStmt.run(data.id, data.prenom, data.nom, data.level, "default.jpg");
 
     recalculatePositions().catch(console.error);
 

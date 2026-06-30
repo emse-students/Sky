@@ -19,28 +19,19 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
     prenom: string;
     nom: string;
     level: number | null;
-    bio?: string;
-    image_url?: string;
   };
 
   try {
     const db = getDatabase();
 
-    // Update person
+    // Identite seulement : bio et photo viennent de Canari/MiGallery.
     const updateStmt = db.prepare(`
-			UPDATE people 
-			SET first_name = ?, last_name = ?, level = ?, bio = ?, image_url = ?
+			UPDATE people
+			SET first_name = ?, last_name = ?, level = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?
 		`);
 
-    updateStmt.run(
-      data.prenom,
-      data.nom,
-      data.level,
-      data.bio || null,
-      data.image_url || null,
-      id,
-    );
+    updateStmt.run(data.prenom, data.nom, data.level, id);
 
     return json({ success: true });
   } catch (error) {

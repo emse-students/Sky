@@ -102,7 +102,9 @@ export const GET: RequestHandler = async ({ params }) => {
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml",
-          "Cache-Control": "public, max-age=3600",
+          // Placeholder (pas de photo) : ne pas mettre en cache, sinon la vraie
+          // photo n apparait qu apres expiration (hard refresh necessaire).
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -118,7 +120,9 @@ export const GET: RequestHandler = async ({ params }) => {
     return new Response(imageBuffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400", // Cache for 24 hours
+        // Cache court + revalidation : une nouvelle photo apparait vite sans
+        // hard refresh, tout en evitant de retelecharger a chaque vue.
+        "Cache-Control": "public, max-age=600, stale-while-revalidate=60",
       },
     });
   } catch (error) {

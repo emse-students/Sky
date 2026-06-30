@@ -252,8 +252,11 @@
             <h3>Anciennes associations</h3>
             <div class="chips">
               {#each canari.profile.formerAssociations as a, i (i)}
-                <span class="chip ghost"
-                  >{a.name}<small
+                <span class="chip ghost">
+                  {#if a.logo}
+                    <img class="chip-logo" src={a.logo} alt="" />
+                  {/if}
+                  {a.name}<small
                     >{a.role}{a.startYear
                       ? ` (${a.startYear}${a.endYear ? `-${a.endYear}` : ""})`
                       : ""}</small

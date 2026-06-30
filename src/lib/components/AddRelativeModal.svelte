@@ -81,7 +81,7 @@
       candidates = data.candidates ?? [];
       return;
     }
-    showError(data.error || "Echec de l'ajout du lien");
+    showError(data.error || "Échec de l'ajout du lien");
   }
 
   async function linkExisting(targetId: string) {
@@ -94,7 +94,7 @@
       });
       await handleResponse(res);
     } catch {
-      showError("Erreur reseau");
+      showError("Erreur réseau");
     } finally {
       busy = false;
     }
@@ -124,7 +124,7 @@
       });
       await handleResponse(res);
     } catch {
-      showError("Erreur reseau");
+      showError("Erreur réseau");
     } finally {
       busy = false;
     }
@@ -181,10 +181,10 @@
         {/each}
       </div>
     {:else if searchTerm.trim().length >= 2 && !isSearching}
-      <div class="hint">
-        <span>Inconnu ?</span>
+      <div class="empty-hint">
+        <span>Aucun résultat.</span>
         <button class="ghost" onclick={() => (showCreate = !showCreate)}>
-          {showCreate ? "Annuler" : "Creer cette personne"}
+          {showCreate ? "Annuler" : "Créer cette personne"}
         </button>
       </div>
     {/if}
@@ -194,7 +194,7 @@
         <div class="row">
           <input
             type="text"
-            placeholder="Prenom"
+            placeholder="Prénom"
             bind:value={newPerson.firstName}
           />
           <input
@@ -205,18 +205,18 @@
         </div>
         <input
           type="number"
-          placeholder="Promotion (ex: 2024)"
+          placeholder="Promotion (ex : 2024)"
           bind:value={newPerson.level}
         />
         <button class="primary" disabled={busy} onclick={() => createAndLink()}>
-          {#if busy}<Loader2 size={16} class="spin" />{/if} Creer et lier
+          {#if busy}<Loader2 size={16} class="spin" />{/if} Créer et lier
         </button>
       </div>
     {/if}
 
     {#if candidates.length > 0}
       <div class="create">
-        <p class="dedup">Une fiche existe deja. La relier ?</p>
+        <p class="dedup">Une fiche existe déjà. La relier ?</p>
         {#each candidates as c (c.id)}
           <button
             class="result"
@@ -233,7 +233,7 @@
           disabled={busy}
           onclick={() => createAndLink(true)}
         >
-          Creer une nouvelle fiche quand meme
+          Créer une nouvelle fiche quand même
         </button>
       </div>
     {/if}
@@ -337,6 +337,18 @@
     margin-top: 12px;
     color: #94a3b8;
     font-size: 0.9rem;
+  }
+  .empty-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .empty-hint span {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-align: center;
   }
   .create {
     margin-top: 12px;
