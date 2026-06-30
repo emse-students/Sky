@@ -54,6 +54,12 @@ export const GET: RequestHandler = async ({ params }) => {
       ...a,
       logo: resolveCanariLogo(a.logoUrl),
     }));
+    profile.formerAssociations = (profile.formerAssociations ?? []).map(
+      (a) => ({
+        ...a,
+        logo: resolveCanariLogo(a.logoUrl),
+      }),
+    );
     return json({ linked: true, profile });
   } catch (e) {
     console.error("[Canari] echec de recuperation du profil:", e);

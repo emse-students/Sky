@@ -466,7 +466,7 @@
 
         {#if canariProfile?.profile?.associations?.length}
           <div class="info-block">
-            <h3>Constellations (Associations)</h3>
+            <h3>Associations</h3>
             <div class="asso-list">
               {#each canariProfile.profile.associations as asso (asso.slug)}
                 <div class="asso-card">
@@ -489,12 +489,17 @@
             <div class="asso-list">
               {#each canariProfile.profile.formerAssociations as asso, i (i)}
                 <div class="asso-card">
-                  <span class="asso-n">{asso.name}</span>
-                  <span class="asso-r"
-                    >{asso.role}{asso.startYear
-                      ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ""})`
-                      : ""}</span
-                  >
+                  {#if asso.logo}
+                    <img class="asso-logo" src={asso.logo} alt="" />
+                  {/if}
+                  <div class="asso-meta">
+                    <span class="asso-n">{asso.name}</span>
+                    <span class="asso-r"
+                      >{asso.role}{asso.startYear
+                        ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ""})`
+                        : ""}</span
+                    >
+                  </div>
                 </div>
               {/each}
             </div>

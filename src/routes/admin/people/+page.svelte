@@ -42,14 +42,12 @@
       filteredPeople.every((p) => selectedIds.includes(p.id)),
   );
 
-  // Form state
+  // Form state. La bio et la photo viennent de Canari/MiGallery : non editables ici.
   let form = $state({
     id: "",
     prenom: "",
     nom: "",
     level: "",
-    bio: "",
-    image_url: "",
   });
 
   onMount(async () => {
@@ -169,8 +167,6 @@
       prenom: person.prenom,
       nom: person.nom,
       level: person.level?.toString() || "",
-      bio: person.bio || "",
-      image_url: person.image || "",
     };
     isCreating = false;
   }
@@ -182,8 +178,6 @@
       prenom: "",
       nom: "",
       level: "",
-      bio: "",
-      image_url: "",
     };
     isCreating = true;
   }
@@ -200,8 +194,6 @@
         prenom: form.prenom,
         nom: form.nom,
         level: form.level ? parseInt(form.level) : null,
-        bio: form.bio,
-        image_url: form.image_url || null,
       };
 
       const url = isCreating
@@ -444,31 +436,12 @@
               placeholder="2024"
             />
           </div>
-
-          <div class="form-group full">
-            <label for="image_url">
-              URL Image (Optionnel)
-              <span class="hint"
-                >Laisser vide pour utiliser la photo MiGallery par défaut</span
-              >
-            </label>
-            <input
-              id="image_url"
-              type="text"
-              bind:value={form.image_url}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div class="form-group full">
-            <label for="bio">Biographie</label>
-            <textarea
-              id="bio"
-              bind:value={form.bio}
-              placeholder="Parcours au sein de l'école..."
-              rows="5"></textarea>
-          </div>
         </div>
+
+        <p class="form-note">
+          La photo de profil et la biographie proviennent de Canari/MiGallery et
+          ne sont pas modifiables ici.
+        </p>
 
         <div class="form-actions">
           <button class="btn-cancel" onclick={cancelEdit}>Annuler</button>
@@ -692,26 +665,13 @@
     gap: 8px;
   }
 
-  .form-group.full {
-    grid-column: 1 / -1;
-  }
-
   label {
     font-size: 13px;
     color: #94a3b8;
     font-weight: 500;
   }
 
-  .hint {
-    font-weight: 400;
-    font-size: 11px;
-    color: #64748b;
-    margin-left: 8px;
-    font-style: italic;
-  }
-
-  input,
-  textarea {
+  input {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -721,8 +681,7 @@
     transition: all 0.2s;
   }
 
-  input:focus,
-  textarea:focus {
+  input:focus {
     border-color: #3b82f6;
     background: rgba(255, 255, 255, 0.08);
   }
@@ -732,11 +691,12 @@
     cursor: not-allowed;
   }
 
-  textarea {
-    resize: vertical;
-    font-family: inherit;
+  .form-note {
+    margin: 16px 0 24px;
+    font-size: 13px;
+    color: #64748b;
+    font-style: italic;
   }
-
   .form-actions {
     display: flex;
     justify-content: flex-end;

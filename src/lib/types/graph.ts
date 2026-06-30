@@ -50,6 +50,9 @@ export interface CanariAssociation {
 export interface CanariFormerAssociation {
   name: string;
   role: string;
+  logoUrl: string | null;
+  /** URL absolue du logo, resolue cote serveur Sky (sinon null). */
+  logo?: string | null;
   startYear: number | null;
   endYear: number | null;
 }
