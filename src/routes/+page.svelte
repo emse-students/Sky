@@ -470,8 +470,13 @@
             <div class="asso-list">
               {#each canariProfile.profile.associations as asso (asso.slug)}
                 <div class="asso-card">
-                  <span class="asso-n">{asso.name}</span>
-                  <span class="asso-r">{asso.role}</span>
+                  {#if asso.logo}
+                    <img class="asso-logo" src={asso.logo} alt="" />
+                  {/if}
+                  <div class="asso-meta">
+                    <span class="asso-n">{asso.name}</span>
+                    <span class="asso-r">{asso.role}</span>
+                  </div>
                 </div>
               {/each}
             </div>
@@ -897,11 +902,27 @@
     font-size: 13px;
   }
   .asso-card {
-    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
     background: rgba(255, 255, 255, 0.03);
     border-left: 3px solid var(--accent);
     border-radius: 4px;
     margin-bottom: 8px;
+  }
+  .asso-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+  }
+  .asso-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
   .asso-n {
     display: block;

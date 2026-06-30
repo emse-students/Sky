@@ -139,7 +139,7 @@
   role="presentation"
 >
   <div
-    class="modal"
+    class="dialog"
     transition:scale={{ duration: 180, start: 0.95 }}
     role="dialog"
     aria-modal="true"
@@ -256,7 +256,7 @@
     justify-content: center;
     padding: 1rem;
   }
-  .modal {
+  .dialog {
     width: 100%;
     max-width: 440px;
     background: #0f172a;

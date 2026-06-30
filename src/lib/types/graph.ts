@@ -42,6 +42,8 @@ export interface CanariAssociation {
   slug: string;
   role: string;
   logoUrl: string | null;
+  /** URL absolue du logo, resolue cote serveur Sky (sinon null). */
+  logo?: string | null;
 }
 
 /** Association passee ou role honorifique (CV Canari). */
