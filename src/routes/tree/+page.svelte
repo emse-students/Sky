@@ -13,6 +13,7 @@
     Crown,
     Home,
     ExternalLink,
+    Pencil,
   } from "lucide-svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
@@ -31,6 +32,13 @@
   let loading = $state(true);
   let modal: { role: RelationRole; kind: RelationKind; title: string } | null =
     $state(null);
+  // Edit form for a placeholder relative (name/promo), null when closed.
+  let editing = $state<{
+    id: string;
+    prenom: string;
+    nom: string;
+    level: string;
+  } | null>(null);
 
   // Editable quand l arbre est centre sur soi (on construit son entourage) ou
   // pour un admin (edition de l entourage d autrui depuis l arbre).
@@ -135,17 +143,94 @@
   }
 
   async function removeRelation(relId: number) {
+    if (!data) return;
+    const centerId = data.person.id;
     try {
       const res = await fetch("/api/relationships", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ relationshipId: relId }),
       });
-      if (res.ok && data) {
-        await load(data.person.id);
+      if (!res.ok) return;
+      const result = (await res.json().catch(() => ({}))) as {
+        orphan?: { id: string; prenom: string; nom: string } | null;
+      };
+      await load(centerId);
+      // Removing the link left a placeholder with no relation: offer to delete it
+      // (a mistyped star recreated elsewhere leaves such an orphan behind).
+      if (result.orphan) {
+        const o = result.orphan;
+        if (
+          confirm(
+            `L'étoile « ${o.prenom} ${o.nom} » n'a plus aucune relation. La supprimer ?`,
+          )
+        ) {
+          await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
+            method: "DELETE",
+          });
+          await load(centerId);
+        }
       }
     } catch (e) {
       console.error("[Tree] remove error", e);
+    }
+  }
+
+  /** Open the edit form for a placeholder relative. */
+  function openEdit(member: EntourageMember) {
+    editing = {
+      id: member.id,
+      prenom: member.prenom,
+      nom: member.nom,
+      level: member.level != null ? String(member.level) : "",
+    };
+  }
+
+  /** Save the edited placeholder identity (name/promo all required). */
+  async function saveEdit() {
+    if (!editing || !data) return;
+    if (!editing.prenom.trim() || !editing.nom.trim() || !editing.level) {
+      return;
+    }
+    const centerId = data.person.id;
+    const res = await fetch(`/api/relatives/${encodeURIComponent(editing.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prenom: editing.prenom,
+        nom: editing.nom,
+        level: parseInt(editing.level),
+      }),
+    });
+    if (res.ok) {
+      editing = null;
+      await load(centerId);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Échec de la modification.");
+    }
+  }
+
+  /** Delete the placeholder currently being edited (after confirmation). */
+  async function deleteStar() {
+    if (!editing || !data) return;
+    if (
+      !confirm(
+        `Supprimer définitivement l'étoile « ${editing.prenom} ${editing.nom} » ?`,
+      )
+    ) {
+      return;
+    }
+    const centerId = data.person.id;
+    const res = await fetch(`/api/relatives/${encodeURIComponent(editing.id)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      editing = null;
+      await load(centerId);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Échec de la suppression.");
     }
   }
 </script>
@@ -307,10 +392,21 @@
         </div>
       </button>
       {#if canEdit}
+        {#if !member.linked}
+          <button
+            class="edit"
+            onclick={() => openEdit(member)}
+            aria-label="Modifier cette étoile"
+            title="Modifier (nom/prénom/promo)"
+          >
+            <Pencil size={14} />
+          </button>
+        {/if}
         <button
           class="del"
           onclick={() => removeRelation(member.relId)}
           aria-label="Retirer"
+          title="Retirer le lien"
         >
           <Trash2 size={14} />
         </button>
@@ -337,6 +433,50 @@
     onClose={() => (modal = null)}
     {onAdded}
   />
+{/if}
+
+{#if editing}
+  <div
+    class="edit-backdrop"
+    transition:fade={{ duration: 150 }}
+    onclick={(e) => e.target === e.currentTarget && (editing = null)}
+    role="presentation"
+  >
+    <div class="edit-dialog" role="dialog" aria-modal="true">
+      <h2>Modifier l'étoile</h2>
+      <p class="edit-hint">
+        Fiche placeholder (non reliée à un compte) : tu peux corriger son
+        identité ou la supprimer.
+      </p>
+      <div class="edit-row">
+        <input placeholder="Prénom" bind:value={editing.prenom} />
+        <input placeholder="Nom" bind:value={editing.nom} />
+      </div>
+      <input
+        type="number"
+        placeholder="Promotion (ex : 2024)"
+        bind:value={editing.level}
+      />
+      <div class="edit-actions">
+        <button class="edit-danger" onclick={deleteStar}>
+          <Trash2 size={14} /> Supprimer
+        </button>
+        <span class="spacer"></span>
+        <button class="edit-ghost" onclick={() => (editing = null)}
+          >Annuler</button
+        >
+        <button
+          class="edit-primary"
+          onclick={saveEdit}
+          disabled={!editing.prenom.trim() ||
+            !editing.nom.trim() ||
+            !editing.level}
+        >
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -515,6 +655,104 @@
   .del:hover {
     background: #ef4444;
     color: white;
+  }
+  .edit {
+    position: absolute;
+    top: 50%;
+    right: 40px;
+    transform: translateY(-50%);
+    background: rgba(59, 130, 246, 0.12);
+    border: none;
+    color: #60a5fa;
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .edit:hover {
+    background: #3b82f6;
+    color: white;
+  }
+  .edit-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 5, 12, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .edit-dialog {
+    width: 100%;
+    max-width: 420px;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+  }
+  .edit-dialog h2 {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+  }
+  .edit-hint {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    color: #94a3b8;
+  }
+  .edit-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .edit-dialog input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: white;
+    outline: none;
+  }
+  .edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .edit-actions .spacer {
+    flex: 1;
+  }
+  .edit-danger,
+  .edit-ghost,
+  .edit-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .edit-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+  }
+  .edit-ghost {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+  }
+  .edit-primary {
+    background: #3b82f6;
+    color: white;
+  }
+  .edit-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   .card.empty {
     flex-direction: column;

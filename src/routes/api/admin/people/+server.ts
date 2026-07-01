@@ -42,6 +42,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const prenom = formatFirstName(data.prenom);
     const nom = formatLastName(data.nom);
 
+    // Nom, prenom and promo are mandatory when creating a star.
+    if (!prenom || !nom || data.level === null || data.level === undefined) {
+      return json(
+        { error: "Nom, prénom et promotion sont obligatoires." },
+        { status: 400 },
+      );
+    }
+
     // Insert person
     const insertStmt = db.prepare(`
 			INSERT INTO people (id, first_name, last_name, level, image_url)

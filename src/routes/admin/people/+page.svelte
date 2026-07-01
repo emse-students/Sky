@@ -192,6 +192,16 @@
   }
 
   async function savePerson() {
+    // Nom, prenom and promo are mandatory (ID too when creating).
+    if (
+      !form.prenom.trim() ||
+      !form.nom.trim() ||
+      !form.level ||
+      (isCreating && !form.id.trim())
+    ) {
+      alert("Nom, prénom et promotion sont obligatoires (ID à la création).");
+      return;
+    }
     try {
       const payload = {
         id: form.id,
@@ -214,6 +224,9 @@
       if (res.ok) {
         await loadPeople();
         cancelEdit();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "Échec de l'enregistrement.");
       }
     } catch (error) {
       console.error("Save error:", error);

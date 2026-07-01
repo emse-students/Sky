@@ -8,6 +8,9 @@ import {
   getRelationshipById,
   findPeopleByName,
   createPlaceholderPerson,
+  getPersonById,
+  getPersonAuthSub,
+  countPersonRelations,
   isRelationKind,
   RelationError,
   type RelationKind,
@@ -98,6 +101,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     otherId = targetId;
   } else if (newPerson?.firstName && newPerson?.lastName) {
     const level = parseLevel(newPerson.level);
+    // Promo is mandatory when creating a new star.
+    if (level === null) {
+      return json({ error: "La promotion est obligatoire." }, { status: 400 });
+    }
     if (!confirmCreate) {
       const candidates = findPeopleByName(
         newPerson.lastName,
@@ -172,5 +179,19 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
     console.error("Failed to recalculate positions:", err),
   );
 
-  return json({ success: true });
+  // If removing this link left a placeholder star with no relations at all, it
+  // is likely a mistake (e.g. a mistyped name recreated elsewhere): offer to
+  // delete that orphan rather than leave it dangling.
+  let orphan: { id: string; prenom: string; nom: string } | null = null;
+  for (const endId of [rel.source_id, rel.target_id]) {
+    if (getPersonAuthSub(endId) === null && countPersonRelations(endId) === 0) {
+      const p = getPersonById(endId);
+      if (p) {
+        orphan = { id: p.id, prenom: p.prenom, nom: p.nom };
+        break;
+      }
+    }
+  }
+
+  return json({ success: true, orphan });
 };
