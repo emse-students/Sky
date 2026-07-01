@@ -261,31 +261,16 @@ DELETE FROM people WHERE id = 'john.doe';
 
 ## 🛠️ Outils d'Administration
 
-### Interface Graphique (Tkinter)
-
-```bash
-python scripts/db_gui.py
-```
-
-**Fonctionnalités:**
+L'administration se fait via l'**interface web `/admin`** (Svelte 5, reservee aux
+admins) :
 
 - ✅ Recherche et visualisation des profils
 - ✅ Édition CRUD complète des personnes
 - ✅ Gestion des liens sociaux
-- ✅ Gestion des relations (4 quadrants : Parrainage/Adoption × Parrains/Filleuls)
-- ✅ Fusion de profils (merge)
+- ✅ Gestion des relations (Parrainage/Adoption × Parrains/Filleuls)
+- ✅ Fusion de profils (merge), avec verrou « une etoile = une personne »
 - ✅ Suppression avec CASCADE automatique
-
-### Script CLI (Python)
-
-```bash
-python scripts/db_explorer.py
-```
-
-**Fonctionnalités:**
-
-- Exploration basique en ligne de commande
-- Requêtes SQL directes
+- ✅ Recalcul manuel des positions du graphe
 
 ---
 
@@ -362,7 +347,7 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 | `database/sky.db.backup`      | Backup de sécurité                         |
 | `src/lib/server/database.ts`  | Couche d'accès TypeScript (Backend)        |
 | `src/lib/types/graph.ts`      | Définitions TypeScript des types           |
-| `scripts/db_gui.py`           | Interface graphique d'administration       |
+| `src/routes/admin/`           | Interface web d'administration (Svelte 5)  |
 | `src/lib/server/positions.ts` | Calcul des positions pour la visualisation |
 
 ---

@@ -47,9 +47,7 @@ sky/
 │   ├── sky.db            # Base de données SQLite
 │   ├── schema.sql        # Schéma SQL (v3.0)
 │   └── SCHEMA_REFERENCE.md  # Documentation complète
-├── scripts/
-│   └── db_gui.py         # Interface admin (Tkinter)
-│                         # (layout du graphe: src/lib/server/positions.ts)
+├── scripts/             # Scripts Node (init-db.js, migrations, packaging)
 ├── static/
 │   ├── data/
 │   │   ├── data.json     # Export JSON (généré)
@@ -85,7 +83,6 @@ sky/
 
 ### Administration
 
-- ✅ Interface graphique Python (Tkinter)
 - ✅ Interface Web harmonisée (Svelte 5)
 - ✅ CRUD complet (personnes, relations, liens)
 - ✅ Fusion de profils (merge)
@@ -108,8 +105,9 @@ bun run build            # Build de production
 bun run preview          # Preview du build
 
 # Base de données
-python scripts/db_gui.py # Interface admin
-bun run calcul           # Recalcul des positions
+bun run db:init          # Initialise la base (schema + migrations)
+# Administration via l'interface web /admin ; positions recalculees en
+# TypeScript in-process a chaque modification du graphe.
 
 # Tests
 bun run test             # Tests unitaires (Vitest)
