@@ -7,6 +7,8 @@ import {
   normalizeName,
   nameDistance,
   NAME_MATCH_MAX_DISTANCE,
+  formatFirstName,
+  formatLastName,
 } from "$utils/format";
 import { layoutGraph } from "$server/positions";
 
@@ -1643,14 +1645,17 @@ export function createPlaceholderPerson(
   level: number | null,
   createdBy: string,
 ): string {
-  const id = generatePersonId(firstName, lastName, level);
+  // Enforce the display convention at creation: "NOM" uppercase, "Prenom" capitalized.
+  const nom = formatLastName(lastName);
+  const prenom = formatFirstName(firstName);
+  const id = generatePersonId(prenom, nom, level);
   console.debug(`[Entourage] createPlaceholderPerson id=${id} by=${createdBy}`);
   getDatabase()
     .prepare(
       `INSERT INTO people (id, first_name, last_name, level, image_url, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, firstName, lastName, level, "default.jpg", createdBy);
+    .run(id, prenom, nom, level, "default.jpg", createdBy);
   return id;
 }
 

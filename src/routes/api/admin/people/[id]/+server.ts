@@ -6,6 +6,7 @@ import {
   setPersonRole,
   unlinkPersonAuth,
 } from "$lib/server/database";
+import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
@@ -25,13 +26,19 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
     const db = getDatabase();
 
     // Identite seulement : bio et photo viennent de Canari/MiGallery.
+    // Enforce the display convention: "NOM" uppercase, "Prenom" capitalized.
     const updateStmt = db.prepare(`
 			UPDATE people
 			SET first_name = ?, last_name = ?, level = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?
 		`);
 
-    updateStmt.run(data.prenom, data.nom, data.level, id);
+    updateStmt.run(
+      formatFirstName(data.prenom),
+      formatLastName(data.nom),
+      data.level,
+      id,
+    );
 
     return json({ success: true });
   } catch (error) {
