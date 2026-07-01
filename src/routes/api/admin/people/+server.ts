@@ -5,6 +5,7 @@ import {
   recalculatePositions,
   getAllPeopleAdmin,
 } from "$lib/server/database";
+import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
 
 /** Liste enrichie (role, etat de liaison du compte) pour l administration. */
@@ -37,13 +38,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ error: "ID already exists" }, { status: 400 });
     }
 
+    // Enforce the display convention: "NOM" uppercase, "Prenom" capitalized.
+    const prenom = formatFirstName(data.prenom);
+    const nom = formatLastName(data.nom);
+
     // Insert person
     const insertStmt = db.prepare(`
 			INSERT INTO people (id, first_name, last_name, level, image_url)
 			VALUES (?, ?, ?, ?, ?)
 		`);
 
-    insertStmt.run(data.id, data.prenom, data.nom, data.level, "default.jpg");
+    insertStmt.run(data.id, prenom, nom, data.level, "default.jpg");
 
     recalculatePositions().catch(console.error);
 
