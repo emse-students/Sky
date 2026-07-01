@@ -11,27 +11,19 @@ Base de données SQLite pour le système de généalogie étudiante EMSE.
 
 ## 🚀 Utilisation
 
-### Interface Graphique (Admin)
+### Administration
 
-```bash
-python scripts/db_gui.py
-```
-
-**Fonctionnalités:**
-
-- Recherche et édition des profils
-- Gestion des relations (Parrainage/Adoption)
-- Gestion des liens sociaux
-- Fusion de profils (merge)
-- Suppression avec CASCADE automatique
+L'administration se fait via l'interface web **`/admin`** (Svelte 5, reservee aux
+admins) : recherche/edition des profils, gestion des relations (Parrainage/
+Adoption) et des liens, fusion de profils, suppression avec CASCADE.
 
 ### Recalcul des Positions
 
-```bash
-bun run calcul
-```
-
-Génère `static/data/positions.json` pour la visualisation du graphe.
+Les positions du graphe sont calculees en **TypeScript in-process**
+(`src/lib/server/positions.ts`, ForceAtlas2 via graphology) et ecrites dans
+`database/positions.json`. Le recalcul est automatique a chaque modification du
+graphe (creation/suppression de lien ou de fiche, import) ; un bouton
+**« Recalculer »** dans `/admin` permet aussi de le relancer manuellement.
 
 ## 📊 Structure
 
