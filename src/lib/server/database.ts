@@ -9,6 +9,7 @@ import {
   NAME_MATCH_MAX_DISTANCE,
   formatFirstName,
   formatLastName,
+  personMatchScore,
 } from "$utils/format";
 import { layoutGraph } from "$server/positions";
 
@@ -189,34 +190,46 @@ export function getPersonById(id: string): Person | null {
   return person;
 }
 
+/**
+ * Search people by free text. A 4-digit query matches a promotion year;
+ * otherwise a tolerant in-memory scan ranks people by name (substring,
+ * nom/prenom inversion and typo edit-distance via personMatchScore). The scan
+ * replaces the former FTS5 MATCH, which returned nothing whenever the FTS index
+ * was stale/unpopulated (e.g. after a database rebuild) - the source of the
+ * "Ajouter un ..." search always coming back empty.
+ */
 export function searchPeople(query: string): Person[] {
   const database = getDatabase();
+  const q = query.trim();
 
-  // Check if query is a year (4 digits)
-  if (/^\d{4}$/.test(query)) {
-    const stmt = database.prepare(`
-			SELECT id FROM people
-			WHERE level = ?
-			LIMIT 50
-		`);
-    const rows = stmt.all(parseInt(query)) as { id: string }[];
+  // Year query (4 digits) -> match by promotion.
+  if (/^\d{4}$/.test(q)) {
+    const rows = database
+      .prepare("SELECT id FROM people WHERE level = ? LIMIT 50")
+      .all(parseInt(q)) as { id: string }[];
     return rows
       .map((row) => getPersonById(row.id))
       .filter((p): p is Person => p !== null);
   }
 
-  const stmt = database.prepare(`
-		SELECT id FROM people_fts
-		WHERE people_fts MATCH ?
-		ORDER BY rank
-		LIMIT 50
-	`);
+  const rows = database
+    .prepare("SELECT id, first_name, last_name, level FROM people")
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+  }[];
 
-  // Add wildcards for FTS
-  const searchQuery = `${query}*`;
-  const rows = stmt.all(searchQuery) as { id: string }[];
   return rows
-    .map((row) => getPersonById(row.id))
+    .map((r) => ({
+      id: r.id,
+      score: personMatchScore(r.last_name, r.first_name, r.level, q),
+    }))
+    .filter((c) => c.score !== null)
+    .sort((a, b) => (a.score as number) - (b.score as number))
+    .slice(0, 50)
+    .map((c) => getPersonById(c.id))
     .filter((p): p is Person => p !== null);
 }
 
