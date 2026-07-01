@@ -8,15 +8,16 @@ restauration des donnees.
 
 | Element | Detail                                                                                 |
 | ------- | -------------------------------------------------------------------------------------- |
-| Runtime | conteneur Docker `sky` (SvelteKit adapter-node, Node + Python), port 3001              |
+| Runtime | conteneur Docker `sky` (SvelteKit adapter-node, Node), port 3001                       |
 | Donnees | `database/` monte en volume : `sky.db` (SQLite, identites + sessions) + `schema.sql`   |
 | Image   | `ghcr.io/emse-students/sky:latest` (buildee par la CD)                                 |
 | CD      | `.github/workflows/deploy.yml` (workflow_run apres "CI (Bun)") : build-image -> deploy |
 | Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root)                   |
 
 > Runtime Node (et non Bun) : `better-sqlite3` est utilise par des scripts non
-> bundles (`init-db.js`, migrations) que Bun ne sait pas charger. Python +
-> networkx/numpy/scipy sont embarques pour `scripts/calcul_positions.py`.
+> bundles (`init-db.js`, migrations) que Bun ne sait pas charger. Le calcul des
+> positions du graphe est en TypeScript in-process (`src/lib/server/positions.ts`,
+> ForceAtlas2 via graphology) : aucune dependance Python au runtime.
 
 ## 0. Pre-requis
 

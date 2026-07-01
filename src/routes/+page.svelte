@@ -7,7 +7,11 @@
   import { cameraStore } from "$stores/cameraStore";
   import StarfieldCanvas from "$components/Canvas/StarfieldCanvas.svelte";
   import GraphCanvas from "$components/Canvas/GraphCanvas.svelte";
-  import { getPersonName, getPersonInitials } from "$lib/utils/format";
+  import {
+    getPersonName,
+    getPersonInitials,
+    personMatchScore,
+  } from "$lib/utils/format";
   import {
     Mail,
     Globe,
@@ -111,13 +115,6 @@
     };
   });
 
-  function normalizeString(str: string): string {
-    return (str || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-  }
-
   function getAvatarUrl(personId: string): string {
     return `/api/avatar/${personId}`;
   }
@@ -142,28 +139,24 @@
   }
 
   function handleSearch() {
-    if (!searchTerm.trim()) {
+    const query = searchTerm.trim();
+    if (!query) {
       isSearchActive = false;
       searchResults = [];
       return;
     }
 
-    const normalizedTerm = normalizeString(searchTerm.trim());
-    const terms = normalizedTerm.split(/\s+/);
-
+    // Tolerant ranking: substring, word inversion, promo and typo (edit
+    // distance) all handled by personMatchScore (lower score = better match).
     searchResults = people
-      .filter((p: any) => {
-        const normalizedName = normalizeString(getPersonName(p));
-        const level = p.level?.toString() || "";
-
-        if (normalizedName.includes(normalizedTerm)) return true;
-        if (level.includes(normalizedTerm)) return true;
-
-        return (
-          terms.length > 1 && terms.every((t) => normalizedName.includes(t))
-        );
-      })
-      .slice(0, 8);
+      .map((p: any) => ({
+        p,
+        score: personMatchScore(p.nom, p.prenom, p.level, query),
+      }))
+      .filter((c) => c.score !== null)
+      .sort((a, b) => (a.score as number) - (b.score as number))
+      .slice(0, 8)
+      .map((c) => c.p);
 
     isSearchActive = true;
   }
@@ -325,6 +318,9 @@
             </button>
             <a href="/tree" class="menu-item">
               <Network size={16} /> Mon arbre
+            </a>
+            <a href="/account" class="menu-item">
+              <Link size={16} /> Corriger ma liaison
             </a>
             {#if user?.role === "admin"}
               <div class="menu-divider"></div>

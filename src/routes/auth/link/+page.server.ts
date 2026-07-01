@@ -4,11 +4,12 @@ import { PENDING_COOKIE_NAME } from "$server/link";
 import {
   getPendingLink,
   deletePendingLink,
-  findUnlinkedCandidatesByName,
+  getLinkCandidates,
   linkPersonAuth,
   createAuthedPerson,
   createSession,
   getPersonIdByAuthSub,
+  recalculatePositions,
 } from "$server/database";
 import { setSessionCookie } from "$server/session";
 
@@ -27,10 +28,7 @@ export const load: PageServerLoad = ({ cookies }) => {
     firstName: identity.firstName,
     lastName: identity.lastName,
     level: identity.level,
-    candidates: findUnlinkedCandidatesByName(
-      identity.lastName,
-      identity.firstName,
-    ),
+    candidates: getLinkCandidates(identity.lastName, identity.firstName),
   };
 };
 
@@ -45,15 +43,17 @@ export const actions: Actions = {
     const choice = String((await request.formData()).get("choice") ?? "");
 
     let personId: string;
+    let created = false;
     const already = getPersonIdByAuthSub(identity.sub);
     if (already) {
-      // Double soumission / login concurrent : la fiche est deja liee a ce sub.
+      // Double submit / concurrent login: the fiche is already linked to this sub.
       personId = already;
     } else if (choice === "new") {
       personId = createAuthedPerson(identity);
+      created = true;
     } else {
-      // Le choix doit etre un candidat TOUJOURS non lie (anti-race / anti-vol).
-      const candidate = findUnlinkedCandidatesByName(
+      // The choice must be a STILL-unlinked candidate (anti-race / anti-hijack).
+      const candidate = getLinkCandidates(
         identity.lastName,
         identity.firstName,
       ).find((c) => c.id === choice);
@@ -70,6 +70,13 @@ export const actions: Actions = {
     cookies.delete(PENDING_COOKIE_NAME, { path: "/" });
     const session = createSession(personId);
     setSessionCookie(cookies, session.token, session.expiresAt);
+
+    // A newly created fiche needs a position so it shows on the map (best-effort).
+    if (created) {
+      recalculatePositions().catch((err) =>
+        console.error("[LINK] Position recompute failed:", err),
+      );
+    }
     throw redirect(302, "/");
   },
 };

@@ -10,6 +10,7 @@
     Archive,
     AlertCircle,
     ChevronRight,
+    RefreshCw,
   } from "lucide-svelte";
 
   let stats = $state({ people: 0, relationships: 0 });
@@ -62,9 +63,36 @@
       a.download = `sky-backup-${new Date().toISOString().split("T")[0]}.db`;
       a.click();
       URL.revokeObjectURL(url);
-      flash("Base exportee.", "success");
+      flash("Base exportée.", "success");
     } catch {
-      flash("Echec de l'export.", "error");
+      flash("Échec de l'export.", "error");
+    } finally {
+      busy = false;
+    }
+  }
+
+  /**
+   * Manually recompute the star positions and surface the outcome, so a failing
+   * layout (e.g. a crash in the layout computation) is visible instead of silent.
+   */
+  async function recalcPositions() {
+    busy = true;
+    try {
+      const res = await fetch("/api/admin/positions/recalc", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        flash(
+          `Positions recalculées : ${data.positioned}/${data.total} étoiles placées.`,
+          "success",
+        );
+      } else {
+        flash(`Échec du recalcul : ${data.error ?? "erreur inconnue"}`, "error");
+      }
+    } catch (e) {
+      flash("Échec du recalcul des positions.", "error");
+      console.error("[Admin] recalc positions error", e);
     } finally {
       busy = false;
     }
@@ -76,7 +104,7 @@
     if (!file) return;
     if (
       !confirm(
-        "Remplacer la base actuelle par ce fichier ? Une sauvegarde est faite avant, mais l'operation reecrit les donnees en cours.",
+        "Remplacer la base actuelle par ce fichier ? Une sauvegarde est faite avant, mais l'opération réécrit les données en cours.",
       )
     ) {
       input.value = "";
@@ -91,10 +119,10 @@
         body: formData,
       });
       if (!res.ok) throw new Error("import");
-      flash("Base importee. Rechargement...", "success");
+      flash("Base importée. Rechargement...", "success");
       setTimeout(() => window.location.reload(), 1200);
     } catch {
-      flash("Echec de l'import.", "error");
+      flash("Échec de l'import.", "error");
     } finally {
       busy = false;
       input.value = "";
@@ -109,8 +137,8 @@
 {#if !isAdmin}
   <div class="denied">
     <AlertCircle size={48} />
-    <h1>Acces refuse</h1>
-    <p>Reserve aux administrateurs.</p>
+    <h1>Accès refusé</h1>
+    <p>Réservé aux administrateurs.</p>
   </div>
 {:else}
   <div class="admin">
@@ -140,25 +168,25 @@
       </div>
     </div>
 
-    <!-- Action principale -->
+    <!-- Main action -->
     <button class="primary-card" onclick={() => goto("/admin/people")}>
       <Users size={28} />
       <div class="pc-text">
-        <span class="pc-title">Gerer les personnes</span>
+        <span class="pc-title">Gérer les personnes</span>
         <span class="pc-sub"
-          >Rechercher, editer, fusionner, lier un compte, definir les admins,
-          editer l'arbre de chacun.</span
+          >Rechercher, éditer, fusionner, lier un compte, définir les admins,
+          éditer l'arbre de chacun.</span
         >
       </div>
       <ChevronRight size={22} />
     </button>
 
-    <!-- Outils avances -->
-    <h2 class="section">Outils avances</h2>
+    <!-- Advanced tools -->
+    <h2 class="section">Outils avancés</h2>
     <div class="tools">
       <div class="tool">
         <h3><Download size={18} /> Exporter</h3>
-        <p>Telecharger une copie de la base (sauvegarde).</p>
+        <p>Télécharger une copie de la base (sauvegarde).</p>
         <button class="btn" disabled={busy} onclick={exportDatabase}
           >Exporter</button
         >
@@ -182,6 +210,13 @@
         <p>Consulter le snapshot historique (lecture seule).</p>
         <button class="btn" onclick={() => goto("/admin/legacy")}
           >Consulter</button
+        >
+      </div>
+      <div class="tool">
+        <h3><RefreshCw size={18} /> Positions</h3>
+        <p>Recalculer la disposition des étoiles (si des gens n'apparaissent pas).</p>
+        <button class="btn" disabled={busy} onclick={recalcPositions}
+          >Recalculer</button
         >
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   deleteExpiredSessions,
   deleteExpiredPendingLinks,
   getPersonRoleByAuthSub,
+  recalculatePositions,
   type OidcIdentity,
 } from "$server/database";
 import { setSessionCookie } from "$server/session";
@@ -102,6 +103,15 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
         `[CALLBACK] ${resolution.candidates.length} candidats pour ${claims.sub} -> /auth/link`,
       );
       throw redirect(302, "/auth/link");
+    }
+
+    // A brand-new account fiche has no position yet: recompute so the new star
+    // appears on the map. Best-effort (never blocks login); failures are logged
+    // and recorded in the positions status.
+    if (resolution.created) {
+      recalculatePositions().catch((err) =>
+        console.error("[CALLBACK] Position recompute failed:", err),
+      );
     }
 
     const session = createSession(resolution.personId);
