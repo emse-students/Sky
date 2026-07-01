@@ -211,9 +211,11 @@
 </svelte:head>
 
 <StarfieldCanvas />
-<GraphCanvas />
 
-<nav class="nav-glass">
+{#if isAuthenticated}
+  <GraphCanvas />
+
+  <nav class="nav-glass">
   <div class="nav-content">
     <a
       href="/"
@@ -508,6 +510,28 @@
       </section>
     </div>
   </aside>
+  {/if}
+{:else}
+  <div class="login-landing" transition:fade>
+    <div class="login-card">
+      <div class="login-logo">
+        <img
+          src="/sky.png"
+          alt="Sky"
+          onerror={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
+        />
+      </div>
+      <h1 class="login-title">SKY</h1>
+      <p class="login-tagline">La carte des étoiles des ICM de l'EMSE.</p>
+      <p class="login-sub">
+        Connecte-toi pour explorer l'arbre de parrainage.
+      </p>
+      <button class="login-cta" onclick={handleLogin}>Se connecter</button>
+      <p class="login-note">Réservé aux ICM, via MiConnect.</p>
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -1025,6 +1049,88 @@
     border-radius: 99px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  /* Login landing shown to visitors who are not signed in (the graph is
+     reserved to authenticated ICM users). */
+  .login-landing {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    max-width: 420px;
+    width: 100%;
+    padding: 48px 40px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .login-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px var(--accent-glow);
+    margin-bottom: 8px;
+  }
+  .login-logo img {
+    height: 44px;
+  }
+  .login-title {
+    margin: 0;
+    font-family: "Orbitron", sans-serif;
+    font-weight: 800;
+    font-size: 34px;
+    letter-spacing: 4px;
+    color: var(--text-main);
+  }
+  .login-tagline {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .login-sub {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .login-cta {
+    margin-top: 12px;
+    width: 100%;
+    padding: 14px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .login-cta:hover {
+    background: #2563eb;
+  }
+  .login-note {
+    margin: 4px 0 0;
+    color: var(--text-dim);
+    font-size: 12px;
   }
 
   @media (max-width: 768px) {
