@@ -101,7 +101,9 @@
   }
 
   async function createAndLink(confirmCreate = false) {
-    if (!newPerson.firstName || !newPerson.lastName) {
+    // Nom, prenom and promo are all mandatory when creating a star.
+    if (!newPerson.firstName || !newPerson.lastName || !newPerson.level) {
+      showError("Nom, prénom et promotion sont obligatoires.");
       return;
     }
     busy = true;
@@ -208,7 +210,14 @@
           placeholder="Promotion (ex : 2024)"
           bind:value={newPerson.level}
         />
-        <button class="primary" disabled={busy} onclick={() => createAndLink()}>
+        <button
+          class="primary"
+          disabled={busy ||
+            !newPerson.firstName ||
+            !newPerson.lastName ||
+            !newPerson.level}
+          onclick={() => createAndLink()}
+        >
           {#if busy}<Loader2 size={16} class="spin" />{/if} Créer et lier
         </button>
       </div>

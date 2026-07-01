@@ -103,6 +103,16 @@ export function getDatabase(): Database.Database {
 
     // Initialize schema if needed
     initializeSchema(db);
+
+    // Merge suggestions the admin chose to ignore (canonical a_id < b_id).
+    // Created lazily here so no separate migration is required.
+    db.exec(
+      `CREATE TABLE IF NOT EXISTS ignored_merge_pairs (
+         a_id TEXT NOT NULL,
+         b_id TEXT NOT NULL,
+         PRIMARY KEY (a_id, b_id)
+       )`,
+    );
   }
   return db;
 }
@@ -1481,6 +1491,8 @@ export interface EntourageMember {
   prenom: string;
   nom: string;
   level: number | null;
+  /** True when this member is a real account (auth_sub set); false = placeholder. */
+  linked: boolean;
 }
 
 /** Entourage direct d une personne : parrains entrants, fillots sortants. */
@@ -1497,6 +1509,7 @@ interface EntourageRow {
   first_name: string;
   last_name: string;
   level: number | null;
+  auth_sub: string | null;
 }
 
 function toMember(row: EntourageRow): EntourageMember {
@@ -1507,6 +1520,7 @@ function toMember(row: EntourageRow): EntourageMember {
     prenom: row.first_name,
     nom: row.last_name,
     level: row.level,
+    linked: row.auth_sub !== null,
   };
 }
 
@@ -1519,7 +1533,7 @@ export function getEntourage(personId: string): Entourage {
   const parrains = (
     database
       .prepare(
-        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level
+        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.source_id
          WHERE r.target_id = ? ORDER BY r.type, p.last_name`,
       )
@@ -1528,13 +1542,207 @@ export function getEntourage(personId: string): Entourage {
   const fillots = (
     database
       .prepare(
-        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level
+        `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.target_id
          WHERE r.source_id = ? ORDER BY r.type, p.last_name`,
       )
       .all(personId) as EntourageRow[]
   ).map(toMember);
   return { parrains, fillots };
+}
+
+/** Number of parrainage relationships touching a person (as source or target). */
+export function countPersonRelations(id: string): number {
+  const row = getDatabase()
+    .prepare(
+      "SELECT COUNT(*) AS n FROM relationships WHERE source_id = ? OR target_id = ?",
+    )
+    .get(id, id) as { n: number };
+  return row.n;
+}
+
+/** True if a and b are directly linked by a relationship (either direction). */
+export function areDirectlyRelated(aId: string, bId: string): boolean {
+  const row = getDatabase()
+    .prepare(
+      `SELECT 1 FROM relationships
+       WHERE (source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)
+       LIMIT 1`,
+    )
+    .get(aId, bId, bId, aId);
+  return row !== undefined;
+}
+
+/**
+ * Update a placeholder's identity (name/promo), enforcing the "NOM Prenom"
+ * format. No-op (returns false) when the fiche is missing or is a real account
+ * (auth_sub set): a linked person's identity is owned by MiConnect and must not
+ * be edited by relatives here.
+ */
+export function updatePlaceholderIdentity(
+  id: string,
+  firstName: string,
+  lastName: string,
+  level: number | null,
+): boolean {
+  const changes = getDatabase()
+    .prepare(
+      `UPDATE people SET first_name = ?, last_name = ?, level = ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND auth_sub IS NULL`,
+    )
+    .run(formatFirstName(firstName), formatLastName(lastName), level, id).changes;
+  return changes > 0;
+}
+
+/**
+ * Delete a placeholder fiche and its relationships/links. Refuses (returns false)
+ * on a real account (auth_sub set) so an actual user is never removed this way.
+ */
+export function deletePlaceholderPerson(id: string): boolean {
+  const database = getDatabase();
+  return database.transaction(() => {
+    const row = database
+      .prepare("SELECT auth_sub FROM people WHERE id = ?")
+      .get(id) as { auth_sub: string | null } | undefined;
+    if (!row || row.auth_sub !== null) {
+      return false;
+    }
+    database
+      .prepare("DELETE FROM relationships WHERE source_id = ? OR target_id = ?")
+      .run(id, id);
+    database.prepare("DELETE FROM external_links WHERE person_id = ?").run(id);
+    database.prepare("DELETE FROM people WHERE id = ?").run(id);
+    return true;
+  })();
+}
+
+// ============================================
+// MERGE SUGGESTIONS (near-duplicate detection)
+// ============================================
+
+/** A person as shown in a merge suggestion. */
+export interface MergeSuggestionPerson {
+  id: string;
+  prenom: string;
+  nom: string;
+  level: number | null;
+  linked: boolean;
+}
+
+/** A candidate pair of near-duplicate fiches for the admin to review. */
+export interface MergeSuggestion {
+  a: MergeSuggestionPerson;
+  b: MergeSuggestionPerson;
+  distance: number;
+}
+
+/** Canonical, order-independent key for a pair of ids. */
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a} ${b}` : `${b} ${a}`;
+}
+
+/**
+ * Near-duplicate pairs for the admin to review: two fiches whose names are equal
+ * or nearly equal (edit distance <= NAME_MATCH_MAX_DISTANCE, nom/prenom inversion
+ * tolerated) with compatible promo (equal, unknown on one side, or the 3-year
+ * entry/graduation gap). Pairs where BOTH are real accounts are excluded (two
+ * distinct people cannot be merged), as are pairs the admin has ignored. Sorted
+ * closest first, capped. O(n^2) with a cheap length-difference prune; fine for
+ * the size of the Sky roster.
+ */
+export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
+  const database = getDatabase();
+  const people = database
+    .prepare(
+      "SELECT id, first_name, last_name, level, auth_sub FROM people",
+    )
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    auth_sub: string | null;
+  }[];
+
+  const ignored = new Set(
+    (
+      database
+        .prepare("SELECT a_id, b_id FROM ignored_merge_pairs")
+        .all() as { a_id: string; b_id: string }[]
+    ).map((r) => pairKey(r.a_id, r.b_id)),
+  );
+
+  // Sorted-token normalized length, for a cheap prune before the edit distance.
+  const sortedLen = people.map((p) => {
+    const tokens = [normalizeName(p.last_name), normalizeName(p.first_name)]
+      .filter((t) => t.length > 0)
+      .sort()
+      .join(" ");
+    return tokens.length;
+  });
+
+  const toSuggestionPerson = (p: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    auth_sub: string | null;
+  }): MergeSuggestionPerson => ({
+    id: p.id,
+    prenom: p.first_name,
+    nom: p.last_name,
+    level: p.level,
+    linked: p.auth_sub !== null,
+  });
+
+  const out: MergeSuggestion[] = [];
+  for (let i = 0; i < people.length; i++) {
+    for (let j = i + 1; j < people.length; j++) {
+      const A = people[i];
+      const B = people[j];
+      if (A.auth_sub !== null && B.auth_sub !== null) {
+        continue; // two real accounts: not mergeable
+      }
+      if (Math.abs(sortedLen[i] - sortedLen[j]) > NAME_MATCH_MAX_DISTANCE) {
+        continue;
+      }
+      // Promo compatibility: equal, unknown on one side, or entry/graduation gap.
+      if (
+        A.level !== null &&
+        B.level !== null &&
+        A.level !== B.level &&
+        Math.abs(A.level - B.level) !== 3
+      ) {
+        continue;
+      }
+      const d = nameDistance(A.last_name, A.first_name, B.last_name, B.first_name);
+      if (d > NAME_MATCH_MAX_DISTANCE) {
+        continue;
+      }
+      if (ignored.has(pairKey(A.id, B.id))) {
+        continue;
+      }
+      out.push({
+        a: toSuggestionPerson(A),
+        b: toSuggestionPerson(B),
+        distance: d,
+      });
+    }
+  }
+
+  out.sort((x, y) => x.distance - y.distance);
+  return out.slice(0, limit);
+}
+
+/** Mark a suggested pair as ignored so it stops being proposed. */
+export function ignoreMergePair(aId: string, bId: string): void {
+  const [x, y] = aId < bId ? [aId, bId] : [bId, aId];
+  getDatabase()
+    .prepare(
+      "INSERT OR IGNORE INTO ignored_merge_pairs (a_id, b_id) VALUES (?, ?)",
+    )
+    .run(x, y);
 }
 
 /** Membre d entourage expose a une app externe (Canari) : keye par sub. */

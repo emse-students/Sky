@@ -34,6 +34,8 @@ export interface EntourageMember {
   prenom: string;
   nom: string;
   level: number | null;
+  /** True when linked to a real account; false = editable placeholder. */
+  linked: boolean;
 }
 
 /** Association actuelle d un membre (projection publique Canari). */

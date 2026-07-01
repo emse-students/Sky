@@ -11,19 +11,124 @@
     AlertCircle,
     ChevronRight,
     RefreshCw,
+    GitMerge,
   } from "lucide-svelte";
+
+  type SuggPerson = {
+    id: string;
+    prenom: string;
+    nom: string;
+    level: number | null;
+    linked: boolean;
+  };
+  type Suggestion = { a: SuggPerson; b: SuggPerson; distance: number };
 
   let stats = $state({ people: 0, relationships: 0 });
   let message = $state("");
   let messageType: "success" | "error" | "" = $state("");
   let busy = $state(false);
+  let suggestions = $state<Suggestion[]>([]);
+  let suggBusy = $state(false);
 
   let user = $derived($page.data.user);
   let isAdmin = $derived(user?.role === "admin");
 
   onMount(() => {
-    if (isAdmin) loadStats();
+    if (isAdmin) {
+      loadStats();
+      loadSuggestions();
+    }
   });
+
+  /** Load the near-duplicate merge suggestions. */
+  async function loadSuggestions() {
+    try {
+      const res = await fetch("/api/admin/merge/suggestions");
+      if (res.ok) {
+        const d = await res.json();
+        suggestions = d.suggestions ?? [];
+      }
+    } catch (e) {
+      console.error("[Admin] suggestions error", e);
+    }
+  }
+
+  /** Merge a suggested pair (the linked fiche survives; see /api/admin/merge). */
+  async function mergePair(s: Suggestion) {
+    suggBusy = true;
+    try {
+      const res = await fetch("/api/admin/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId: s.a.id, targetId: s.b.id }),
+      });
+      if (res.ok) {
+        await Promise.all([loadSuggestions(), loadStats()]);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        flash(d.error || "Échec de la fusion.", "error");
+      }
+    } finally {
+      suggBusy = false;
+    }
+  }
+
+  /** Dismiss a suggested pair so it stops being proposed. */
+  async function ignorePair(s: Suggestion) {
+    suggBusy = true;
+    try {
+      const res = await fetch("/api/admin/merge/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aId: s.a.id, bId: s.b.id }),
+      });
+      if (res.ok) {
+        suggestions = suggestions.filter(
+          (x) => !(x.a.id === s.a.id && x.b.id === s.b.id),
+        );
+      }
+    } finally {
+      suggBusy = false;
+    }
+  }
+
+  /** Ignore every currently listed suggestion. */
+  async function ignoreAll() {
+    if (!confirm(`Ignorer les ${suggestions.length} suggestions ?`)) return;
+    suggBusy = true;
+    try {
+      for (const s of [...suggestions]) {
+        await fetch("/api/admin/merge/suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aId: s.a.id, bId: s.b.id }),
+        });
+      }
+      suggestions = [];
+    } finally {
+      suggBusy = false;
+    }
+  }
+
+  /** Merge every currently listed pair (skips ones that became invalid). */
+  async function mergeAll() {
+    if (!confirm(`Fusionner les ${suggestions.length} paires suggérées ?`)) {
+      return;
+    }
+    suggBusy = true;
+    try {
+      for (const s of [...suggestions]) {
+        await fetch("/api/admin/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: s.a.id, targetId: s.b.id }),
+        }).catch(() => {});
+      }
+      await Promise.all([loadSuggestions(), loadStats()]);
+    } finally {
+      suggBusy = false;
+    }
+  }
 
   /** Charge les compteurs (personnes, liens de parrainage). */
   async function loadStats() {
@@ -149,6 +254,64 @@
 
     {#if message}
       <div class="flash {messageType}">{message}</div>
+    {/if}
+
+    {#if suggestions.length > 0}
+      <section class="suggestions">
+        <div class="sugg-head">
+          <h2>
+            <GitMerge size={18} /> Fusions suggérées ({suggestions.length})
+          </h2>
+          <div class="sugg-bulk">
+            <button class="sugg-btn ignore" disabled={suggBusy} onclick={ignoreAll}
+              >Tout ignorer</button
+            >
+            <button class="sugg-btn merge" disabled={suggBusy} onclick={mergeAll}
+              >Tout fusionner</button
+            >
+          </div>
+        </div>
+        <p class="sugg-sub">
+          Étoiles très proches, potentiellement en double. Vérifie avant de
+          fusionner.
+        </p>
+        <ul class="sugg-list">
+          {#each suggestions as s (s.a.id + "|" + s.b.id)}
+            <li class="sugg-item">
+              <div class="sugg-pair">
+                <span class="sugg-name"
+                  >{s.a.nom.toUpperCase()} {s.a.prenom}
+                  <small>P{s.a.level ?? "?"}{s.a.linked ? " · compte" : ""}</small
+                  ></span
+                >
+                <span class="sugg-vs">↔</span>
+                <span class="sugg-name"
+                  >{s.b.nom.toUpperCase()} {s.b.prenom}
+                  <small>P{s.b.level ?? "?"}{s.b.linked ? " · compte" : ""}</small
+                  ></span
+                >
+                <span class="sugg-dist"
+                  >{s.distance === 0 ? "identique" : `distance ${s.distance}`}</span
+                >
+              </div>
+              <div class="sugg-actions">
+                <button
+                  class="sugg-btn ignore"
+                  disabled={suggBusy}
+                  onclick={() => ignorePair(s)}>Ignorer</button
+                >
+                <button
+                  class="sugg-btn merge"
+                  disabled={suggBusy}
+                  onclick={() => mergePair(s)}
+                >
+                  <GitMerge size={14} /> Fusionner
+                </button>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </section>
     {/if}
 
     <div class="stats">
@@ -371,5 +534,117 @@
   .btn.disabled {
     opacity: 0.5;
     pointer-events: none;
+  }
+
+  /* Merge suggestions: amber-themed section, distinct from the rest. */
+  .suggestions {
+    margin-bottom: 24px;
+    padding: 18px 20px;
+    background: rgba(251, 191, 36, 0.06);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 14px;
+  }
+  .sugg-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .sugg-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.05rem;
+    color: #fbbf24;
+  }
+  .sugg-bulk {
+    display: flex;
+    gap: 8px;
+  }
+  .sugg-sub {
+    margin: 6px 0 14px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+  }
+  .sugg-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sugg-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+  }
+  .sugg-pair {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .sugg-name {
+    font-weight: 600;
+    color: #f8fafc;
+  }
+  .sugg-name small {
+    margin-left: 4px;
+    font-weight: 400;
+    color: #94a3b8;
+  }
+  .sugg-vs {
+    color: #fbbf24;
+  }
+  .sugg-dist {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+  }
+  .sugg-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .sugg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .sugg-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .sugg-btn.ignore {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+  }
+  .sugg-btn.ignore:hover:not(:disabled) {
+    color: white;
+  }
+  .sugg-btn.merge {
+    background: #fbbf24;
+    color: #1a1206;
+  }
+  .sugg-btn.merge:hover:not(:disabled) {
+    background: #f59e0b;
   }
 </style>
