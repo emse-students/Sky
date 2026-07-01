@@ -21,7 +21,7 @@ bun run dev
 - **Langage:** TypeScript
 - **Styles:** Tailwind CSS
 - **Base de données:** SQLite3 (better-sqlite3)
-- **Visualisation:** Canvas 2D + NetworkX (Python)
+- **Visualisation:** Canvas 2D + layout ForceAtlas2 (graphology, TypeScript in-process)
 - **Runtime:** Bun
 
 ## 📁 Structure du Projet
@@ -34,7 +34,7 @@ sky/
 ├── src/
 │   ├── lib/
 │   │   ├── components/     # Composants Svelte réutilisables
-│   │   ├── server/        # Code backend (database.ts, auth.ts)
+│   │   │   ├── server/        # Code backend (database.ts, auth.ts, positions.ts)
 │   │   ├── stores/        # Stores Svelte (état global)
 │   │   ├── types/         # Définitions TypeScript
 │   │   └── utils/         # Fonctions utilitaires
@@ -48,8 +48,8 @@ sky/
 │   ├── schema.sql        # Schéma SQL (v3.0)
 │   └── SCHEMA_REFERENCE.md  # Documentation complète
 ├── scripts/
-│   ├── db_gui.py         # Interface admin (Tkinter)
-│   └── calcul_positions.py  # Algorithme de layout (NetworkX)
+│   └── db_gui.py         # Interface admin (Tkinter)
+│                         # (layout du graphe: src/lib/server/positions.ts)
 ├── static/
 │   ├── data/
 │   │   ├── data.json     # Export JSON (généré)

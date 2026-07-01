@@ -3,14 +3,15 @@
 # Image de production Sky (SvelteKit adapter-node, runtime Node).
 # Node (et non Bun) car better-sqlite3 est utilise par des scripts non-bundles
 # (init-db.js, migrate-add-bio.js) que Bun ne sait pas charger (specifier nu
-# intercepte, cf oven-sh/bun#4290). Inclut Python + libs scientifiques pour
-# scripts/calcul_positions.py (spawn au runtime).
+# intercepte, cf oven-sh/bun#4290). Le calcul des positions du graphe se fait
+# desormais en TypeScript in-process (src/lib/server/positions.ts) : plus de
+# dependance Python au runtime.
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM node:22-bookworm AS build
 WORKDIR /app
 ENV HUSKY=0
-# Outils de compilation pour le module natif better-sqlite3.
+# Outils de compilation pour le module natif better-sqlite3 (node-gyp -> python3).
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
@@ -26,9 +27,9 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
-# Python + libs requises par scripts/calcul_positions.py (paquets Debian prebuilt).
+# TLS roots for outbound HTTPS (Authentik OIDC, MiGallery avatars).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-numpy python3-scipy python3-networkx ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/node_modules ./node_modules

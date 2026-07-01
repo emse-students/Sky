@@ -70,7 +70,7 @@
   /** Promeut/retrograde une fiche (gestion des admins). */
   async function toggleRole(person: any) {
     const role = person.role === "admin" ? "user" : "admin";
-    if (!confirm(`Definir ${person.prenom} ${person.nom} comme ${role} ?`)) {
+    if (!confirm(`Définir ${person.prenom} ${person.nom} comme ${role} ?`)) {
       return;
     }
     const res = await fetch(`/api/admin/people/${person.id}`, {
@@ -82,8 +82,9 @@
   }
 
   /**
-   * Fusionne les 2 fiches selectionnees : la 1ere (selectionnee en premier) est
-   * conservee et recupere les liens de parrainage de la 2eme, qui est supprimee.
+   * Merge the 2 selected fiches. The one linked to an account always survives
+   * ("one star = one person" lock); otherwise the first selected is kept.
+   * Merging two linked accounts is refused.
    */
   async function mergeSelected() {
     if (selectedIds.length !== 2) return;
@@ -92,8 +93,8 @@
     if (!target || !source) return;
     if (
       !confirm(
-        `Fusionner "${source.prenom} ${source.nom}" dans "${target.prenom} ${target.nom}" ?\n\n` +
-          `La 1ere fiche est conservee et recupere les liens de la 2eme, puis la 2eme est supprimee.`,
+        `Fusionner "${source.prenom} ${source.nom}" et "${target.prenom} ${target.nom}" ?\n\n` +
+          `La fiche reliée à un compte est conservée et récupère les liens de l'autre, qui est supprimée.`,
       )
     ) {
       return;
@@ -106,6 +107,9 @@
     if (res.ok) {
       selectedIds = [];
       await loadPeople();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "La fusion a échoué.");
     }
   }
 
@@ -113,7 +117,7 @@
   async function unlinkAccount(person: any) {
     if (
       !confirm(
-        `Delier le compte de ${person.prenom} ${person.nom} ? La fiche redevient un placeholder (le graphe est conserve).`,
+        `Délier le compte de ${person.prenom} ${person.nom} ? La fiche redevient un placeholder (le graphe est conservé).`,
       )
     ) {
       return;
@@ -214,6 +218,19 @@
     } catch (error) {
       console.error("Save error:", error);
     }
+  }
+
+  /**
+   * Displayed identifier: once a fiche is linked to an account, show the
+   * Authentik sub (real identity); otherwise the placeholder id (prenom.nom).
+   */
+  function displayId(person: any): string {
+    return person.linked && person.auth_sub ? person.auth_sub : person.id;
+  }
+
+  /** Truncate a long identifier (the sub is 64 characters) for display. */
+  function truncateId(value: string): string {
+    return value.length > 16 ? `${value.slice(0, 14)}…` : value;
   }
 
   async function deletePerson(id: string) {
@@ -319,7 +336,9 @@
                       onchange={() => toggleSelection(person.id)}
                     />
                   </td>
-                  <td class="mono">{person.id}</td>
+                  <td class="mono" title={displayId(person)}
+                    >{truncateId(displayId(person))}</td
+                  >
                   <td>{person.nom}</td>
                   <td>{person.prenom}</td>
                   <td>{person.level || "—"}</td>
@@ -342,7 +361,7 @@
                   <td class="actions">
                     <button
                       class="btn-icon"
-                      title="Voir/editer son arbre"
+                      title="Voir/éditer son arbre"
                       onclick={() => goto(`/tree?id=${person.id}`)}
                     >
                       <Network size={16} />
@@ -359,7 +378,7 @@
                     {#if person.linked}
                       <button
                         class="btn-icon"
-                        title="Delier le compte"
+                        title="Délier le compte"
                         onclick={() => unlinkAccount(person)}
                       >
                         <Unlink size={16} />

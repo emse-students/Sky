@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { writeFileSync, copyFileSync } from "fs";
-import { DB_PATH } from "$lib/server/database";
+import { DB_PATH, recalculatePositions } from "$lib/server/database";
 import { exec } from "child_process";
 import { promisify } from "util";
 
@@ -43,6 +43,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     } catch (migrationError) {
       console.error("Migration error (non-fatal):", migrationError);
       // Don't fail the import if migrations fail
+    }
+
+    // Recompute star positions for the freshly imported graph: without this the
+    // positions.json is stale and any person absent from it is invisible on the
+    // map. Non-fatal (the client also scatters unpositioned nodes as a safety net).
+    try {
+      console.debug("Recalculating positions for imported database...");
+      await recalculatePositions();
+    } catch (positionError) {
+      console.error("Position recompute error (non-fatal):", positionError);
     }
 
     return new Response(JSON.stringify({ success: true }), {

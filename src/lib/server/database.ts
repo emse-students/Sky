@@ -3,7 +3,12 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import type { Person, JsonRelation, GraphDataFile } from "$types/graph";
-import { normalizeName } from "$utils/format";
+import {
+  normalizeName,
+  nameDistance,
+  NAME_MATCH_MAX_DISTANCE,
+} from "$utils/format";
+import { layoutGraph } from "$server/positions";
 
 const DB_PATH = path.join(process.cwd(), "database", "sky.db");
 const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
@@ -468,6 +473,62 @@ export function findUnlinkedCandidatesByName(
 }
 
 /**
+ * Unlinked people whose last+first name RESEMBLE the given identity (edit
+ * distance <= maxDistance, last/first inversion tolerated), sorted nearest
+ * first. Used as a fallback when no exact match exists, to recover from a typo
+ * between the SSO and the database without ever auto-linking (the user confirms
+ * via /auth/link).
+ */
+export function findUnlinkedFuzzyByName(
+  lastName: string,
+  firstName: string,
+  maxDistance: number = NAME_MATCH_MAX_DISTANCE,
+): MatchCandidate[] {
+  const database = getDatabase();
+  const rows = database
+    .prepare(
+      "SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL",
+    )
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+  }[];
+
+  return rows
+    .map((r) => ({
+      row: r,
+      distance: nameDistance(lastName, firstName, r.last_name, r.first_name),
+    }))
+    .filter((c) => c.distance <= maxDistance)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 8)
+    .map((c) => ({
+      id: c.row.id,
+      firstName: c.row.first_name,
+      lastName: c.row.last_name,
+      level: c.row.level,
+    }));
+}
+
+/**
+ * Fiches to offer on the linking screen: the exact matches when they exist,
+ * otherwise a fallback on resemblances (typos / inversion). Single source of
+ * truth shared by the callback (which decides to show the screen) and the screen
+ * itself (load + choice validation), so they never diverge.
+ */
+export function getLinkCandidates(
+  lastName: string,
+  firstName: string,
+): MatchCandidate[] {
+  const exact = findUnlinkedCandidatesByName(lastName, firstName);
+  return exact.length > 0
+    ? exact
+    : findUnlinkedFuzzyByName(lastName, firstName);
+}
+
+/**
  * Vrai si la promo SSO (annee d entree) colle a la fiche. Le `level` stocke est
  * l annee de DIPLOME ; un ICM entre en `promo` sort en `promo + 3`. On tolere
  * aussi l egalite stricte (donnees saisies en annee d entree).
@@ -479,13 +540,21 @@ function promoMatches(level: number | null, promo: number | null): boolean {
   return level === promo || level === promo + 3;
 }
 
-/** Lie une fiche existante a un compte Authentik et rafraichit ses infos SSO. */
+/**
+ * Link an existing fiche to an Authentik account and overwrite its identity
+ * fields with the SSO values (MiConnect is source of truth: name/first
+ * name/promo/email/formation are replaced whenever a value is provided, never
+ * wiped when absent).
+ */
 export function linkPersonAuth(id: string, identity: OidcIdentity): void {
   const database = getDatabase();
   database
     .prepare(
       `UPDATE people SET
         auth_sub = ?,
+        first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
+        level = COALESCE(?, level),
         email = COALESCE(?, email),
         formation = COALESCE(?, formation),
         role = ?,
@@ -495,6 +564,9 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
     )
     .run(
       identity.sub,
+      identity.firstName || null,
+      identity.lastName || null,
+      identity.level,
       identity.email,
       identity.formation,
       identity.role,
@@ -558,23 +630,29 @@ export function createAuthedPerson(identity: OidcIdentity): string {
   return identity.sub;
 }
 
-/** Resultat de la resolution d un login. */
+/**
+ * Result of resolving a login. `created` is true when a brand-new account fiche
+ * was inserted (id = sub), so the caller can trigger a positions recompute to
+ * place the new star on the map.
+ */
 export type LoginResolution =
-  | { kind: "linked"; personId: string }
+  | { kind: "linked"; personId: string; created: boolean }
   | { kind: "choice"; candidates: MatchCandidate[] };
 
 /**
  * Resout un login Authentik :
- *   1. sub deja lie               -> rafraichit, lie.
- *   2. 1 candidat sur (nom/prenom + promo concordante) -> lie automatiquement.
- *   3. aucun candidat (nom/prenom) -> cree une fiche compte (id = sub).
- *   4. plusieurs candidats / doute -> "choice" (ecran de selection au login).
+ *   1. sub already linked -> refresh, link.
+ *   2. 1 exact (last/first) candidate + matching promo -> auto-link.
+ *   3. several exact candidates / doubt -> "choice" (selection screen).
+ *   4. no exact candidate but FUZZY candidates (typo/inversion) -> "choice" for
+ *      confirmation (never auto-link on a mere resemblance).
+ *   5. no candidate at all -> create an account fiche (id = sub).
  */
 export function resolveLogin(identity: OidcIdentity): LoginResolution {
   const existing = getPersonIdByAuthSub(identity.sub);
   if (existing) {
     refreshPersonIdentity(existing, identity);
-    return { kind: "linked", personId: existing };
+    return { kind: "linked", personId: existing, created: false };
   }
 
   const candidates = findUnlinkedCandidatesByName(
@@ -586,12 +664,27 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
   );
   if (confident.length === 1) {
     linkPersonAuth(confident[0].id, identity);
-    return { kind: "linked", personId: confident[0].id };
+    return { kind: "linked", personId: confident[0].id, created: false };
   }
-  if (candidates.length === 0) {
-    return { kind: "linked", personId: createAuthedPerson(identity) };
+  if (candidates.length > 0) {
+    return { kind: "choice", candidates };
   }
-  return { kind: "choice", candidates };
+
+  // No exact match: offer the RESEMBLING fiches (typo/inversion) for
+  // confirmation instead of creating a duplicate.
+  const fuzzy = findUnlinkedFuzzyByName(identity.lastName, identity.firstName);
+  if (fuzzy.length > 0) {
+    console.debug(
+      `[Login] ${fuzzy.length} fuzzy candidate(s) for ${identity.sub} (${identity.lastName} ${identity.firstName})`,
+    );
+    return { kind: "choice", candidates: fuzzy };
+  }
+
+  return {
+    kind: "linked",
+    personId: createAuthedPerson(identity),
+    created: true,
+  };
 }
 
 /** auth_sub d une fiche (cle photo MiGallery), sinon null. */
@@ -647,6 +740,120 @@ export function unlinkPersonAuth(id: string): boolean {
   return tx().changes > 0;
 }
 
+/**
+ * Self-service correction: move the signed-in user's account from its current
+ * fiche to ANOTHER unlinked fiche (recovering from a wrong auto-link or a
+ * homonym). The old fiche becomes a placeholder again WITHOUT losing its graph;
+ * the target fiche inherits the account identity (sub, name, promo, role) and the
+ * current session token is repointed so the user stays logged in. Returns false
+ * if the current fiche is not linked, or the target is the same/missing/already
+ * linked.
+ */
+export function relinkSelf(
+  currentId: string,
+  targetId: string,
+  sessionToken: string,
+): boolean {
+  if (currentId === targetId) {
+    return false;
+  }
+  console.debug(`[Account] relinkSelf ${currentId} -> ${targetId}`);
+  const database = getDatabase();
+  return database.transaction(() => {
+    const current = database
+      .prepare(
+        `SELECT auth_sub, first_name, last_name, level, email, formation, role
+         FROM people WHERE id = ?`,
+      )
+      .get(currentId) as
+      | {
+          auth_sub: string | null;
+          first_name: string;
+          last_name: string;
+          level: number | null;
+          email: string | null;
+          formation: string | null;
+          role: string;
+        }
+      | undefined;
+    if (!current || current.auth_sub === null) {
+      return false;
+    }
+    const target = database
+      .prepare("SELECT auth_sub FROM people WHERE id = ?")
+      .get(targetId) as { auth_sub: string | null } | undefined;
+    if (!target || target.auth_sub !== null) {
+      return false;
+    }
+
+    // Detach the old fiche first (auth_sub is UNIQUE: free the value before
+    // reassigning it to the target), keeping its graph edges.
+    database
+      .prepare(
+        `UPDATE people SET auth_sub = NULL, role = 'user',
+           updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .run(currentId);
+
+    // The target inherits the account identity (SSO is source of truth for name/promo).
+    database
+      .prepare(
+        `UPDATE people SET
+           auth_sub = ?, first_name = ?, last_name = ?, level = ?,
+           email = ?, formation = ?, role = ?, last_login = ?,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+      )
+      .run(
+        current.auth_sub,
+        current.first_name,
+        current.last_name,
+        current.level,
+        current.email,
+        current.formation,
+        current.role,
+        nowEpoch(),
+        targetId,
+      );
+
+    // Repoint the active session so the user stays logged in on the new fiche.
+    database
+      .prepare("UPDATE sessions SET person_id = ? WHERE token = ?")
+      .run(targetId, sessionToken);
+    return true;
+  })();
+}
+
+/**
+ * Unlinked fiches (placeholders), for the self-service correction screen where
+ * the user picks the fiche to attach their account to. Sorted by name for
+ * tolerant client-side filtering.
+ */
+export function getUnlinkedPeople(): {
+  id: string;
+  prenom: string;
+  nom: string;
+  level: number | null;
+}[] {
+  const rows = getDatabase()
+    .prepare(
+      `SELECT id, first_name, last_name, level FROM people
+       WHERE auth_sub IS NULL ORDER BY last_name, first_name`,
+    )
+    .all() as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    prenom: r.first_name,
+    nom: r.last_name,
+    level: r.level,
+  }));
+}
+
 /** Fiche enrichie pour l administration (role + etat de liaison du compte). */
 export interface AdminPersonRow {
   id: string;
@@ -655,6 +862,7 @@ export interface AdminPersonRow {
   level: number | null;
   role: string;
   linked: boolean;
+  auth_sub: string | null;
   email: string | null;
   formation: string | null;
 }
@@ -683,6 +891,7 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
     level: r.level,
     role: r.role,
     linked: r.auth_sub !== null,
+    auth_sub: r.auth_sub,
     email: r.email,
     formation: r.formation,
   }));
@@ -1477,48 +1686,89 @@ export function getPerson(id: string): Person | null {
 // POSITIONS CALCULATION
 // ============================================
 
-export async function recalculatePositions(): Promise<void> {
-  const { spawn } = await import("child_process");
-  const path = await import("path");
-  const { fileURLToPath } = await import("url");
+/** Outcome of the last positions recompute, so failures are observable. */
+export interface PositionsStatus {
+  ok: boolean;
+  at: number; // epoch seconds
+  positioned: number; // nodes written to positions.json
+  total: number; // people in the database
+  error: string | null; // failure detail
+}
 
-  // Get the project root directory
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const projectRoot = path.resolve(__dirname, "../../..");
+let lastPositionsStatus: PositionsStatus | null = null;
 
-  return new Promise((resolve, reject) => {
-    console.debug("[Positions] Lancement du calcul des positions...");
+/** Last positions recompute status (null if none ran in this process yet). */
+export function getPositionsStatus(): PositionsStatus | null {
+  return lastPositionsStatus;
+}
 
-    // Try python3 first, then fallback to python
-    const pythonCommand = process.platform === "win32" ? "python" : "python3";
+/**
+ * Recompute the star-map positions in-process (TypeScript ForceAtlas2 layout,
+ * see `positions.ts`) and write them to database/positions.json, recording the
+ * outcome in `lastPositionsStatus` so callers and the admin dashboard can tell
+ * whether it worked. Rejects with a detailed Error on failure instead of failing
+ * silently: the map shows only positioned nodes, so a swallowed error hides
+ * people. Kept async for call-site compatibility even though the work is sync.
+ */
+export function recalculatePositions(): Promise<PositionsStatus> {
+  const database = getDatabase();
 
-    const pythonProcess = spawn(
-      pythonCommand,
-      [path.join(projectRoot, "scripts", "calcul_positions.py")],
-      {
-        cwd: projectRoot,
-      },
-    );
+  const record = (
+    ok: boolean,
+    error: string | null,
+    positioned: number,
+    total: number,
+  ): PositionsStatus => {
+    lastPositionsStatus = { ok, at: nowEpoch(), positioned, total, error };
+    return lastPositionsStatus;
+  };
 
-    pythonProcess.stdout.on("data", (data: Buffer) => {
-      console.debug(`[calcul_positions] ${data.toString().trim()}`);
-    });
-
-    pythonProcess.stderr.on("data", (data: Buffer) => {
-      console.error(`[calcul_positions] ${data.toString().trim()}`);
-    });
-
-    pythonProcess.on("close", (code) => {
-      if (code === 0) {
-        console.debug("[Positions] Calcul des positions terminé avec succès");
-        resolve();
-      } else {
-        console.error(
-          `[Positions] Calcul des positions échoué avec le code ${code}`,
-        );
-        reject(new Error(`Python process exited with code ${code}`));
+  try {
+    const nodeIds = (
+      database.prepare("SELECT id FROM people").all() as { id: string }[]
+    ).map((r) => r.id);
+    const nodeSet = new Set(nodeIds);
+    const edgeRows = database
+      .prepare("SELECT source_id, target_id FROM relationships")
+      .all() as { source_id: string; target_id: string }[];
+    const edges: [string, string][] = [];
+    for (const e of edgeRows) {
+      if (nodeSet.has(e.source_id) && nodeSet.has(e.target_id)) {
+        edges.push([e.source_id, e.target_id]);
       }
-    });
-  });
+    }
+
+    console.debug(
+      `[Positions] Computing layout for ${nodeIds.length} people, ${edges.length} links...`,
+    );
+    const positions = layoutGraph(nodeIds, edges);
+
+    const file = path.join(process.cwd(), "database", "positions.json");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(positions, null, 2));
+
+    const status = record(true, null, Object.keys(positions).length, nodeIds.length);
+    console.debug(
+      `[Positions] Done: ${status.positioned}/${status.total} nodes positioned`,
+    );
+    return Promise.resolve(status);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[Positions] Layout failed: ${message}`);
+    let total = 0;
+    try {
+      total = (
+        database.prepare("SELECT COUNT(*) AS n FROM people").get() as {
+          n: number;
+        }
+      ).n;
+    } catch (countError) {
+      console.error("[Positions] people count failed:", countError);
+    }
+    return Promise.reject(
+      Object.assign(new Error(message), {
+        status: record(false, message, 0, total),
+      }),
+    );
+  }
 }

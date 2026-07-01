@@ -363,7 +363,7 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 | `src/lib/server/database.ts`  | Couche d'accès TypeScript (Backend)        |
 | `src/lib/types/graph.ts`      | Définitions TypeScript des types           |
 | `scripts/db_gui.py`           | Interface graphique d'administration       |
-| `scripts/calcul_positions.py` | Calcul des positions pour la visualisation |
+| `src/lib/server/positions.ts` | Calcul des positions pour la visualisation |
 
 ---
 

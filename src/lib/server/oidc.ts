@@ -9,6 +9,8 @@
  * MiGallery (`/api/avatar/{sub}`), pas du claim `picture` (non utilise).
  */
 
+import { formatFirstName, formatLastName } from "$utils/format";
+
 /** Reponse du endpoint /token/ d Authentik. */
 interface OidcToken {
   access_token: string;
@@ -220,8 +222,10 @@ export async function completeOIDCFlow(
       lastName = lastName ?? (parts.length > 1 ? parts.slice(1).join(" ") : "");
     }
   }
-  firstName = firstName ?? "";
-  lastName = lastName ?? "";
+  // Canonical "NOM Prenom" display format stored in the database (MiConnect is
+  // source of truth on every login), for consistent casing in admin and the tree.
+  firstName = formatFirstName(firstName ?? "");
+  lastName = formatLastName(lastName ?? "");
   const promo = parsePromo(profile.promo ?? idClaims.promo);
   const formation =
     trimmedOrNull(profile.formation) ?? trimmedOrNull(idClaims.formation);
