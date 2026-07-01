@@ -28,6 +28,7 @@
     Network,
     ExternalLink,
   } from "lucide-svelte";
+  import BioMarkdown from "$components/BioMarkdown.svelte";
   import Linkedin from "$components/icons/Linkedin.svelte";
   import Github from "$components/icons/Github.svelte";
   import Instagram from "$components/icons/Instagram.svelte";
@@ -433,12 +434,15 @@
       <section class="sidebar-info">
         <div class="info-block">
           <h3>Bio</h3>
-          <p>
-            {canariProfile?.profile?.bio ||
-              (canariProfile && !canariProfile.linked
-                ? "Fiche non liee a un compte Canari."
-                : "Pas de biographie sur Canari.")}
-          </p>
+          {#if canariProfile?.profile?.bio}
+            <BioMarkdown source={canariProfile.profile.bio} />
+          {:else}
+            <p>
+              {canariProfile && !canariProfile.linked
+                ? "Fiche non liée à un compte Canari."
+                : "Pas de biographie sur Canari."}
+            </p>
+          {/if}
         </div>
 
         {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}

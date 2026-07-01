@@ -15,6 +15,7 @@
     ExternalLink,
   } from "lucide-svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
+  import BioMarkdown from "$components/BioMarkdown.svelte";
   import type {
     EntourageResponse,
     EntourageMember,
@@ -233,7 +234,7 @@
             </a>
           </div>
           {#if canari.profile.bio}
-            <p class="bio">{canari.profile.bio}</p>
+            <BioMarkdown source={canari.profile.bio} />
           {/if}
           {#if canari.profile.associations.length > 0}
             <h3>Associations</h3>
@@ -581,12 +582,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #94a3b8;
-  }
-  .canari .bio {
-    margin: 0;
-    color: #cbd5e1;
-    line-height: 1.6;
-    white-space: pre-wrap;
   }
   .canari .muted {
     margin: 0;
