@@ -13,6 +13,7 @@
   "common_delete": "Supprimer",
   "common_cancel": "Annuler",
   "common_save": "Enregistrer",
+  "common_network_error": "Erreur réseau",
   "unauthorized_page_title": "Accès réservé aux ICM - Sky",
   "unauthorized_title": "Accès réservé aux ICM",
   "unauthorized_body": "Sky est l'arbre de parrainage des ICM. Ton compte n'est pas rattaché à la formation ICM, l'accès n'est donc pas autorisé.",
@@ -88,5 +89,15 @@
   "tree_delete_failed": "Échec de la suppression.",
   "tree_edit_dialog_title": "Modifier l'étoile",
   "tree_edit_hint": "Fiche placeholder (non reliée à un compte) : tu peux corriger son identité ou la supprimer.",
-  "tree_promo_placeholder": "Promotion (ex : 2024)"
+  "tree_promo_placeholder": "Promotion (ex : 2024)",
+  "modal_search_placeholder": "Chercher par nom…",
+  "modal_searching": "Recherche…",
+  "modal_no_result": "Aucun résultat.",
+  "modal_create_person": "Créer cette personne",
+  "modal_create_and_link": "Créer et lier",
+  "modal_dedup": "Une fiche existe déjà. La relier ?",
+  "modal_account": "compte",
+  "modal_create_anyway": "Créer une nouvelle fiche quand même",
+  "modal_add_failed": "Échec de l'ajout du lien",
+  "modal_required_fields": "Nom, prénom et promotion sont obligatoires."
 }

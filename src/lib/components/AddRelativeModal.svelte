@@ -2,12 +2,13 @@
   import { fade, scale } from "svelte/transition";
   import { Search, UserPlus, X, Loader2 } from "lucide-svelte";
   import type { RelationRole, RelationKind } from "$types/graph";
+  import { m } from "$lib/paraglide/messages";
 
   /**
-   * Modale d ajout d un membre d entourage pour un slot donne (role + type fixes
-   * par le slot clique). Recherche une fiche existante ou en cree une nouvelle ;
-   * en cas d homonyme, propose la liaison plutot qu un doublon. Delegue les
-   * regles 1/1/3/2 et l anti-cycle au serveur (/api/relationships).
+   * Modal to add a network member for a given slot (role + kind fixed by the
+   * clicked slot). Searches an existing record or creates a new one; on a
+   * namesake, offers linking rather than a duplicate. Delegates the 1/1/3/2
+   * rules and the anti-cycle check to the server (/api/relationships).
    */
   let {
     role,
@@ -20,7 +21,7 @@
     role: RelationRole;
     kind: RelationKind;
     title: string;
-    /** Personne au centre du lien (defaut serveur: l utilisateur connecte). */
+    /** Person at the center of the link (server default: the signed-in user). */
     centerId?: string;
     onClose: () => void;
     onAdded: () => void;
@@ -70,7 +71,7 @@
     }
   }
 
-  /** Traite la reponse serveur : succes, demande de liaison (dedup) ou erreur. */
+  /** Handle the server response: success, link request (dedup), or error. */
   async function handleResponse(res: Response) {
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
@@ -81,7 +82,7 @@
       candidates = data.candidates ?? [];
       return;
     }
-    showError(data.error || "Échec de l'ajout du lien");
+    showError(data.error || m.modal_add_failed());
   }
 
   async function linkExisting(targetId: string) {
@@ -94,16 +95,16 @@
       });
       await handleResponse(res);
     } catch {
-      showError("Erreur réseau");
+      showError(m.common_network_error());
     } finally {
       busy = false;
     }
   }
 
   async function createAndLink(confirmCreate = false) {
-    // Nom, prenom and promo are all mandatory when creating a star.
+    // Last name, first name and promo are all mandatory when creating a star.
     if (!newPerson.firstName || !newPerson.lastName || !newPerson.level) {
-      showError("Nom, prénom et promotion sont obligatoires.");
+      showError(m.modal_required_fields());
       return;
     }
     busy = true;
@@ -126,7 +127,7 @@
       });
       await handleResponse(res);
     } catch {
-      showError("Erreur réseau");
+      showError(m.common_network_error());
     } finally {
       busy = false;
     }
@@ -149,7 +150,7 @@
   >
     <header>
       <h2>{title}</h2>
-      <button class="close" onclick={onClose} aria-label="Fermer">
+      <button class="close" onclick={onClose} aria-label={m.common_close()}>
         <X size={20} />
       </button>
     </header>
@@ -158,14 +159,16 @@
       <Search size={18} class="s-icon" />
       <input
         type="text"
-        placeholder="Chercher par nom..."
+        placeholder={m.modal_search_placeholder()}
         bind:value={searchTerm}
         oninput={handleSearch}
       />
     </div>
 
     {#if isSearching}
-      <div class="hint"><Loader2 size={16} class="spin" /> Recherche...</div>
+      <div class="hint">
+        <Loader2 size={16} class="spin" /> {m.modal_searching()}
+      </div>
     {/if}
 
     {#if searchResults.length > 0}
@@ -178,15 +181,15 @@
           >
             <UserPlus size={16} />
             <span>{person.prenom} {person.nom}</span>
-            <small>P{person.level || "?"}</small>
+            <small>{m.tree_promo_short({ level: person.level || "?" })}</small>
           </button>
         {/each}
       </div>
     {:else if searchTerm.trim().length >= 2 && !isSearching}
       <div class="empty-hint">
-        <span>Aucun résultat.</span>
+        <span>{m.modal_no_result()}</span>
         <button class="ghost" onclick={() => (showCreate = !showCreate)}>
-          {showCreate ? "Annuler" : "Créer cette personne"}
+          {showCreate ? m.common_cancel() : m.modal_create_person()}
         </button>
       </div>
     {/if}
@@ -196,18 +199,18 @@
         <div class="row">
           <input
             type="text"
-            placeholder="Prénom"
+            placeholder={m.common_firstname()}
             bind:value={newPerson.firstName}
           />
           <input
             type="text"
-            placeholder="Nom"
+            placeholder={m.common_lastname()}
             bind:value={newPerson.lastName}
           />
         </div>
         <input
           type="number"
-          placeholder="Promotion (ex : 2024)"
+          placeholder={m.tree_promo_placeholder()}
           bind:value={newPerson.level}
         />
         <button
@@ -218,14 +221,15 @@
             !newPerson.level}
           onclick={() => createAndLink()}
         >
-          {#if busy}<Loader2 size={16} class="spin" />{/if} Créer et lier
+          {#if busy}<Loader2 size={16} class="spin" />{/if}
+          {m.modal_create_and_link()}
         </button>
       </div>
     {/if}
 
     {#if candidates.length > 0}
       <div class="create">
-        <p class="dedup">Une fiche existe déjà. La relier ?</p>
+        <p class="dedup">{m.modal_dedup()}</p>
         {#each candidates as c (c.id)}
           <button
             class="result"
@@ -234,7 +238,11 @@
           >
             <UserPlus size={16} />
             <span>{c.firstName} {c.lastName}</span>
-            <small>P{c.level || "?"}{c.linked ? " · compte" : ""}</small>
+            <small
+              >{m.tree_promo_short({ level: c.level || "?" })}{c.linked
+                ? ` · ${m.modal_account()}`
+                : ""}</small
+            >
           </button>
         {/each}
         <button
@@ -242,7 +250,7 @@
           disabled={busy}
           onclick={() => createAndLink(true)}
         >
-          Créer une nouvelle fiche quand même
+          {m.modal_create_anyway()}
         </button>
       </div>
     {/if}
