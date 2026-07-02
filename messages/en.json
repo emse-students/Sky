@@ -13,6 +13,7 @@
   "common_delete": "Delete",
   "common_cancel": "Cancel",
   "common_save": "Save",
+  "common_network_error": "Network error",
   "unauthorized_page_title": "ICM-only access - Sky",
   "unauthorized_title": "ICM-only access",
   "unauthorized_body": "Sky is the ICM sponsorship tree. Your account is not attached to the ICM programme, so access is not allowed.",
@@ -88,5 +89,15 @@
   "tree_delete_failed": "Delete failed.",
   "tree_edit_dialog_title": "Edit the star",
   "tree_edit_hint": "Placeholder record (not linked to an account): you can fix its identity or delete it.",
-  "tree_promo_placeholder": "Class (e.g. 2024)"
+  "tree_promo_placeholder": "Class (e.g. 2024)",
+  "modal_search_placeholder": "Search by name…",
+  "modal_searching": "Searching…",
+  "modal_no_result": "No result.",
+  "modal_create_person": "Create this person",
+  "modal_create_and_link": "Create and link",
+  "modal_dedup": "A record already exists. Link it?",
+  "modal_account": "account",
+  "modal_create_anyway": "Create a new record anyway",
+  "modal_add_failed": "Failed to add the link",
+  "modal_required_fields": "Last name, first name and class are required."
 }
