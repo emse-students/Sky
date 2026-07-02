@@ -96,6 +96,7 @@ export default [
       "dist/",
       "node_modules/",
       ".svelte-kit/",
+      "src/lib/paraglide/",
       ".env*",
       "*.min.*",
       "cookies.txt",

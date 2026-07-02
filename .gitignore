@@ -9,6 +9,9 @@ node_modules
 /build
 .eslintcache
 
+# Paraglide generated runtime (compiled from messages/ + project.inlang)
+/src/lib/paraglide
+
 # OS
 .DS_Store
 Thumbs.db

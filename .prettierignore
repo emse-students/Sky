@@ -1,0 +1,8 @@
+node_modules
+build
+.svelte-kit
+package-lock.json
+bun.lock
+src/lib/paraglide
+database/*.db
+database/positions.json
