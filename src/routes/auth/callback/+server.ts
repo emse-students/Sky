@@ -13,11 +13,12 @@ import {
 } from "$server/database";
 import { setSessionCookie } from "$server/session";
 import { PENDING_COOKIE_NAME } from "$server/link";
+import { m } from "$lib/paraglide/messages";
 
 const STATE_COOKIE_NAME = "__oidc_state";
 const NONCE_COOKIE_NAME = "__oidc_nonce";
 
-/** Vrai si le sub fait partie de la liste d admins SKY_ADMIN_SUBS (virgules). */
+/** True if the sub is part of the SKY_ADMIN_SUBS admin list (comma-separated). */
 function isAdminSub(sub: string): boolean {
   return (process.env.SKY_ADMIN_SUBS || "")
     .split(",")
@@ -27,50 +28,50 @@ function isAdminSub(sub: string): boolean {
 }
 
 /**
- * Retour Authentik : valide le state, deroule le flux OIDC, applique le gate ICM
- * (seuls les ICM et les admins entrent), relie/cree la fiche `people`, ouvre une
- * session et pose le cookie. Un non-ICM non-admin est renvoye vers `/unauthorized`
- * sans session.
+ * Authentik return: validates the state, runs the OIDC flow, applies the ICM gate
+ * (only ICM and admins get in), links/creates the `people` record, opens a session
+ * and sets the cookie. A non-ICM non-admin is redirected to `/unauthorized`
+ * without a session.
  */
 export const GET: RequestHandler = async ({ cookies, url }) => {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
   if (!code) {
-    console.error("[CALLBACK] Code d autorisation manquant");
-    throw error(400, "Code d autorisation manquant");
+    console.error("[CALLBACK] Authorization code missing");
+    throw error(400, m.api_oidc_code_missing());
   }
   if (!state) {
-    console.error("[CALLBACK] Parametre state manquant");
-    throw error(400, "Parametre state manquant");
+    console.error("[CALLBACK] State parameter missing");
+    throw error(400, m.api_oidc_state_missing());
   }
   if (state !== cookies.get(STATE_COOKIE_NAME)) {
-    console.error("[CALLBACK] State invalide");
-    throw error(400, "Validation du state echouee");
+    console.error("[CALLBACK] Invalid state");
+    throw error(400, m.api_oidc_state_invalid());
   }
 
   try {
     const callbackUrl = new URL("/auth/callback", url.origin).toString();
     const claims = await completeOIDCFlow(code, callbackUrl);
     if (!claims) {
-      console.error("[CALLBACK] Flux OIDC echoue");
-      throw error(500, "Authentification echouee");
+      console.error("[CALLBACK] OIDC flow failed");
+      throw error(500, m.api_auth_failed());
     }
 
     cookies.delete(STATE_COOKIE_NAME, { path: "/" });
     cookies.delete(NONCE_COOKIE_NAME, { path: "/" });
 
-    // Source de verite du role : la base. L env SKY_ADMIN_SUBS ne fait qu amorcer
-    // (bootstrap) ; un admin promu en base n est jamais retrograde au login.
+    // Role source of truth: the database. The SKY_ADMIN_SUBS env only bootstraps;
+    // an admin promoted in the DB is never demoted at login.
     const role =
       isAdminSub(claims.sub) || getPersonRoleByAuthSub(claims.sub) === "admin"
         ? "admin"
         : "user";
 
-    // Gate ICM : Sky est reserve a la formation ICM (les admins passent aussi).
+    // ICM gate: Sky is reserved for the ICM formation (admins also pass).
     if (claims.formation !== "ICM" && role !== "admin") {
       console.warn(
-        `[CALLBACK] Acces refuse (non-ICM): sub=${claims.sub} formation=${claims.formation ?? "null"}`,
+        `[CALLBACK] Access denied (non-ICM): sub=${claims.sub} formation=${claims.formation ?? "null"}`,
       );
       throw redirect(302, "/unauthorized");
     }
@@ -90,7 +91,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 
     const resolution = resolveLogin(identity);
     if (resolution.kind === "choice") {
-      // Plusieurs fiches possibles : on demande a l utilisateur de choisir.
+      // Several possible records: ask the user to choose.
       const pendingToken = createPendingLink(identity);
       cookies.set(PENDING_COOKIE_NAME, pendingToken, {
         path: "/",
@@ -100,7 +101,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
         httpOnly: true,
       });
       console.debug(
-        `[CALLBACK] ${resolution.candidates.length} candidats pour ${claims.sub} -> /auth/link`,
+        `[CALLBACK] ${resolution.candidates.length} candidates for ${claims.sub} -> /auth/link`,
       );
       throw redirect(302, "/auth/link");
     }
@@ -117,16 +118,16 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     const session = createSession(resolution.personId);
     setSessionCookie(cookies, session.token, session.expiresAt);
     console.debug(
-      `[CALLBACK] Session ouverte pour ${resolution.personId} (role=${role})`,
+      `[CALLBACK] Session opened for ${resolution.personId} (role=${role})`,
     );
     throw redirect(302, "/");
   } catch (e) {
-    // Les redirections (choix de liaison, succes, gate ICM) et les error() sont
-    // jetes comme objets SvelteKit : les relancer tels quels.
+    // Redirects (link choice, success, ICM gate) and error() are thrown as
+    // SvelteKit objects: rethrow them as-is.
     if (isRedirect(e) || isHttpError(e)) {
       throw e;
     }
-    console.error("[CALLBACK] Erreur durant l authentification:", e);
-    throw error(500, "Erreur d authentification");
+    console.error("[CALLBACK] Error during authentication:", e);
+    throw error(500, m.api_auth_failed());
   }
 };

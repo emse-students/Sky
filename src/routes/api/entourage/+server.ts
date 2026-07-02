@@ -7,6 +7,7 @@ import {
   MAX_PARRAINS,
   MAX_FILLOTS,
 } from "$lib/server/database";
+import { m } from "$lib/paraglide/messages";
 
 /**
  * Direct entourage of a person (incoming parrains, outgoing fillots) for the
@@ -17,12 +18,12 @@ import {
 export const GET: RequestHandler = ({ url, locals }) => {
   const id = url.searchParams.get("id") ?? locals.user?.profile_id ?? null;
   if (!id) {
-    return json({ error: "Aucune personne ciblee" }, { status: 400 });
+    return json({ error: m.api_no_target_person() }, { status: 400 });
   }
 
   const person = getPersonById(id);
   if (!person) {
-    return json({ error: "Personne introuvable" }, { status: 404 });
+    return json({ error: m.api_person_not_found() }, { status: 404 });
   }
 
   const user = locals.user;
