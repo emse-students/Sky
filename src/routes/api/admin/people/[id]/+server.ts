@@ -8,6 +8,7 @@ import {
 } from "$lib/server/database";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
+import { m } from "$lib/paraglide/messages";
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const user = locals.user;
@@ -25,7 +26,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   try {
     const db = getDatabase();
 
-    // Identite seulement : bio et photo viennent de Canari/MiGallery.
+    // Identity only: bio and photo come from Canari/MiGallery.
     // Enforce the display convention: "NOM" uppercase, "Prenom" capitalized.
     const updateStmt = db.prepare(`
 			UPDATE people
@@ -48,9 +49,9 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 };
 
 /**
- * Actions admin sur une fiche : changer le role (`set-role`) ou delier le compte
- * Authentik (`unlink`, la fiche redevient un placeholder). Liaison/fusion de
- * fiches separees se fait via /api/admin/merge.
+ * Admin actions on a record: change the role (`set-role`) or unlink the Authentik
+ * account (`unlink`, the record becomes a placeholder again). Linking/merging
+ * separate records is done via /api/admin/merge.
  */
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   requireAdmin(locals);
@@ -62,20 +63,20 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
   if (body.action === "set-role") {
     if (body.role !== "user" && body.role !== "admin") {
-      return json({ error: "Role invalide" }, { status: 400 });
+      return json({ error: m.api_invalid_role() }, { status: 400 });
     }
     return setPersonRole(id, body.role)
       ? json({ success: true })
-      : json({ error: "Fiche introuvable" }, { status: 404 });
+      : json({ error: m.api_fiche_not_found() }, { status: 404 });
   }
 
   if (body.action === "unlink") {
     return unlinkPersonAuth(id)
       ? json({ success: true })
-      : json({ error: "Fiche introuvable" }, { status: 404 });
+      : json({ error: m.api_fiche_not_found() }, { status: 404 });
   }
 
-  return json({ error: "Action inconnue" }, { status: 400 });
+  return json({ error: m.api_unknown_action() }, { status: 400 });
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {

@@ -209,6 +209,15 @@
   "rel_err_max_parrain_adoption": "Un parrain d'adoption existe déjà.",
   "rel_err_cycle": "Ce lien créerait un cycle dans l'arbre.",
   "api_icm_only": "Réservé aux ICM",
+  "api_invalid_role": "Rôle invalide",
+  "api_fiche_not_found": "Fiche introuvable",
+  "api_no_target_person": "Aucune personne ciblée",
+  "api_person_not_found": "Personne introuvable",
+  "api_oidc_code_missing": "Code d'autorisation manquant",
+  "api_oidc_state_missing": "Paramètre state manquant",
+  "api_unknown_action": "Action inconnue",
+  "api_oidc_state_invalid": "Validation du state échouée",
+  "api_auth_failed": "Authentification échouée",
   "account_no_fiche_selected": "Aucune fiche sélectionnée.",
   "account_fiche_unavailable": "Cette fiche n'est plus disponible (déjà liée ou introuvable)."
 }

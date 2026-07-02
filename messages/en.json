@@ -209,6 +209,15 @@
   "rel_err_max_parrain_adoption": "An adoption sponsor already exists.",
   "rel_err_cycle": "This link would create a cycle in the tree.",
   "api_icm_only": "Reserved for ICM",
+  "api_invalid_role": "Invalid role",
+  "api_fiche_not_found": "Record not found",
+  "api_no_target_person": "No target person",
+  "api_person_not_found": "Person not found",
+  "api_oidc_code_missing": "Authorization code missing",
+  "api_oidc_state_missing": "Missing state parameter",
+  "api_unknown_action": "Unknown action",
+  "api_oidc_state_invalid": "State validation failed",
+  "api_auth_failed": "Authentication failed",
   "account_no_fiche_selected": "No record selected.",
   "account_fiche_unavailable": "This record is no longer available (already linked or not found)."
 }
