@@ -17,6 +17,7 @@
   } from "lucide-svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
+  import { m } from "$lib/paraglide/messages";
   import type {
     EntourageResponse,
     EntourageMember,
@@ -40,8 +41,8 @@
     level: string;
   } | null>(null);
 
-  // Editable quand l arbre est centre sur soi (on construit son entourage) ou
-  // pour un admin (edition de l entourage d autrui depuis l arbre).
+  // Editable when the tree is centered on oneself (building one's own network)
+  // or for an admin (editing someone else's network from the tree).
   let isMe = $derived(!!data && !!user && data.person.id === user.profile_id);
   let isAdmin = $derived(user?.role === "admin");
   let canEdit = $derived(isMe || isAdmin);
@@ -51,7 +52,7 @@
   });
 
   onMount(() => {
-    // ?id permet a un admin d ouvrir l arbre d une autre personne directement.
+    // ?id lets an admin open another person's tree directly.
     const requested = $page.url.searchParams.get("id");
     const start = requested || user?.profile_id;
     if (start) {
@@ -61,7 +62,7 @@
     }
   });
 
-  /** Charge l entourage d une personne et la place au centre de l arbre. */
+  /** Load a person's network and place them at the center of the tree. */
   async function load(id: string) {
     loading = true;
     canari = null;
@@ -78,7 +79,7 @@
     loadCanari(id);
   }
 
-  /** Charge le profil Canari (bio, associations) de la personne centrale. */
+  /** Load the Canari profile (bio, clubs) of the centered person. */
   async function loadCanari(id: string) {
     try {
       const res = await fetch(`/api/canari/${encodeURIComponent(id)}`);
@@ -104,14 +105,14 @@
     return `${m.prenom?.[0] ?? ""}${m.nom?.[0] ?? ""}`.toUpperCase() || "?";
   }
 
-  const KIND_LABEL: Record<RelationKind, string> = {
-    parrainage: "officiel",
-    adoption: "adoption",
-  };
+  let KIND_LABEL: Record<RelationKind, string> = $derived({
+    parrainage: m.tree_kind_official(),
+    adoption: m.tree_kind_adoption(),
+  });
 
   /**
-   * Construit les slots d un cote (ascendant/descendant) pour un type donne :
-   * les membres existants puis, si editable, les slots vides restants.
+   * Build the slots for one side (ascendants/descendants) of a given kind:
+   * existing members first, then the remaining empty slots when editable.
    */
   function slots(
     members: EntourageMember[],
@@ -131,8 +132,9 @@
   }
 
   function openAdd(role: RelationRole, kind: RelationKind) {
-    const who = role === "parrain" ? "parrain/marraine" : "fillot/fillote";
-    modal = { role, kind, title: `Ajouter un ${who} ${KIND_LABEL[kind]}` };
+    const who =
+      role === "parrain" ? m.tree_role_sponsor() : m.tree_role_godchild();
+    modal = { role, kind, title: m.tree_add_title({ who, kind: KIND_LABEL[kind] }) };
   }
 
   function onAdded() {
@@ -160,11 +162,7 @@
       // (a mistyped star recreated elsewhere leaves such an orphan behind).
       if (result.orphan) {
         const o = result.orphan;
-        if (
-          confirm(
-            `L'étoile « ${o.prenom} ${o.nom} » n'a plus aucune relation. La supprimer ?`,
-          )
-        ) {
+        if (confirm(m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }))) {
           await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
             method: "DELETE",
           });
@@ -207,7 +205,7 @@
       await load(centerId);
     } else {
       const d = await res.json().catch(() => ({}));
-      alert(d.error || "Échec de la modification.");
+      alert(d.error || m.tree_edit_failed());
     }
   }
 
@@ -216,7 +214,7 @@
     if (!editing || !data) return;
     if (
       !confirm(
-        `Supprimer définitivement l'étoile « ${editing.prenom} ${editing.nom} » ?`,
+        m.tree_delete_confirm({ name: `${editing.prenom} ${editing.nom}` }),
       )
     ) {
       return;
@@ -230,24 +228,24 @@
       await load(centerId);
     } else {
       const d = await res.json().catch(() => ({}));
-      alert(d.error || "Échec de la suppression.");
+      alert(d.error || m.tree_delete_failed());
     }
   }
 </script>
 
 <svelte:head>
-  <title>Mon arbre - Sky</title>
+  <title>{m.tree_page_title()}</title>
 </svelte:head>
 
 <div class="tree-page">
   <header class="bar">
     <button class="back" onclick={() => goto("/")}>
-      <ArrowLeft size={18} /> Carte
+      <ArrowLeft size={18} /> {m.tree_map()}
     </button>
-    <h1>Arbre de parrainage</h1>
+    <h1>{m.tree_heading()}</h1>
     {#if data && !isMe}
       <button class="back" onclick={backToMe}>
-        <Home size={18} /> Mon arbre
+        <Home size={18} /> {m.nav_my_tree()}
       </button>
     {:else}
       <span class="spacer"></span>
@@ -257,10 +255,10 @@
   {#if loading}
     <div class="state"><Loader2 size={40} class="spin" /></div>
   {:else if !data}
-    <div class="state">Aucune fiche liee a votre compte.</div>
+    <div class="state">{m.tree_no_fiche()}</div>
   {:else}
     <div class="tree" in:fade>
-      <!-- Ascendants (parrains) -->
+      <!-- Ascendants (sponsors) -->
       <div class="row ascendants">
         {#each slots(data.parrains, "parrainage", data.maxParrains.parrainage) as s}
           {@render slotCard(s.member, "parrain", "parrainage")}
@@ -272,7 +270,7 @@
 
       <div class="connector up"><ChevronUp size={16} /></div>
 
-      <!-- Centre (moi / personne ciblee) -->
+      <!-- Center (me / targeted person) -->
       <div class="row center">
         <div class="card self">
           <div class="avatar big">
@@ -287,15 +285,19 @@
           </div>
           <div class="meta">
             <span class="name">{data.person.prenom} {data.person.nom}</span>
-            <span class="promo">Promo {data.person.level || "?"}</span>
+            <span class="promo"
+              >{m.common_promo({ level: data.person.level || "?" })}</span
+            >
           </div>
-          {#if isMe}<span class="me-badge"><Crown size={12} /> Moi</span>{/if}
+          {#if isMe}<span class="me-badge"
+              ><Crown size={12} /> {m.tree_me()}</span
+            >{/if}
         </div>
       </div>
 
       <div class="connector down"></div>
 
-      <!-- Descendants (fillots) -->
+      <!-- Descendants (godchildren) -->
       <div class="row descendants">
         {#each slots(data.fillots, "parrainage", data.maxFillots.parrainage) as s}
           {@render slotCard(s.member, "fillot", "parrainage")}
@@ -308,21 +310,21 @@
       {#if canari?.linked && canari.profile}
         <section class="canari" in:fade>
           <div class="canari-head">
-            <h2>Profil</h2>
+            <h2>{m.profile_link()}</h2>
             <a
               class="profil-link"
               href={`${$page.data.canariUrl}/profile/${canari.profile.sub}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ExternalLink size={14} /> Voir sur Canari
+              <ExternalLink size={14} /> {m.tree_view_on_canari()}
             </a>
           </div>
           {#if canari.profile.bio}
             <BioMarkdown source={canari.profile.bio} />
           {/if}
           {#if canari.profile.associations.length > 0}
-            <h3>Associations</h3>
+            <h3>{m.profile_associations()}</h3>
             <div class="chips">
               {#each canari.profile.associations as a (a.slug)}
                 <span class="chip">
@@ -335,7 +337,7 @@
             </div>
           {/if}
           {#if canari.profile.formerAssociations.length > 0}
-            <h3>Anciennes associations</h3>
+            <h3>{m.profile_former_associations()}</h3>
             <div class="chips">
               {#each canari.profile.formerAssociations as a, i (i)}
                 <span class="chip ghost">
@@ -367,7 +369,7 @@
       <button
         class="nav"
         onclick={() => load(member.id)}
-        title="Voir son arbre"
+        title={m.tree_see_tree()}
       >
         <div class="avatar">
           <img
@@ -381,7 +383,11 @@
         </div>
         <div class="meta">
           <span class="name">{member.prenom} {member.nom}</span>
-          <span class="promo">P{member.level || "?"} · {KIND_LABEL[kind]}</span>
+          <span class="promo"
+            >{m.tree_promo_short({ level: member.level || "?" })} · {KIND_LABEL[
+              kind
+            ]}</span
+          >
         </div>
       </button>
       {#if canEdit}
@@ -389,8 +395,8 @@
           <button
             class="edit"
             onclick={() => openEdit(member)}
-            aria-label="Modifier cette étoile"
-            title="Modifier (nom/prénom/promo)"
+            aria-label={m.tree_edit_star_aria()}
+            title={m.tree_edit_star_title()}
           >
             <Pencil size={14} />
           </button>
@@ -398,8 +404,8 @@
         <button
           class="del"
           onclick={() => removeRelation(member.relId)}
-          aria-label="Retirer"
-          title="Retirer le lien"
+          aria-label={m.tree_remove_aria()}
+          title={m.tree_remove_title()}
         >
           <Trash2 size={14} />
         </button>
@@ -436,27 +442,26 @@
     role="presentation"
   >
     <div class="edit-dialog" role="dialog" aria-modal="true">
-      <h2>Modifier l'étoile</h2>
+      <h2>{m.tree_edit_dialog_title()}</h2>
       <p class="edit-hint">
-        Fiche placeholder (non reliée à un compte) : tu peux corriger son
-        identité ou la supprimer.
+        {m.tree_edit_hint()}
       </p>
       <div class="edit-row">
-        <input placeholder="Prénom" bind:value={editing.prenom} />
-        <input placeholder="Nom" bind:value={editing.nom} />
+        <input placeholder={m.common_firstname()} bind:value={editing.prenom} />
+        <input placeholder={m.common_lastname()} bind:value={editing.nom} />
       </div>
       <input
         type="number"
-        placeholder="Promotion (ex : 2024)"
+        placeholder={m.tree_promo_placeholder()}
         bind:value={editing.level}
       />
       <div class="edit-actions">
         <button class="edit-danger" onclick={deleteStar}>
-          <Trash2 size={14} /> Supprimer
+          <Trash2 size={14} /> {m.common_delete()}
         </button>
         <span class="spacer"></span>
         <button class="edit-ghost" onclick={() => (editing = null)}
-          >Annuler</button
+          >{m.common_cancel()}</button
         >
         <button
           class="edit-primary"
@@ -465,7 +470,7 @@
             !editing.nom.trim() ||
             !editing.level}
         >
-          Enregistrer
+          {m.common_save()}
         </button>
       </div>
     </div>
