@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from "./$types";
 
-// Base publique de Canari (meme domaine que l API profil) pour construire les
-// liens "Profil" cote client : <canariUrl>/profile/<sub>.
+// Canari public base (same domain as the profile API) to build client-side
+// "Profile" links: <canariUrl>/profile/<sub>.
 const CANARI_URL = (
   process.env.CANARI_API_URL || "https://canari-emse.fr"
 ).replace(/\/+$/, "");

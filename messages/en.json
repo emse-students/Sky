@@ -219,5 +219,6 @@
   "api_oidc_state_invalid": "State validation failed",
   "api_auth_failed": "Authentication failed",
   "account_no_fiche_selected": "No record selected.",
-  "account_fiche_unavailable": "This record is no longer available (already linked or not found)."
+  "account_fiche_unavailable": "This record is no longer available (already linked or not found).",
+  "api_login_failed": "Sign-in failed"
 }

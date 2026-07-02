@@ -6,7 +6,7 @@
 
   let { data, form } = $props();
 
-  // Valeur initiale figee (le choix devient ensuite pilote par l utilisateur).
+  // Frozen initial value (the choice is then driven by the user).
   let choice = $state<string>(untrack(() => data.candidates[0]?.id ?? "new"));
   let submitting = $state(false);
 </script>

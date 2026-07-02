@@ -9,9 +9,9 @@ import {
 } from "$server/database";
 
 /**
- * Consultation lecture seule de l ancienne base (snapshot `sky-legacy.db`),
- * pour reconstruire les donnees a la main. `?id=` renvoie les relations d une
- * fiche ; sinon liste de personnes filtrable via `?q=` + compteurs.
+ * Read-only browsing of the legacy database (snapshot `sky-legacy.db`), to
+ * rebuild data by hand. `?id=` returns a record's relations; otherwise a list
+ * of people filterable via `?q=` plus counts.
  */
 export const GET: RequestHandler = ({ locals, url }) => {
   requireAdmin(locals);

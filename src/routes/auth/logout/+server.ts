@@ -4,8 +4,8 @@ import { deleteSession } from "$server/database";
 import { SESSION_COOKIE_NAME, clearSessionCookie } from "$server/session";
 
 /**
- * Termine la session : supprime la ligne `sessions` et le cookie, puis renvoie
- * a l accueil. Accepte GET et POST (lien simple ou formulaire).
+ * Ends the session: deletes the `sessions` row and the cookie, then redirects
+ * home. Accepts GET and POST (plain link or form).
  */
 function handleLogout(cookies: import("@sveltejs/kit").Cookies): never {
   const token = cookies.get(SESSION_COOKIE_NAME);

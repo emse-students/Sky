@@ -20,13 +20,13 @@ export interface JsonRelation {
   type: string;
 }
 
-/** Sens d un lien d entourage du point de vue de l utilisateur. */
+/** Direction of an entourage link from the user's point of view. */
 export type RelationRole = "parrain" | "fillot";
 
-/** Type de lien de parrainage (miroir client du type serveur). */
+/** Sponsorship link type (client mirror of the server type). */
 export type RelationKind = "parrainage" | "adoption";
 
-/** Un membre d entourage tel que renvoye par /api/entourage. */
+/** An entourage member as returned by /api/entourage. */
 export interface EntourageMember {
   relId: number;
   kind: RelationKind;
@@ -38,28 +38,28 @@ export interface EntourageMember {
   linked: boolean;
 }
 
-/** Association actuelle d un membre (projection publique Canari). */
+/** A member's current club (public Canari projection). */
 export interface CanariAssociation {
   name: string;
   slug: string;
   role: string;
   logoUrl: string | null;
-  /** URL absolue du logo, resolue cote serveur Sky (sinon null). */
+  /** Absolute logo URL, resolved on the Sky server (else null). */
   logo?: string | null;
 }
 
-/** Association passee ou role honorifique (CV Canari). */
+/** Former club or honorary role (Canari CV). */
 export interface CanariFormerAssociation {
   name: string;
   role: string;
   logoUrl: string | null;
-  /** URL absolue du logo, resolue cote serveur Sky (sinon null). */
+  /** Absolute logo URL, resolved on the Sky server (else null). */
   logo?: string | null;
   startYear: number | null;
   endYear: number | null;
 }
 
-/** Profil public Canari agrege (bio + associations), keye par sub Authentik. */
+/** Aggregated public Canari profile (bio + clubs), keyed by Authentik sub. */
 export interface CanariProfile {
   sub: string;
   displayName: string | null;
@@ -72,7 +72,7 @@ export interface CanariProfile {
   formerAssociations: CanariFormerAssociation[];
 }
 
-/** Reponse de /api/canari/[id] : etat de liaison + profil Canari eventuel. */
+/** Response of /api/canari/[id]: link state + optional Canari profile. */
 export interface CanariProfileResponse {
   linked: boolean;
   profile?: CanariProfile | null;

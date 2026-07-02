@@ -3,13 +3,13 @@ import type { RequestHandler } from "./$types";
 import { getPersonAuthSub } from "$lib/server/database";
 import type { CanariProfile } from "$types/graph";
 
-// URL publique de Canari et cle de l API profil externe (cote serveur uniquement).
+// Canari public URL and external-profile API key (server-side only).
 const CANARI_API_URL = (
   process.env.CANARI_API_URL || "https://canari-emse.fr"
 ).replace(/\/+$/, "");
 const CANARI_API_KEY = process.env.CANARI_API_KEY;
 
-/** Resout un logo d association en URL absolue (chemin relatif -> domaine Canari). */
+/** Resolves a club logo to an absolute URL (relative path -> Canari domain). */
 function resolveCanariLogo(logoUrl: string | null): string | null {
   const u = logoUrl?.trim();
   if (!u) {
@@ -19,10 +19,10 @@ function resolveCanariLogo(logoUrl: string | null): string | null {
 }
 
 /**
- * Proxy le profil Canari (bio, associations actuelles/anciennes) d une fiche Sky.
- * Resout d abord le sub Authentik de la fiche (cle commune) ; une fiche
- * placeholder non liee n a pas de profil Canari (`linked: false`). La cle API
- * reste cote serveur ; le client ne recoit que la projection publique.
+ * Proxies the Canari profile (bio, current/former clubs) of a Sky record.
+ * First resolves the record's Authentik sub (shared key); an unlinked
+ * placeholder record has no Canari profile (`linked: false`). The API key stays
+ * server-side; the client only receives the public projection.
  */
 export const GET: RequestHandler = async ({ params }) => {
   const { id } = params;
@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ params }) => {
     return json({ linked: false });
   }
   if (!CANARI_API_KEY) {
-    console.error("[Canari] CANARI_API_KEY non configure");
+    console.error("[Canari] CANARI_API_KEY not configured");
     return json({ linked: true, error: "unconfigured" });
   }
 
@@ -44,12 +44,12 @@ export const GET: RequestHandler = async ({ params }) => {
       return json({ linked: true, profile: null });
     }
     if (!res.ok) {
-      console.error(`[Canari] profil ${sub} -> HTTP ${res.status}`);
+      console.error(`[Canari] profile ${sub} -> HTTP ${res.status}`);
       return json({ linked: true, error: "upstream" });
     }
     const profile = (await res.json()) as CanariProfile;
-    // Resout les logos d associations en URL absolue (logoUrl = chemin
-    // same-origin `/api/media/public/:id` cote Canari, public et sans auth).
+    // Resolve club logos to absolute URLs (logoUrl = same-origin path
+    // `/api/media/public/:id` on Canari, public and unauthenticated).
     profile.associations = (profile.associations ?? []).map((a) => ({
       ...a,
       logo: resolveCanariLogo(a.logoUrl),
@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ params }) => {
     );
     return json({ linked: true, profile });
   } catch (e) {
-    console.error("[Canari] echec de recuperation du profil:", e);
+    console.error("[Canari] profile fetch failed:", e);
     return json({ linked: true, error: "network" });
   }
 };

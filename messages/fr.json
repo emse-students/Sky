@@ -219,5 +219,6 @@
   "api_oidc_state_invalid": "Validation du state échouée",
   "api_auth_failed": "Authentification échouée",
   "account_no_fiche_selected": "Aucune fiche sélectionnée.",
-  "account_fiche_unavailable": "Cette fiche n'est plus disponible (déjà liée ou introuvable)."
+  "account_fiche_unavailable": "Cette fiche n'est plus disponible (déjà liée ou introuvable).",
+  "api_login_failed": "Échec de la connexion"
 }
