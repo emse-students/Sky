@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const prenom = formatFirstName(data.prenom);
     const nom = formatLastName(data.nom);
 
-    // Nom, prenom and promo are mandatory when creating a star.
+    // Last name, first name and class are mandatory when creating a star.
     if (!prenom || !nom || data.level === null || data.level === undefined) {
       return json({ error: m.modal_required_fields() }, { status: 400 });
     }

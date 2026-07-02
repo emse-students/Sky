@@ -2,19 +2,20 @@ import { error, redirect } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { generateAuthorizationUrl } from "$server/oidc";
 import { randomBytes } from "crypto";
+import { m } from "$lib/paraglide/messages";
 
 const STATE_COOKIE_NAME = "__oidc_state";
 const NONCE_COOKIE_NAME = "__oidc_nonce";
 
-/** Genere une chaine aleatoire base64url (state / nonce anti-CSRF). */
+/** Generates a random base64url string (anti-CSRF state / nonce). */
 function generateRandomString(length: number): string {
   return randomBytes(length).toString("base64url");
 }
 
 /**
- * Demarre le flux OIDC : pose les cookies state/nonce puis redirige vers
- * l ecran d autorisation Authentik. Le redirect_uri pointe sur `/auth/callback`
- * (doit correspondre a l URI enregistree dans l app Authentik).
+ * Starts the OIDC flow: sets the state/nonce cookies then redirects to the
+ * Authentik authorization screen. The redirect_uri points to `/auth/callback`
+ * (must match the URI registered in the Authentik app).
  */
 export const GET: RequestHandler = ({ cookies, url }) => {
   let authUrl: string;
@@ -35,8 +36,8 @@ export const GET: RequestHandler = ({ cookies, url }) => {
     const callbackUrl = new URL("/auth/callback", url.origin).toString();
     authUrl = generateAuthorizationUrl(callbackUrl, state, nonce);
   } catch (e) {
-    console.error("[LOGIN] Erreur:", e);
-    throw error(500, "Echec de la connexion");
+    console.error("[LOGIN] Error:", e);
+    throw error(500, m.api_login_failed());
   }
 
   throw redirect(302, authUrl);

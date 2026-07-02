@@ -3,10 +3,10 @@ import type { RequestHandler } from "./$types";
 import { timingSafeEqual } from "crypto";
 import { getEntourageBySub } from "$lib/server/database";
 
-// Cle de l API publique entrante (Canari -> Sky). Vide = refus de tout appel.
+// Inbound public API key (Canari -> Sky). Empty = every call is rejected.
 const SKY_API_KEY = process.env.SKY_API_KEY;
 
-/** Comparaison timing-safe d une cle fournie avec SKY_API_KEY. */
+/** Timing-safe comparison of a provided key against SKY_API_KEY. */
 function validKey(provided: string | null): boolean {
   if (!SKY_API_KEY || !provided) {
     return false;
@@ -19,10 +19,10 @@ function validKey(provided: string | null): boolean {
 }
 
 /**
- * API publique protegee par x-api-key (SKY_API_KEY) : entourage de parrainage
- * d une personne keye par son sub Authentik. Consommee par Canari pour afficher
- * l arbre proche sur la page profil. Exemptee du gate de session (cf.
- * hooks.server.ts) car l authentification est la cle, pas une session ICM.
+ * Public API protected by x-api-key (SKY_API_KEY): a person's sponsorship
+ * entourage keyed by their Authentik sub. Consumed by Canari to show the close
+ * tree on the profile page. Exempt from the session gate (cf. hooks.server.ts)
+ * because authentication is the key, not an ICM session.
  */
 export const GET: RequestHandler = ({ params, request }) => {
   if (!validKey(request.headers.get("x-api-key"))) {

@@ -1,17 +1,17 @@
 /**
- * Flux OIDC Authentik (miconnect) pour Sky.
+ * Authentik (miconnect) OIDC flow for Sky.
  *
- * Porte du module equivalent de MiGallery : meme instance Authentik, memes
- * claims (`sub, given_name/family_name, email, promo, formation`). Ce module est
- * volontairement sans acces base de donnees : il renvoie une identite brute
- * (`OidcClaims`) que le callback relie a une fiche `people` via la cle
- * quasi-unique (nom, prenom, promotion). La photo de profil vient de l API
- * MiGallery (`/api/avatar/{sub}`), pas du claim `picture` (non utilise).
+ * Ported from MiGallery's equivalent module: same Authentik instance, same
+ * claims (`sub, given_name/family_name, email, promo, formation`). This module
+ * is deliberately database-free: it returns a raw identity (`OidcClaims`) that
+ * the callback links to a `people` record via the quasi-unique key (last name,
+ * first name, class). The profile picture comes from the MiGallery API
+ * (`/api/avatar/{sub}`), not from the `picture` claim (unused).
  */
 
 import { formatFirstName, formatLastName } from "$utils/format";
 
-/** Reponse du endpoint /token/ d Authentik. */
+/** Response of Authentik's /token/ endpoint. */
 interface OidcToken {
   access_token: string;
   id_token: string;
@@ -22,10 +22,10 @@ interface OidcToken {
 }
 
 /**
- * Profil brut renvoye par /userinfo/ (claims arbitraires inclus). Cette instance
- * miconnect expose le prenom/nom en claims custom `firstName`/`lastName`
- * (camelCase, comme les lit Canari) ; les `given_name`/`family_name` standards ne
- * sont qu un repli (et peuvent contenir le nom complet sur certains comptes).
+ * Raw profile returned by /userinfo/ (arbitrary claims included). This miconnect
+ * instance exposes first/last name in custom claims `firstName`/`lastName`
+ * (camelCase, as Canari reads them); the standard `given_name`/`family_name` are
+ * only a fallback (and may hold the full name on some accounts).
  */
 interface OidcProfile {
   sub?: string;
@@ -41,8 +41,8 @@ interface OidcProfile {
 }
 
 /**
- * Identite resolue depuis le SSO, prete a etre reliee a une fiche `people`.
- * `promo` correspond a la colonne `level`.
+ * Identity resolved from the SSO, ready to be linked to a `people` record.
+ * `promo` maps to the `level` column.
  */
 export interface OidcClaims {
   sub: string;
@@ -54,10 +54,10 @@ export interface OidcClaims {
 }
 
 /**
- * Base Authentik sans slash final (ex: https://auth.canari-emse.fr). Comme
- * Canari, les endpoints sont a un chemin global `/application/o/<endpoint>/` :
- * le slug de l app n apparait que dans l issuer des tokens, pas dans les URLs
- * d endpoint (un chemin slugge `/o/<slug>/authorize/` renvoie 404 sous Authentik).
+ * Authentik base without trailing slash (e.g. https://auth.canari-emse.fr). As
+ * in Canari, endpoints live at a global path `/application/o/<endpoint>/`: the
+ * app slug only appears in the token issuer, not in the endpoint URLs (a slugged
+ * path `/o/<slug>/authorize/` returns 404 under Authentik).
  */
 function getBaseUrl(): string {
   return (process.env.MICONNECT_BASE_URL || "").trim().replace(/\/+$/, "");
@@ -69,7 +69,7 @@ function trimmedOrNull(value: unknown): string | null {
     : null;
 }
 
-/** Convertit une promo (string ou number) en entier, sinon null. */
+/** Converts a class value (string or number) to an integer, else null. */
 function parsePromo(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -81,7 +81,7 @@ function parsePromo(value: unknown): number | null {
   return null;
 }
 
-/** Decode la charge utile d un JWT (sans verification de signature, parsing seul). */
+/** Decodes a JWT payload (no signature verification, parsing only). */
 function decodeJWT(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
@@ -95,12 +95,12 @@ function decodeJWT(token: string): Record<string, unknown> | null {
       ? (parsed as Record<string, unknown>)
       : null;
   } catch (e) {
-    console.error("[OIDC] Echec du decodage JWT:", e);
+    console.error("[OIDC] JWT decoding failed:", e);
     return null;
   }
 }
 
-/** Echange le code d autorisation contre des tokens. */
+/** Exchanges the authorization code for tokens. */
 async function exchangeCodeForTokens(
   code: string,
   redirectUri: string,
@@ -120,7 +120,7 @@ async function exchangeCodeForTokens(
 
     if (!response.ok) {
       console.error(
-        "[OIDC] Echange de code echoue:",
+        "[OIDC] Code exchange failed:",
         response.status,
         await response.text(),
       );
@@ -128,12 +128,12 @@ async function exchangeCodeForTokens(
     }
     return (await response.json()) as OidcToken;
   } catch (e) {
-    console.error("[OIDC] Erreur a l echange de code:", e);
+    console.error("[OIDC] Error during code exchange:", e);
     return null;
   }
 }
 
-/** Recupere le profil utilisateur via /userinfo/. */
+/** Fetches the user profile via /userinfo/. */
 async function fetchUserProfile(
   accessToken: string,
 ): Promise<OidcProfile | null> {
@@ -143,7 +143,7 @@ async function fetchUserProfile(
     });
     if (!response.ok) {
       console.error(
-        "[OIDC] Recuperation userinfo echouee:",
+        "[OIDC] userinfo fetch failed:",
         response.status,
         await response.text(),
       );
@@ -151,12 +151,12 @@ async function fetchUserProfile(
     }
     return (await response.json()) as OidcProfile;
   } catch (e) {
-    console.error("[OIDC] Echec de recuperation du profil:", e);
+    console.error("[OIDC] Profile fetch failed:", e);
     return null;
   }
 }
 
-/** Construit l URL d autorisation Authentik (debut du flux). */
+/** Builds the Authentik authorization URL (start of the flow). */
 export function generateAuthorizationUrl(
   redirectUri: string,
   state: string,
@@ -174,9 +174,9 @@ export function generateAuthorizationUrl(
 }
 
 /**
- * Deroule le flux OIDC : code -> tokens -> profil. Renvoie l identite resolue
- * (claims). La promo/formation sont lues sur le profil userinfo, completees si
- * besoin par les claims de l id_token. Renvoie null si une etape echoue.
+ * Runs the OIDC flow: code -> tokens -> profile. Returns the resolved identity
+ * (claims). Class/formation are read from the userinfo profile, completed if
+ * needed from the id_token claims. Returns null if any step fails.
  */
 export async function completeOIDCFlow(
   code: string,
@@ -184,29 +184,29 @@ export async function completeOIDCFlow(
 ): Promise<OidcClaims | null> {
   const tokens = await exchangeCodeForTokens(code, redirectUri);
   if (!tokens) {
-    console.error("[OIDC] Flux interrompu a l echange de code");
+    console.error("[OIDC] Flow aborted at code exchange");
     return null;
   }
 
   const profile = await fetchUserProfile(tokens.access_token);
   if (!profile) {
-    console.error("[OIDC] Flux interrompu a la recuperation du profil");
+    console.error("[OIDC] Flow aborted at profile fetch");
     return null;
   }
 
   const sub = trimmedOrNull(profile.sub);
   if (!sub) {
-    console.error("[OIDC] Aucun claim sub dans le profil");
+    console.error("[OIDC] No sub claim in the profile");
     return null;
   }
 
-  // Certains claims (promo/formation) peuvent n etre que dans l id_token.
+  // Some claims (promo/formation) may live only in the id_token.
   const idClaims = decodeJWT(tokens.id_token) || {};
 
-  // Cette instance fournit firstName/lastName (camelCase) ; given_name/family_name
-  // en repli (peuvent contenir le nom complet -> a eviter en priorite). Si l un
-  // des deux manque, on derive du claim `name` (nom complet) pour ne jamais
-  // afficher un id brut a la place du nom (cf. getPersonName).
+  // This instance provides firstName/lastName (camelCase); given_name/family_name
+  // as a fallback (may hold the full name -> avoid when possible). If either is
+  // missing, derive from the `name` claim (full name) so a raw id is never shown
+  // in place of the name (cf. getPersonName).
   let firstName =
     trimmedOrNull(profile.firstName) ?? trimmedOrNull(profile.given_name);
   let lastName =
@@ -231,7 +231,7 @@ export async function completeOIDCFlow(
     trimmedOrNull(profile.formation) ?? trimmedOrNull(idClaims.formation);
 
   console.debug(
-    `[OIDC] Login: sub=${sub} nom=${lastName} prenom=${firstName} promo=${promo ?? "null"} formation=${formation ?? "null"}`,
+    `[OIDC] Login: sub=${sub} lastName=${lastName} firstName=${firstName} promo=${promo ?? "null"} formation=${formation ?? "null"}`,
   );
 
   return {

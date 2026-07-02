@@ -1,13 +1,13 @@
 /**
- * Cookie de session opaque Sky. Le token (uuid) reference une ligne `sessions`
- * resolue cote serveur (cf. database.ts) ; aucune donnee signee cote client.
- * Partage par le callback OIDC, le logout et `hooks.server.ts`.
+ * Sky opaque session cookie. The token (uuid) references a `sessions` row
+ * resolved server-side (cf. database.ts); no signed data on the client. Shared
+ * by the OIDC callback, the logout and `hooks.server.ts`.
  */
 import type { Cookies } from "@sveltejs/kit";
 
 export const SESSION_COOKIE_NAME = "sky_session";
 
-/** Pose le cookie de session (httpOnly, expire avec la session en base). */
+/** Sets the session cookie (httpOnly, expires with the DB session). */
 export function setSessionCookie(
   cookies: Cookies,
   token: string,
@@ -22,7 +22,7 @@ export function setSessionCookie(
   });
 }
 
-/** Supprime le cookie de session (logout). */
+/** Clears the session cookie (logout). */
 export function clearSessionCookie(cookies: Cookies): void {
   cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
 }

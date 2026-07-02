@@ -45,8 +45,8 @@ export const GET: RequestHandler = async ({ params }) => {
       }
     }
 
-    // 2. Try MiGallery via le sub Authentik (cle photo). Une fiche placeholder
-    // (sans compte lie) n a pas de photo MiGallery -> initiales directement.
+    // 2. Try MiGallery via the Authentik sub (photo key). A placeholder record
+    // (no linked account) has no MiGallery photo -> initials directly.
     const sub = getPersonAuthSub(id);
     const response = sub
       ? await fetch(`${MIGALLERY_API_URL}/api/users/${sub}/avatar`, {
@@ -56,15 +56,15 @@ export const GET: RequestHandler = async ({ params }) => {
 
     if (sub) {
       console.debug(
-        `[Avatar API] MiGallery status pour ${sub}: ${response?.status}`,
+        `[Avatar API] MiGallery status for ${sub}: ${response?.status}`,
       );
     } else {
-      console.debug(`[Avatar API] ${id} sans compte lie -> initiales`);
+      console.debug(`[Avatar API] ${id} has no linked account -> initials`);
     }
 
     if (!response || !response.ok) {
       console.debug(
-        `[Avatar API] Pas de photo (${response?.status ?? "no-account"}) -> initiales`,
+        `[Avatar API] No photo (${response?.status ?? "no-account"}) -> initials`,
       );
       // Get person from database for proper initials
       let initials = "?";
@@ -102,8 +102,8 @@ export const GET: RequestHandler = async ({ params }) => {
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml",
-          // Placeholder (pas de photo) : ne pas mettre en cache, sinon la vraie
-          // photo n apparait qu apres expiration (hard refresh necessaire).
+          // Placeholder (no photo): do not cache, otherwise the real photo only
+          // appears after expiry (a hard refresh would be required).
           "Cache-Control": "no-store",
         },
       });
@@ -120,8 +120,8 @@ export const GET: RequestHandler = async ({ params }) => {
     return new Response(imageBuffer, {
       headers: {
         "Content-Type": contentType,
-        // Cache court + revalidation : une nouvelle photo apparait vite sans
-        // hard refresh, tout en evitant de retelecharger a chaque vue.
+        // Short cache + revalidation: a new photo appears quickly without a hard
+        // refresh, while avoiding a re-download on every view.
         "Cache-Control": "public, max-age=600, stale-while-revalidate=60",
       },
     });
