@@ -1,22 +1,18 @@
 <script lang="ts">
   import { ShieldAlert } from "lucide-svelte";
+  import { m } from "$lib/paraglide/messages";
 </script>
 
 <svelte:head>
-  <title>Acces reserve aux ICM — Sky</title>
+  <title>{m.unauthorized_page_title()}</title>
 </svelte:head>
 
 <div class="unauthorized">
   <ShieldAlert size={64} class="icon" />
-  <h1>Acces reserve aux ICM</h1>
-  <p>
-    Sky est l arbre de parrainage des ICM. Ton compte n est pas rattache a la
-    formation ICM, l acces n est donc pas autorise.
-  </p>
-  <p class="hint">
-    Si tu penses qu il s agit d une erreur, contacte un administrateur.
-  </p>
-  <a class="back" href="/auth/logout">Se deconnecter</a>
+  <h1>{m.unauthorized_title()}</h1>
+  <p>{m.unauthorized_body()}</p>
+  <p class="hint">{m.unauthorized_hint()}</p>
+  <a class="back" href="/auth/logout">{m.common_logout()}</a>
 </div>
 
 <style>

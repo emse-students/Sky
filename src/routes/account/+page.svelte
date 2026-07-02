@@ -3,6 +3,8 @@
   import { ArrowLeft, Search, Link2, Check } from "lucide-svelte";
   import { goto } from "$app/navigation";
   import { personMatchScore } from "$lib/utils/format";
+  import { m } from "$lib/paraglide/messages";
+  import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
 
   let { data, form } = $props();
 
@@ -43,25 +45,23 @@
 </script>
 
 <svelte:head>
-  <title>Corriger ma liaison - Sky</title>
+  <title>{m.account_page_title()}</title>
 </svelte:head>
 
 <div class="account-layout">
   <header class="account-header">
     <button class="btn-back" onclick={() => goto("/")}>
       <ArrowLeft size={20} />
-      <span>Retour</span>
+      <span>{m.common_back()}</span>
     </button>
-    <h1>Corriger ma liaison</h1>
-    <div></div>
+    <h1>{m.account_heading()}</h1>
+    <LocaleSwitcher />
   </header>
 
   <div class="account-content">
     <p class="current">
-      Ton compte est actuellement relié à la fiche
-      <strong>{data.currentName}</strong>. Si ce n'est pas la bonne étoile,
-      choisis ci-dessous la fiche à laquelle rattacher ton compte. L'ancienne
-      fiche redevient un placeholder (ses liens de parrainage sont conservés).
+      {m.account_relink_intro_before()}
+      <strong>{data.currentName}</strong>. {m.account_relink_intro_after()}
     </p>
 
     {#if form?.error}
@@ -72,13 +72,13 @@
       <Search size={18} />
       <input
         type="text"
-        placeholder="Rechercher une fiche par nom, prénom, promo..."
+        placeholder={m.account_search_placeholder()}
         bind:value={searchTerm}
       />
     </div>
 
     {#if !searchTerm && results.length > 0}
-      <p class="hint">Fiches qui te ressemblent :</p>
+      <p class="hint">{m.account_suggest_hint()}</p>
     {/if}
 
     <ul class="candidate-list">
@@ -92,14 +92,16 @@
             <span class="cand-name"
               >{person.nom.toUpperCase()} {person.prenom}</span
             >
-            <span class="cand-promo">Promo {person.level ?? "—"}</span>
+            <span class="cand-promo"
+              >{m.common_promo({ level: person.level ?? "-" })}</span
+            >
             {#if chosenId === person.id}
               <Check size={16} class="cand-check" />
             {/if}
           </button>
         </li>
       {:else}
-        <li class="empty">Aucune fiche non liée ne correspond.</li>
+        <li class="empty">{m.account_empty()}</li>
       {/each}
     </ul>
 
@@ -108,11 +110,7 @@
         method="POST"
         action="?/relink"
         use:enhance={() => {
-          if (
-            !confirm(
-              "Déplacer ton compte vers cette fiche ? Tu resteras connecté.",
-            )
-          ) {
+          if (!confirm(m.account_relink_confirm())) {
             return ({ update }) => update({ reset: false });
           }
           return async ({ update }) => update();
@@ -121,7 +119,7 @@
         <input type="hidden" name="targetId" value={chosenId} />
         <button type="submit" class="btn-relink">
           <Link2 size={18} />
-          <span>Rattacher mon compte à cette fiche</span>
+          <span>{m.account_relink_button()}</span>
         </button>
       </form>
     {/if}
