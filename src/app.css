@@ -15,11 +15,17 @@
 body {
   font-family: "Space Grotesk", sans-serif;
   background: #000;
-  overflow: hidden;
-  width: 100vw;
-  height: 100vh;
-  position: fixed;
   color: #fff; /* Ensure default text color matches original logic */
+  min-height: 100vh;
+}
+
+/* The home map is a full-screen fixed canvas that must not scroll: lock the
+   viewport ONLY there. Every other page (tree, admin, account, profile) is a
+   normal scrollable document, so the body scrolls by default. */
+main.map-view {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
 
 /* ==================== CANVAS ==================== */

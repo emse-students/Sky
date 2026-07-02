@@ -1,7 +1,7 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import {
-  areDirectlyRelated,
+  isSameFamily,
   updatePlaceholderIdentity,
   deletePlaceholderPerson,
   countPersonRelations,
@@ -11,9 +11,9 @@ import {
 /**
  * Edit or delete a placeholder relative (a parrain/fillot not yet linked to a
  * real account). Allowed for an admin, or for the signed-in user when the target
- * is directly related to them (their own parrain/fillot) - so a user can fix a
- * mistyped name or remove a wrong star themselves. Real accounts are protected by
- * the DB layer (identity owned by MiConnect).
+ * belongs to their own parrainage family (same connected component) - so a user
+ * can fix a mistyped name or remove a wrong star anywhere in their tree. Real
+ * accounts are protected by the DB layer (identity owned by MiConnect).
  */
 function canManage(
   locals: App.Locals,
@@ -26,7 +26,7 @@ function canManage(
   if (user.role === "admin") {
     return true;
   }
-  return !!user.profile_id && areDirectlyRelated(user.profile_id, id);
+  return !!user.profile_id && isSameFamily(user.profile_id, id);
 }
 
 /** Coerce a JSON promo value to a positive integer, or null. */

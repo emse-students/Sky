@@ -79,13 +79,15 @@ export interface CanariProfileResponse {
   error?: string;
 }
 
-/** Reponse de /api/entourage : personne ciblee + parrains/fillots + maxima. */
+/** Response of /api/entourage: centered person + parrains/fillots + maxima. */
 export interface EntourageResponse {
   person: { id: string; prenom: string; nom: string; level: number | null };
   parrains: EntourageMember[];
   fillots: EntourageMember[];
   maxParrains: Record<RelationKind, number>;
   maxFillots: Record<RelationKind, number>;
+  /** Whether the requesting user may edit this tree (admin or same family). */
+  canEdit: boolean;
 }
 
 export interface Position {

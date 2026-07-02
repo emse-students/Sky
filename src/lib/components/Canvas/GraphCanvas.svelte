@@ -410,10 +410,11 @@
     if (!hasDragged && e.changedTouches.length > 0) {
       const t = e.changedTouches[0];
       const foundId = findNodeAt(t.clientX, t.clientY);
+      // Only a direct hit changes the selection. A tap on empty space does NOT
+      // exit focus: on touch, imprecise taps next to a star would otherwise drop
+      // it. Focus is left via the explicit "Exit" button in the focus hub.
       if (foundId) {
         selectedPersonId.set(foundId);
-      } else {
-        selectedPersonId.set(null);
       }
     }
     if (e.touches.length === 0) {

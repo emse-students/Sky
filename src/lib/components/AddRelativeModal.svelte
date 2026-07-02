@@ -3,6 +3,7 @@
   import { Search, UserPlus, X, Loader2 } from "lucide-svelte";
   import type { RelationRole, RelationKind } from "$types/graph";
   import { m } from "$lib/paraglide/messages";
+  import { formatPromoShort } from "$lib/utils/format";
 
   /**
    * Modal to add a network member for a given slot (role + kind fixed by the
@@ -181,13 +182,19 @@
           >
             <UserPlus size={16} />
             <span>{person.prenom} {person.nom}</span>
-            <small>{m.tree_promo_short({ level: person.level || "?" })}</small>
+            <small>{formatPromoShort(person.level)}</small>
           </button>
         {/each}
       </div>
-    {:else if searchTerm.trim().length >= 2 && !isSearching}
+    {/if}
+
+    <!-- Create is always offered once the query is long enough, even when
+         namesakes matched: the person to add may be a genuine new record. -->
+    {#if searchTerm.trim().length >= 2 && !isSearching}
       <div class="empty-hint">
-        <span>{m.modal_no_result()}</span>
+        {#if searchResults.length === 0}
+          <span>{m.modal_no_result()}</span>
+        {/if}
         <button class="ghost" onclick={() => (showCreate = !showCreate)}>
           {showCreate ? m.common_cancel() : m.modal_create_person()}
         </button>
@@ -239,7 +246,7 @@
             <UserPlus size={16} />
             <span>{c.firstName} {c.lastName}</span>
             <small
-              >{m.tree_promo_short({ level: c.level || "?" })}{c.linked
+              >{formatPromoShort(c.level)}{c.linked
                 ? ` · ${m.modal_account()}`
                 : ""}</small
             >

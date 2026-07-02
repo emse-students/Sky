@@ -1574,6 +1574,46 @@ export function areDirectlyRelated(aId: string, bId: string): boolean {
 }
 
 /**
+ * True if a and b belong to the same parrainage family: the same connected
+ * component of the relationship graph, edges traversed in BOTH directions and
+ * regardless of type. A person is trivially in their own family. This lets a
+ * member edit any node of the tree they belong to without granting global edit
+ * rights. BFS over the graph; fine for the Sky roster size.
+ */
+export function isSameFamily(aId: string, bId: string): boolean {
+  if (aId === bId) {
+    return true;
+  }
+  const database = getDatabase();
+  const outStmt = database.prepare(
+    "SELECT target_id AS other FROM relationships WHERE source_id = ?",
+  );
+  const inStmt = database.prepare(
+    "SELECT source_id AS other FROM relationships WHERE target_id = ?",
+  );
+  const visited = new Set<string>();
+  const queue: string[] = [aId];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    if (current === bId) {
+      return true;
+    }
+    if (visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    for (const stmt of [outStmt, inStmt]) {
+      for (const r of stmt.all(current) as { other: string }[]) {
+        if (!visited.has(r.other)) {
+          queue.push(r.other);
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Update a placeholder's identity (name/promo), enforcing the "NOM Prenom"
  * format. No-op (returns false) when the fiche is missing or is a real account
  * (auth_sub set): a linked person's identity is owned by MiConnect and must not
@@ -1645,8 +1685,8 @@ function pairKey(a: string, b: string): string {
 /**
  * Near-duplicate pairs for the admin to review: two fiches whose names are equal
  * or nearly equal (edit distance <= NAME_MATCH_MAX_DISTANCE, nom/prenom inversion
- * tolerated) with compatible promo (equal, unknown on one side, or the 3-year
- * entry/graduation gap). Pairs where BOTH are real accounts are excluded (two
+ * tolerated) with compatible promo (equal, unknown on one side, or within a
+ * small year tolerance). Pairs where BOTH are real accounts are excluded (two
  * distinct people cannot be merged), as are pairs the admin has ignored. Sorted
  * closest first, capped. O(n^2) with a cheap length-difference prune; fine for
  * the size of the Sky roster.
@@ -1707,12 +1747,12 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
       if (Math.abs(sortedLen[i] - sortedLen[j]) > NAME_MATCH_MAX_DISTANCE) {
         continue;
       }
-      // Promo compatibility: equal, unknown on one side, or entry/graduation gap.
+      // Promo compatibility: equal, unknown on one side, or within a small year
+      // tolerance (data-entry slip + the 3-year entry/graduation offset).
       if (
         A.level !== null &&
         B.level !== null &&
-        A.level !== B.level &&
-        Math.abs(A.level - B.level) !== 3
+        Math.abs(A.level - B.level) > 3
       ) {
         continue;
       }

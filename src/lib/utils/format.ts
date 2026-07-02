@@ -14,8 +14,23 @@ export function getPersonName(person: Person): string {
   if (nom && prenom) {
     return `${nom.toUpperCase()} ${prenom}`;
   }
-  // Jamais d id brut a l ecran : on montre ce qu on a, sinon un libelle neutre.
+  // Never a raw id on screen: show whatever we have, else a neutral label.
   return nom.toUpperCase() || prenom || "Sans nom";
+}
+
+/**
+ * Short EMSE promotion label: "E" followed by the year. Promotions from 2000 on
+ * keep the full year ("E2023"); earlier ones use the two-digit form ("E99").
+ * A missing promo yields "E?".
+ */
+export function formatPromoShort(level: number | null | undefined): string {
+  if (level === null || level === undefined) {
+    return "E?";
+  }
+  if (level >= 2000) {
+    return `E${level}`;
+  }
+  return `E${String(level % 100).padStart(2, "0")}`;
 }
 
 /**
@@ -29,12 +44,12 @@ export function getPersonInitials(person: Person): string {
 }
 
 /**
- * Normalise un nom ou prenom pour comparaison tolerante : minuscule, sans
- * accents, tirets/underscores ramenes a des espaces, espaces compactes.
+ * Normalize a last/first name for tolerant comparison: lowercase, accent-free,
+ * hyphens/underscores turned into spaces, whitespace collapsed.
  *
- * Sert a relier une identite Authentik a une fiche `people` existante via la cle
- * quasi-unique (nom, prenom, promotion) malgre les variations de casse/accents
- * entre le SSO et la base.
+ * Used to link an Authentik identity to an existing `people` record via the
+ * quasi-unique key (last name, first name, promotion) despite case/accent
+ * variations between the SSO and the database.
  */
 export function normalizeName(value: string | null | undefined): string {
   return (value ?? "")
