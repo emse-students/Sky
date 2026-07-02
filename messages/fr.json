@@ -79,7 +79,6 @@
   "tree_add_title": "Ajouter un {who} {kind}",
   "tree_orphan_confirm": "L'étoile \"{name}\" n'a plus aucune relation. La supprimer ?",
   "tree_see_tree": "Voir son arbre",
-  "tree_promo_short": "P{level}",
   "tree_edit_star_aria": "Modifier cette étoile",
   "tree_edit_star_title": "Modifier (nom/prénom/promo)",
   "tree_remove_aria": "Retirer",

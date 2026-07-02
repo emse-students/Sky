@@ -12,6 +12,7 @@ import {
   getPersonAuthSub,
   countPersonRelations,
   isRelationKind,
+  isSameFamily,
   RelationError,
   type RelationKind,
 } from "$lib/server/database";
@@ -88,10 +89,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
   const kind: RelationKind = type;
 
-  // Personne au centre du lien : soi-meme par defaut, ou n importe qui en admin
-  // (edition de l entourage d autrui depuis l arbre).
+  // Center of the link: oneself by default. A user may also edit any node of
+  // their own parrainage family (same connected component); an admin, anyone.
   const center = centerId ?? user.profile_id;
-  if (center !== user.profile_id && user.role !== "admin") {
+  if (
+    center !== user.profile_id &&
+    user.role !== "admin" &&
+    !isSameFamily(user.profile_id, center)
+  ) {
     return json({ error: "Non autorise" }, { status: 403 });
   }
 
@@ -147,8 +152,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 /**
- * Supprime un lien d entourage. Reserve a un lien touchant l utilisateur
- * (parrain ou fillot), sauf pour un admin qui peut retirer n importe quel lien.
+ * Remove an entourage link. Allowed when either endpoint belongs to the user's
+ * own parrainage family (same connected component), or for an admin on any link.
  */
 export const DELETE: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
@@ -167,9 +172,10 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
     return json({ error: "Lien introuvable" }, { status: 404 });
   }
 
-  const touchesMe =
-    rel.source_id === user.profile_id || rel.target_id === user.profile_id;
-  if (!touchesMe && user.role !== "admin") {
+  const touchesMyFamily =
+    isSameFamily(user.profile_id, rel.source_id) ||
+    isSameFamily(user.profile_id, rel.target_id);
+  if (!touchesMyFamily && user.role !== "admin") {
     return json({ error: "Non autorise" }, { status: 403 });
   }
 

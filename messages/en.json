@@ -79,7 +79,6 @@
   "tree_add_title": "Add a {kind} {who}",
   "tree_orphan_confirm": "The star \"{name}\" no longer has any relation. Delete it?",
   "tree_see_tree": "View their tree",
-  "tree_promo_short": "C{level}",
   "tree_edit_star_aria": "Edit this star",
   "tree_edit_star_title": "Edit (last name/first name/class)",
   "tree_remove_aria": "Remove",

@@ -18,6 +18,7 @@
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
   import { m } from "$lib/paraglide/messages";
+  import { formatPromoShort } from "$lib/utils/format";
   import type {
     EntourageResponse,
     EntourageMember,
@@ -41,11 +42,10 @@
     level: string;
   } | null>(null);
 
-  // Editable when the tree is centered on oneself (building one's own network)
-  // or for an admin (editing someone else's network from the tree).
   let isMe = $derived(!!data && !!user && data.person.id === user.profile_id);
-  let isAdmin = $derived(user?.role === "admin");
-  let canEdit = $derived(isMe || isAdmin);
+  // The server decides who may edit a given tree (admin, or a member of the same
+  // parrainage family); we mirror its verdict so the controls match the API.
+  let canEdit = $derived(!!data?.canEdit);
 
   $effect(() => {
     if (browser && !user) goto("/");
@@ -384,9 +384,7 @@
         <div class="meta">
           <span class="name">{member.prenom} {member.nom}</span>
           <span class="promo"
-            >{m.tree_promo_short({ level: member.level || "?" })} · {KIND_LABEL[
-              kind
-            ]}</span
+            >{formatPromoShort(member.level)} · {KIND_LABEL[kind]}</span
           >
         </div>
       </button>

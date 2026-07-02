@@ -43,6 +43,14 @@
   let isProfileModalOpen = false;
   let currentProfile: any = null;
   let isLoading = true;
+  let innerWidth = 0;
+
+  // The profile panel is a left drawer on desktop and a bottom sheet on mobile,
+  // so it slides in from the matching edge.
+  $: isMobile = innerWidth > 0 && innerWidth <= 768;
+  $: sidebarTransition = isMobile
+    ? { y: 400, duration: 400, easing: cubicOut }
+    : { x: -400, duration: 400, easing: cubicOut };
 
   const loadingMessages = [
     m.home_loading_vault(),
@@ -54,7 +62,7 @@
   let currentLoadingMessage =
     loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
 
-  // Correction de l'erreur de compilation en utilisant une syntaxe d'indexation plus simple
+  // Per-id flag set when an avatar fails to load, so we fall back to initials.
   let imageErrors: { [id: string]: boolean } = {};
 
   // Derived values
@@ -76,8 +84,8 @@
     isProfileModalOpen = false;
   }
 
-  // Profil Canari (bio, associations) de la personne selectionnee : source de
-  // verite hors parrainage (Sky n edite que les liens, le reste vient de Canari).
+  // Canari profile (bio, clubs) of the selected person: the source of truth for
+  // everything but parrainage (Sky only edits links, the rest comes from Canari).
   let canariProfile: CanariProfileResponse | null = null;
   let canariLoadedId: string | null = null;
   $: loadCanariProfile($selectedPersonId);
@@ -95,18 +103,18 @@
       const r = await fetch(`/api/canari/${id}`);
       if (r.ok) canariProfile = await r.json();
     } catch (e) {
-      console.error("[Home] echec chargement profil Canari:", e);
+      console.error("[Home] failed to load Canari profile:", e);
     }
   }
 
   onMount(() => {
-    // Rotation des messages de chargement
+    // Rotate the loading messages while the initial load runs.
     const messageInterval = setInterval(() => {
       currentLoadingMessage =
         loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
     }, 2000);
 
-    // Simulation du chargement initial
+    // Brief initial-load splash before the graph is ready.
     const timer = setTimeout(() => {
       isLoading = false;
       clearInterval(messageInterval);
@@ -124,7 +132,7 @@
 
   function handleImageError(id: string) {
     imageErrors[id] = true;
-    imageErrors = imageErrors; // Déclenche la réactivité Svelte
+    imageErrors = imageErrors; // Reassign to trigger Svelte reactivity
   }
 
   function getLinkIcon(type: string) {
@@ -211,6 +219,8 @@
 <svelte:head>
   <title>{m.home_page_title()}</title>
 </svelte:head>
+
+<svelte:window bind:innerWidth />
 
 <StarfieldCanvas />
 
@@ -394,10 +404,7 @@
 {/if}
 
 {#if isProfileModalOpen && currentProfile}
-  <aside
-    class="profile-sidebar"
-    transition:fly={{ x: -400, duration: 400, easing: cubicOut }}
-  >
+  <aside class="profile-sidebar" transition:fly={sidebarTransition}>
     <button class="close-sidebar" onclick={closeProfile} aria-label={m.common_close()}>
       <X size={24} />
     </button>
@@ -1147,13 +1154,30 @@
     .user-label {
       display: none;
     }
+    /* Profile as a bottom sheet: anchored to the bottom, leaving the top of the
+       map pannable, with a rounded top edge and safe-area padding. */
     .profile-sidebar {
       width: 100%;
-      height: 70vh;
+      height: auto;
+      max-height: 78vh;
       top: auto;
+      bottom: 0;
+      border-right: none;
+      border-top: 1px solid var(--border);
       border-radius: 24px 24px 0 0;
+      box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.5);
     }
+    .sidebar-scroll {
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .sidebar-hero {
+      padding: 32px 24px 24px;
+    }
+    /* Move the focus panel above the sheet so the two bottom controls do not
+       stack and block navigation. */
     .focus-hub {
+      top: calc(var(--nav-height) + 12px);
+      bottom: auto;
       left: 20px;
       right: 20px;
       width: auto;
