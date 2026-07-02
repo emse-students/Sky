@@ -2,6 +2,20 @@ import { redirect, json, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { getSessionPerson } from "$server/database";
 import { SESSION_COOKIE_NAME } from "$server/session";
+import { paraglideMiddleware } from "$lib/paraglide/server";
+
+/**
+ * Binds the request locale (resolved from the cookie / Accept-Language header,
+ * falling back to fr) to the server-side async context so that `m.*()` renders
+ * in the right language during SSR, and injects it into the <html lang> tag.
+ */
+const paraglideHandler: Handle = ({ event, resolve }) =>
+  paraglideMiddleware(event.request, ({ request, locale }) => {
+    event.request = request;
+    return resolve(event, {
+      transformPageChunk: ({ html }) => html.replace("%paraglide.lang%", locale),
+    });
+  });
 
 /**
  * Routes accessibles sans session. `/` (la landing avec le bouton Connexion) et
@@ -83,4 +97,4 @@ const gateHandler: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle = sequence(sessionHandler, gateHandler);
+export const handle = sequence(paraglideHandler, sessionHandler, gateHandler);
