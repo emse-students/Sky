@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "@humanspeak/svelte-markdown": "^1.6.0",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.11.1",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout": "^0.6.1",
