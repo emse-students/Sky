@@ -1,7 +1,7 @@
 -- Sky Database Schema v4.0
--- Modele reconstruit : fiches placeholder (id prenom.nom[.promo][.idx]) + comptes
--- Authentik (auth_sub). Une personne peut exister sans compte. Relations
--- parrainage/adoption avec contraintes appliquees cote serveur.
+-- Rebuilt model: placeholder records (id prenom.nom[.promo][.idx]) + Authentik
+-- accounts (auth_sub). A person can exist without an account. Parrainage/adoption
+-- relations with constraints enforced server-side.
 
 -- Enable foreign keys
 PRAGMA foreign_keys = ON;
@@ -24,15 +24,15 @@ CREATE TABLE IF NOT EXISTS people (
     bio TEXT,
     image_url TEXT,  -- Can be from MiGallery API or local
 
-    -- Auth / identite SSO (Authentik). NULL pour les fiches du graphe jamais
-    -- connectees. auth_sub = claim `sub` Authentik, sert aussi de cle pour la
-    -- photo MiGallery (/api/avatar/{auth_sub}).
-    auth_sub TEXT,           -- sub Authentik (unique quand non NULL)
+    -- Auth / SSO identity (Authentik). NULL for graph records that never signed
+    -- in. auth_sub = the Authentik `sub` claim, also the key for the MiGallery
+    -- photo (/api/avatar/{auth_sub}).
+    auth_sub TEXT,           -- Authentik sub (unique when not NULL)
     email TEXT,
-    formation TEXT,          -- 'ICM', 'ISMIN'... (gating ICM)
+    formation TEXT,          -- 'ICM', 'ISMIN'... (ICM gating)
     role TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'admin'
-    last_login INTEGER,      -- epoch du dernier login SSO
-    created_by TEXT,         -- id de la personne qui a cree cette fiche (placeholder)
+    last_login INTEGER,      -- epoch of the last SSO login
+    created_by TEXT,         -- id of the person who created this placeholder record
 
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS people (
 CREATE INDEX IF NOT EXISTS idx_people_level ON people(level);
 CREATE INDEX IF NOT EXISTS idx_people_last_name ON people(last_name);
 CREATE INDEX IF NOT EXISTS idx_people_first_name ON people(first_name);
--- Un seul compte Authentik par fiche (les NULL ne sont pas contraints par UNIQUE).
+-- One Authentik account per record (NULLs are not constrained by UNIQUE).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_people_auth_sub ON people(auth_sub) WHERE auth_sub IS NOT NULL;
 
 -- Full-text search virtual table
@@ -158,7 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_associations_person ON associations(person_id);
 
 -- ============================================
 -- SESSIONS TABLE
--- Sessions SSO (token opaque -> fiche people). Remplace l ancienne auth.db.
+-- SSO sessions (opaque token -> people record). Replaces the former auth.db.
 -- ============================================
 CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
@@ -173,7 +173,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
 -- ============================================
 -- PENDING_LINKS TABLE
--- Identites SSO en attente de choix de liaison (login ambigu -> ecran /auth/link).
+-- SSO identities awaiting a link choice (ambiguous login -> /auth/link screen).
 -- ============================================
 CREATE TABLE IF NOT EXISTS pending_links (
     token TEXT PRIMARY KEY,

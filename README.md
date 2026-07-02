@@ -1,218 +1,94 @@
-# 🌟 Sky - EMSE Student Network
+# Sky
 
-Application web moderne de visualisation et gestion du réseau de parrainage/adoption de l'EMSE (École des Mines de Saint-Étienne).
+Sky is the star map of EMSE's ICM sponsorship tree. Every ICM student is a star
+on an interactive canvas, connected by parrainage (sponsorship) and adoption
+links. A signed-in student can explore the graph and edit their own sponsorship
+entourage. Identity, avatars and the rest of the profile come from the shared
+EMSE stack (Authentik SSO, MiGallery, Canari); Sky owns only the sponsorship
+graph.
 
-## 🚀 Démarrage Rapide
+## Stack
+
+- **Framework**: SvelteKit 2 + Svelte 5 (SSR, `adapter-node`), TypeScript
+- **Styling**: Tailwind CSS 4
+- **Database**: SQLite via `better-sqlite3` (single file `database/sky.db`)
+- **Graph layout**: in-process ForceAtlas2 (graphology), no Python at runtime
+- **i18n**: Paraglide (inlang), French + English
+- **Auth**: Authentik OIDC (miconnect), opaque server sessions
+- **Runtime**: Node in production (Docker); Bun for local dev tooling
+
+## Quick start
 
 ```bash
-# Installation des dépendances
 bun install
-
-# Lancement en développement
-bun run dev
-
-# Accès à l'application
-# http://localhost:5173
+bun run dev        # http://localhost:5173
 ```
 
-## 🏗️ Stack Technique
+Create a `.env` (see the variables below). The database is created and migrated
+automatically on first run.
 
-- **Framework:** SvelteKit 2.x + Svelte 5
-- **Langage:** TypeScript
-- **Styles:** Tailwind CSS
-- **Base de données:** SQLite3 (better-sqlite3)
-- **Visualisation:** Canvas 2D + layout ForceAtlas2 (graphology, TypeScript in-process)
-- **Runtime:** Bun
-
-## 📁 Structure du Projet
-
-```
-sky/
-├── .github/
-│   └── workflows/     # Configuration CI/CD
-├── tests/            # Tests unitaires et d'intégration (Vitest)
-├── src/
-│   ├── lib/
-│   │   ├── components/     # Composants Svelte réutilisables
-│   │   │   ├── server/        # Code backend (database.ts, auth.ts, positions.ts)
-│   │   ├── stores/        # Stores Svelte (état global)
-│   │   ├── types/         # Définitions TypeScript
-│   │   └── utils/         # Fonctions utilitaires
-│   ├── routes/
-│   │   ├── api/          # API REST
-│   │   ├── profile/      # Pages profil
-│   │   └── +page.svelte  # Page d'accueil (graphe)
-│   └── hooks.server.ts   # Middleware d'authentification
-├── database/
-│   ├── sky.db            # Base de données SQLite
-│   ├── schema.sql        # Schéma SQL (v3.0)
-│   └── SCHEMA_REFERENCE.md  # Documentation complète
-├── scripts/             # Scripts Node (init-db.js, migrations, packaging)
-├── static/
-│   ├── data/
-│   │   ├── data.json     # Export JSON (généré)
-│   │   └── positions.json # Positions des nœuds
-│   └── images/           # Avatars
-└── build/                # Build de production
-```
-
-## 🎯 Fonctionnalités
-
-### Interface Principale
-
-- ✅ **Visualisation interactive** du graphe de parrainage
-- ✅ **Recherche** par nom, prénom ou promotion
-- ✅ **Zoom/Pan** avec mini-carte de navigation
-- ✅ **Profils détaillés** avec liens sociaux
-- ✅ **Thème clair/sombre** avec persistance
-
-### Système d'Authentification
-
-- ✅ Connexion avec ID utilisateur
-- ✅ Sessions persistantes (cookies)
-- ✅ Gestion de profil
-- ✅ Middleware de protection des routes
-
-### Base de Données (SQLite)
-
-- ✅ **5100+ profils** étudiants
-- ✅ **1500+ relations** de parrainage/adoption
-- ✅ Recherche full-text (FTS5)
-- ✅ Contraintes d'intégrité référentielle
-- ✅ Triggers de synchronisation
-
-### Administration
-
-- ✅ Interface Web harmonisée (Svelte 5)
-- ✅ CRUD complet (personnes, relations, liens)
-- ✅ Fusion de profils (merge)
-- ✅ Gestion granulaire des relations (Officiel/Adoption)
-- ✅ **Recalcul automatique** du graphe lors des modifications
-
-## 🔄 CI/CD & Qualité
-
-- **GitHub Actions:** Pipeline de vérification automatique
-- **Linting:** ESLint + Prettier
-- **Tests:** Vitest pour les tests unitaires et d'API
-- **Type Checking:** Svelte-check strict
-
-## 🛠️ Commandes Disponibles
+### Verification (matches CI and the pre-commit hook)
 
 ```bash
-# Développement
-bun run dev              # Serveur dev (http://localhost:5173)
-bun run build            # Build de production
-bun run preview          # Preview du build
-
-# Base de données
-bun run db:init          # Initialise la base (schema + migrations)
-# Administration via l'interface web /admin ; positions recalculees en
-# TypeScript in-process a chaque modification du graphe.
-
-# Tests
-bun run test             # Tests unitaires (Vitest)
+bun run check      # paraglide:compile + svelte-kit sync + svelte-check (0 errors, 0 warnings)
+bun run lint       # eslint on src/lib and src/routes
 ```
 
-## 📊 Base de Données
+The Husky pre-commit hook runs `lint && check`. The lockfile is committed and CI
+installs `--frozen`.
 
-### Tables Principales
+## How it works (short version)
 
-| Table            | Description                            | Entrées  |
-| ---------------- | -------------------------------------- | -------- |
-| `people`         | Profils individuels                    | ~5100    |
-| `relationships`  | Relations parrainage/adoption          | ~1500    |
-| `external_links` | Liens sociaux (LinkedIn, GitHub, etc.) | Variable |
+- Every request passes through `src/hooks.server.ts`:
+  `sequence(paraglideHandler, sessionHandler, gateHandler)`. Paraglide binds the
+  locale (so `m.*()` renders server-side, including thrown errors), the session
+  handler resolves the `sky_session` cookie to a `people` row, and the gate keeps
+  all of Sky ICM-only.
+- People live in one `people` table. A record is either a **placeholder**
+  (`auth_sub` NULL, id `prenom.nom[.promo][.idx]`) or an **account** (id = the
+  Authentik `sub`). Login links an SSO identity to an existing record by name +
+  promo, or creates one.
+- The sponsorship graph (`relationships`) enforces the rules 1 official sponsor /
+  1 adoption sponsor / 3 official godchildren / 2 adoption godchildren, plus
+  no-cycle, server-side. Star positions are computed in-process and cached in
+  `database/positions.json`.
+- Bio and clubs are read from Canari at request time; avatars are proxied from
+  MiGallery. Canari reads a person's close tree back from Sky's
+  `/api/external/entourage/{sub}` API.
 
-### Types de Relations
+## Environment variables
 
-- **`parrainage`** - Relation officielle de parrainage
-- **`adoption`** - Relation d'adoption
+| Variable | Required | Role |
+| -------- | -------- | ---- |
+| `MICONNECT_CLIENT_ID` | yes | Authentik OIDC client for the Sky app |
+| `MICONNECT_CLIENT_SECRET` | yes | Authentik OIDC secret |
+| `MIGALLERY_API_KEY` | yes | MiGallery avatar API access |
+| `SKY_ADMIN_SUBS` | no | Comma-separated Authentik subs bootstrapped as admin |
+| `MICONNECT_BASE_URL` | no | Authentik base; default `https://auth.canari-emse.fr` |
+| `MIGALLERY_API_URL` | no | MiGallery base; default `https://gallery.mitv.fr` |
+| `CANARI_API_URL` | no | Canari base; default `https://canari-emse.fr` |
+| `CANARI_API_KEY` | for profiles | Read the inbound Canari profile API |
+| `SKY_API_KEY` | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
-Voir [database/SCHEMA_REFERENCE.md](database/SCHEMA_REFERENCE.md) pour la documentation complète.
+## Documentation
 
-## 🔐 Authentification
+- **[docs/wiki/](docs/wiki/index.md)** - the technical wiki (English): architecture,
+  authentication, identity model, data model, the sponsorship graph, matching and
+  search, the frontend, integrations, the API reference, and deployment. This is
+  the canonical source of truth.
+- **[MIGRATION.md](MIGRATION.md)** - runbook for cloning Sky onto a new server.
+- **[docs/ID-MODEL.md](docs/ID-MODEL.md)** - the two record kinds (superseded by
+  the wiki's identity-model page).
 
-L'API REST fournit les endpoints suivants :
+## Conventions
 
-```typescript
-POST / api / auth / login; // Connexion
-POST / api / auth / logout; // Déconnexion
-GET / api / auth / me; // Utilisateur connecté
-```
+- Code comments and developer-facing strings (logs, thrown errors) are English.
+  User-visible text goes through Paraglide (`m.*()`), never inline.
+- Text is ASCII (straight `'` and `"`, hyphen `-`); the ellipsis `…` is the one
+  intentional exception.
+- Changing a component that carries a translated string usually means updating
+  its message keys in `messages/{fr,en}.json` in the same change.
 
-Les sessions sont gérées via cookies HTTP-only sécurisés.
+## License
 
-## 🎨 Développement
-
-### Stores Svelte
-
-- **`authStore`** - État d'authentification
-- **`graphStore`** - Données du graphe
-- **`cameraStore`** - Position caméra (zoom/pan)
-- **`themeStore`** - Thème visuel
-
-### Composants Principaux
-
-- **`GraphCanvas.svelte`** - Rendu du graphe (Canvas 2D)
-- **`StarfieldCanvas.svelte`** - Arrière-plan animé
-- **`Navbar.svelte`** - Barre de navigation
-- **`Tooltip.svelte`** - Infobulles
-
-### Optimisations
-
-- ✅ **Viewport culling** - Rendu uniquement des nœuds visibles
-- ✅ **Code splitting** automatique (SvelteKit)
-- ✅ **SSR** pour le SEO
-- ✅ **Image lazy loading**
-
-## 🚀 Déploiement
-
-```bash
-# Build de production
-bun run build
-
-# Le dossier build/ contient l'app Node.js
-# Démarrage avec :
-node build/index.js
-```
-
-### Variables d'environnement
-
-Créer un fichier `.env` (voir `.env.example`) :
-
-```bash
-MICONNECT_BASE_URL=https://auth.canari-emse.fr
-MICONNECT_CLIENT_ID=<client OIDC de l app Sky>
-MICONNECT_CLIENT_SECRET=<secret OIDC associe>
-MIGALLERY_API_KEY=<cle API MiGallery>
-SKY_ADMIN_SUBS=<sub Authentik admins, separes par des virgules>
-```
-
-## 📚 Documentation
-
-- [database/SCHEMA_REFERENCE.md](database/SCHEMA_REFERENCE.md) - Schéma de base de données
-- [database/README.md](database/README.md) - Guide de la base de données
-- [SvelteKit Docs](https://kit.svelte.dev/) - Documentation officielle
-
-## 🤝 Contribution
-
-### Workflow Git
-
-```bash
-# Créer une branche
-git checkout -b feature/nouvelle-fonctionnalite
-
-# Commit avec message clair
-git commit -m "feat: ajout de X"
-
-# Push et pull request
-git push origin feature/1 (Mise à jour CI/CD & API - 5
-```
-
-## 📝 Licence
-
-Projet interne EMSE - Tous droits réservés
-
----
-
-**Version actuelle:** 3.0 (Base de données nettoyée - 1er février 2026)
+Internal EMSE project.

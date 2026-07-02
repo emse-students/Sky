@@ -207,7 +207,7 @@ export function getPersonById(id: string): Person | null {
  * nom/prenom inversion and typo edit-distance via personMatchScore). The scan
  * replaces the former FTS5 MATCH, which returned nothing whenever the FTS index
  * was stale/unpopulated (e.g. after a database rebuild) - the source of the
- * "Ajouter un ..." search always coming back empty.
+ * add-a-relative search always coming back empty.
  */
 export function searchPeople(query: string): Person[] {
   const database = getDatabase();
@@ -414,13 +414,13 @@ export function mergePeople(sourceId: string, targetId: string): void {
 // AUTH IDENTITY & SESSIONS
 // ============================================
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 jours
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 function nowEpoch(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** Identite resolue depuis le SSO Authentik (claims). */
+/** Identity resolved from the Authentik SSO (claims). */
 export interface OidcIdentity {
   sub: string;
   firstName: string;
@@ -431,7 +431,7 @@ export interface OidcIdentity {
   role: string;
 }
 
-/** Fiche people resolue pour une session (locals.user cote serveur). */
+/** A `people` record resolved for a session (server-side locals.user). */
 export interface SessionPerson {
   id: string;
   prenom: string;
@@ -444,7 +444,7 @@ export interface SessionPerson {
   role: string;
 }
 
-/** Fiche people deja liee a ce sub Authentik, sinon null. */
+/** The `people` record already linked to this Authentik sub, else null. */
 export function getPersonIdByAuthSub(authSub: string): string | null {
   const database = getDatabase();
   const row = database
@@ -453,7 +453,7 @@ export function getPersonIdByAuthSub(authSub: string): string | null {
   return row?.id ?? null;
 }
 
-/** Fiche candidate a une liaison (meme nom/prenom, non liee). */
+/** A record eligible for linking (same last/first name, not yet linked). */
 export interface MatchCandidate {
   id: string;
   firstName: string;
@@ -462,9 +462,9 @@ export interface MatchCandidate {
 }
 
 /**
- * Fiches people NON liees dont le nom+prenom normalises correspondent (la promo
- * ne filtre PAS ici : elle ne sert qu a departager, cf. promoMatches). La
- * comparaison se fait en JS (SQLite ne retire pas les accents).
+ * Unlinked `people` records whose normalized last+first name match (the promo
+ * does NOT filter here: it only breaks ties, cf. promoMatches). The comparison
+ * runs in JS because SQLite does not strip accents.
  */
 export function findUnlinkedCandidatesByName(
   lastName: string,
@@ -555,9 +555,9 @@ export function getLinkCandidates(
 }
 
 /**
- * Vrai si la promo SSO (annee d entree) colle a la fiche. Le `level` stocke est
- * l annee de DIPLOME ; un ICM entre en `promo` sort en `promo + 3`. On tolere
- * aussi l egalite stricte (donnees saisies en annee d entree).
+ * True if the SSO promo (entry year) matches the record. The stored `level` is
+ * the GRADUATION year; an ICM entering in `promo` graduates in `promo + 3`.
+ * Strict equality is also tolerated (data entered as the entry year).
  */
 function promoMatches(level: number | null, promo: number | null): boolean {
   if (level === null || promo === null) {
@@ -567,7 +567,7 @@ function promoMatches(level: number | null, promo: number | null): boolean {
 }
 
 /**
- * Link an existing fiche to an Authentik account and overwrite its identity
+ * Link an existing record to an Authentik account and overwrite its identity
  * fields with the SSO values (MiConnect is source of truth: name/first
  * name/promo/email/formation are replaced whenever a value is provided, never
  * wiped when absent).
@@ -601,7 +601,7 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
     );
 }
 
-/** Rafraichit les champs d identite d une fiche deja liee (a chaque login SSO). */
+/** Refresh the identity fields of an already-linked record (on every SSO login). */
 export function refreshPersonIdentity(
   id: string,
   identity: OidcIdentity,
@@ -632,7 +632,7 @@ export function refreshPersonIdentity(
     );
 }
 
-/** Cree une nouvelle fiche people deja liee au compte Authentik. */
+/** Create a new `people` record already linked to the Authentik account. */
 export function createAuthedPerson(identity: OidcIdentity): string {
   const database = getDatabase();
   database
@@ -657,7 +657,7 @@ export function createAuthedPerson(identity: OidcIdentity): string {
 }
 
 /**
- * Result of resolving a login. `created` is true when a brand-new account fiche
+ * Result of resolving a login. `created` is true when a brand-new account record
  * was inserted (id = sub), so the caller can trigger a positions recompute to
  * place the new star on the map.
  */
@@ -666,13 +666,13 @@ export type LoginResolution =
   | { kind: "choice"; candidates: MatchCandidate[] };
 
 /**
- * Resout un login Authentik :
+ * Resolve an Authentik login:
  *   1. sub already linked -> refresh, link.
  *   2. 1 exact (last/first) candidate + matching promo -> auto-link.
  *   3. several exact candidates / doubt -> "choice" (selection screen).
  *   4. no exact candidate but FUZZY candidates (typo/inversion) -> "choice" for
  *      confirmation (never auto-link on a mere resemblance).
- *   5. no candidate at all -> create an account fiche (id = sub).
+ *   5. no candidate at all -> create an account record (id = sub).
  */
 export function resolveLogin(identity: OidcIdentity): LoginResolution {
   const existing = getPersonIdByAuthSub(identity.sub);
@@ -696,7 +696,7 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
     return { kind: "choice", candidates };
   }
 
-  // No exact match: offer the RESEMBLING fiches (typo/inversion) for
+  // No exact match: offer the RESEMBLING records (typo/inversion) for
   // confirmation instead of creating a duplicate.
   const fuzzy = findUnlinkedFuzzyByName(identity.lastName, identity.firstName);
   if (fuzzy.length > 0) {
@@ -713,7 +713,7 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
   };
 }
 
-/** auth_sub d une fiche (cle photo MiGallery), sinon null. */
+/** A record's auth_sub (the MiGallery photo key), else null. */
 export function getPersonAuthSub(id: string): string | null {
   const database = getDatabase();
   const row = database
@@ -723,9 +723,9 @@ export function getPersonAuthSub(id: string): string | null {
 }
 
 /**
- * Role stocke en base pour un compte Authentik, sinon null (sub non lie). Permet
- * au login de ne jamais retrograder un admin promu en base : l env SKY_ADMIN_SUBS
- * ne fait qu amorcer (bootstrap), la base reste la source de verite.
+ * Role stored in the database for an Authentik account, else null (sub not
+ * linked). Lets login never demote an admin promoted in the DB: the
+ * SKY_ADMIN_SUBS env only bootstraps; the database stays the source of truth.
  */
 export function getPersonRoleByAuthSub(authSub: string): string | null {
   const row = getDatabase()
@@ -734,7 +734,7 @@ export function getPersonRoleByAuthSub(authSub: string): string | null {
   return row?.role ?? null;
 }
 
-/** Definit le role d une fiche (gestion des admins, source de verite en base). */
+/** Set a record's role (admin management; the database is the source of truth). */
 export function setPersonRole(id: string, role: "user" | "admin"): boolean {
   console.debug(`[Admin] setPersonRole id=${id} role=${role}`);
   return (
@@ -747,9 +747,9 @@ export function setPersonRole(id: string, role: "user" | "admin"): boolean {
 }
 
 /**
- * Delie une fiche de son compte Authentik : la fiche redevient un placeholder
- * (auth_sub NULL, role 'user') et ses sessions sont revoquees. Le graphe et les
- * liens de parrainage sont conserves.
+ * Unlink a record from its Authentik account: the record becomes a placeholder
+ * again (auth_sub NULL, role 'user') and its sessions are revoked. The graph and
+ * the sponsorship links are kept.
  */
 export function unlinkPersonAuth(id: string): boolean {
   console.debug(`[Admin] unlinkPersonAuth id=${id}`);
@@ -768,11 +768,11 @@ export function unlinkPersonAuth(id: string): boolean {
 
 /**
  * Self-service correction: move the signed-in user's account from its current
- * fiche to ANOTHER unlinked fiche (recovering from a wrong auto-link or a
- * homonym). The old fiche becomes a placeholder again WITHOUT losing its graph;
- * the target fiche inherits the account identity (sub, name, promo, role) and the
+ * record to ANOTHER unlinked record (recovering from a wrong auto-link or a
+ * homonym). The old record becomes a placeholder again WITHOUT losing its graph;
+ * the target record inherits the account identity (sub, name, promo, role) and the
  * current session token is repointed so the user stays logged in. Returns false
- * if the current fiche is not linked, or the target is the same/missing/already
+ * if the current record is not linked, or the target is the same/missing/already
  * linked.
  */
 export function relinkSelf(
@@ -812,7 +812,7 @@ export function relinkSelf(
       return false;
     }
 
-    // Detach the old fiche first (auth_sub is UNIQUE: free the value before
+    // Detach the old record first (auth_sub is UNIQUE: free the value before
     // reassigning it to the target), keeping its graph edges.
     database
       .prepare(
@@ -842,7 +842,7 @@ export function relinkSelf(
         targetId,
       );
 
-    // Repoint the active session so the user stays logged in on the new fiche.
+    // Repoint the active session so the user stays logged in on the new record.
     database
       .prepare("UPDATE sessions SET person_id = ? WHERE token = ?")
       .run(targetId, sessionToken);
@@ -851,8 +851,8 @@ export function relinkSelf(
 }
 
 /**
- * Unlinked fiches (placeholders), for the self-service correction screen where
- * the user picks the fiche to attach their account to. Sorted by name for
+ * Unlinked records (placeholders), for the self-service correction screen where
+ * the user picks the record to attach their account to. Sorted by name for
  * tolerant client-side filtering.
  */
 export function getUnlinkedPeople(): {
@@ -880,7 +880,7 @@ export function getUnlinkedPeople(): {
   }));
 }
 
-/** Fiche enrichie pour l administration (role + etat de liaison du compte). */
+/** A record enriched for administration (role + account link state). */
 export interface AdminPersonRow {
   id: string;
   prenom: string;
@@ -893,7 +893,7 @@ export interface AdminPersonRow {
   formation: string | null;
 }
 
-/** Toutes les fiches avec leurs metadonnees admin (role, liaison, formation). */
+/** All records with their admin metadata (role, link state, formation). */
 export function getAllPeopleAdmin(): AdminPersonRow[] {
   const rows = getDatabase()
     .prepare(
@@ -923,7 +923,7 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
   }));
 }
 
-/** Cree une session opaque (7 jours) pour une fiche people. */
+/** Create an opaque session (7 days) for a `people` record. */
 export function createSession(personId: string): {
   token: string;
   expiresAt: number;
@@ -939,7 +939,7 @@ export function createSession(personId: string): {
   return { token, expiresAt };
 }
 
-/** Resout la fiche people d une session valide (non expiree), sinon null. */
+/** Resolve the `people` record of a valid (non-expired) session, else null. */
 export function getSessionPerson(token: string): SessionPerson | null {
   const database = getDatabase();
   const row = database
@@ -979,12 +979,12 @@ export function getSessionPerson(token: string): SessionPerson | null {
   };
 }
 
-/** Supprime une session (logout). */
+/** Delete a session (logout). */
 export function deleteSession(token: string): void {
   getDatabase().prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 
-/** Purge les sessions expirees (appele opportunement au login). */
+/** Purge expired sessions (called opportunistically at login). */
 export function deleteExpiredSessions(): void {
   getDatabase()
     .prepare("DELETE FROM sessions WHERE expires_at <= ?")
@@ -992,15 +992,15 @@ export function deleteExpiredSessions(): void {
 }
 
 // ============================================
-// PENDING LINKS (ecran de choix au login)
+// PENDING LINKS (login disambiguation screen)
 // ============================================
 
 const PENDING_TTL_SECONDS = 60 * 15; // 15 minutes
 
 /**
- * Stocke une identite SSO en attente de choix de liaison (cas ambigu). Le token
- * opaque est pose en cookie ; l identite (sub verifie) reste cote serveur pour
- * eviter toute falsification du choix.
+ * Store an SSO identity awaiting a link choice (ambiguous case). The opaque
+ * token is set as a cookie; the identity (verified sub) stays server-side to
+ * prevent tampering with the choice.
  */
 export function createPendingLink(identity: OidcIdentity): string {
   const database = getDatabase();
@@ -1025,7 +1025,7 @@ export function createPendingLink(identity: OidcIdentity): string {
   return token;
 }
 
-/** Recupere l identite en attente (non expiree) pour un token, sinon null. */
+/** Fetch the pending (non-expired) identity for a token, else null. */
 export function getPendingLink(token: string): OidcIdentity | null {
   const database = getDatabase();
   const row = database
@@ -1058,12 +1058,12 @@ export function getPendingLink(token: string): OidcIdentity | null {
   };
 }
 
-/** Supprime une demande de liaison (apres resolution ou expiration). */
+/** Delete a pending link request (after resolution or expiry). */
 export function deletePendingLink(token: string): void {
   getDatabase().prepare("DELETE FROM pending_links WHERE token = ?").run(token);
 }
 
-/** Purge les demandes de liaison expirees. */
+/** Purge expired pending link requests. */
 export function deleteExpiredPendingLinks(): void {
   getDatabase()
     .prepare("DELETE FROM pending_links WHERE expires_at <= ?")
@@ -1074,7 +1074,7 @@ export function deleteExpiredPendingLinks(): void {
 // ID GENERATION
 // ============================================
 
-/** Normalise un fragment de nom pour un id : minuscule, sans accents, alphanum. */
+/** Normalize a name fragment for an id: lowercase, accent-free, alphanumeric. */
 function slugPart(value: string): string {
   return (value ?? "")
     .normalize("NFD")
@@ -1084,9 +1084,9 @@ function slugPart(value: string): string {
 }
 
 /**
- * Genere un id `prenom.nom` unique pour une fiche placeholder. En cas de
- * collision : ajoute `.promo` puis `.idx`. L id est stable (ne change jamais
- * apres creation). Distinct des id de comptes crees ex nihilo (= sub Authentik).
+ * Generate a unique `prenom.nom` id for a placeholder record. On collision:
+ * append `.promo` then `.idx`. The id is stable (never changes after creation).
+ * Distinct from account ids created from scratch (= the Authentik sub).
  */
 export function generatePersonId(
   firstName: string,
@@ -1121,12 +1121,12 @@ export function generatePersonId(
 const LEGACY_DB_PATH = path.join(process.cwd(), "database", "sky-legacy.db");
 let legacyDb: Database.Database | null = null;
 
-/** Vrai si le snapshot legacy (ancienne base figee) existe. */
+/** True if the legacy snapshot (frozen old database) exists. */
 export function legacyExists(): boolean {
   return fs.existsSync(LEGACY_DB_PATH);
 }
 
-/** Ouvre (lazy) la base legacy en lecture seule, sinon null. */
+/** Lazily open the legacy database read-only, else null. */
 function getLegacyDatabase(): Database.Database | null {
   if (!legacyExists()) {
     return null;
@@ -1137,7 +1137,7 @@ function getLegacyDatabase(): Database.Database | null {
   return legacyDb;
 }
 
-/** Fiche de l ancienne base (schema v3 : pas de SSO). */
+/** A record from the old database (schema v3: no SSO). */
 export interface LegacyPerson {
   id: string;
   first_name: string;
@@ -1147,7 +1147,7 @@ export interface LegacyPerson {
   image_url: string | null;
 }
 
-/** Compte des entites de l ancienne base. */
+/** Entity counts of the old database. */
 export function getLegacyCounts(): {
   people: number;
   relationships: number;
@@ -1171,7 +1171,7 @@ export function getLegacyCounts(): {
   };
 }
 
-/** Recherche dans l ancienne base (nom, prenom, id, promo). */
+/** Search the old database (last name, first name, id, class). */
 export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
   const ldb = getLegacyDatabase();
   if (!ldb) {
@@ -1196,7 +1196,7 @@ export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
   return rows;
 }
 
-/** Relations (parrains entrants, fillots sortants) d une fiche legacy. */
+/** Relations (incoming parrains, outgoing fillots) of a legacy record. */
 export function getLegacyPersonRelations(id: string): {
   parrains: { id: string; name: string; type: string }[];
   fillots: { id: string; name: string; type: string }[];
@@ -1205,7 +1205,7 @@ export function getLegacyPersonRelations(id: string): {
   if (!ldb) {
     return { parrains: [], fillots: [] };
   }
-  // source = parrain -> target = fillot. Parrains de P : target_id = P.
+  // source = parrain -> target = fillot. Parrains of P: target_id = P.
   const parrains = ldb
     .prepare(
       `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
@@ -1283,20 +1283,20 @@ export function deleteRelationship(
 }
 
 // ============================================
-// ENTOURAGE / CONTRAINTES DE PARENTE
+// ENTOURAGE / SPONSORSHIP CONSTRAINTS
 // ============================================
 
-/** Type de lien de parrainage : officiel ou par adoption. */
+/** Sponsorship link type: official or adoption. */
 export type RelationKind = "parrainage" | "adoption";
 
-/** Vrai si la valeur est un type de lien connu. */
+/** True if the value is a known link type. */
 export function isRelationKind(value: unknown): value is RelationKind {
   return value === "parrainage" || value === "adoption";
 }
 
 /**
- * Maxima d ascendants (parrains/marraines) par personne et par type. Une
- * personne a au plus 1 parrain officiel et 1 parrain d adoption.
+ * Maximum sponsors (parrains/marraines) per person and per type. A person has
+ * at most 1 official sponsor and 1 adoption sponsor.
  */
 export const MAX_PARRAINS: Record<RelationKind, number> = {
   parrainage: 1,
@@ -1304,15 +1304,15 @@ export const MAX_PARRAINS: Record<RelationKind, number> = {
 };
 
 /**
- * Maxima de descendants (fillots/fillotes) par personne et par type. Une
- * personne a au plus 3 fillots officiels et 2 fillots d adoption.
+ * Maximum godchildren (fillots/fillotes) per person and per type. A person has
+ * at most 3 official godchildren and 2 adoption godchildren.
  */
 export const MAX_FILLOTS: Record<RelationKind, number> = {
   parrainage: 3,
   adoption: 2,
 };
 
-/** Code machine d une violation de regle de parrainage. */
+/** Machine code for a sponsorship-rule violation. */
 export type RelationErrorCode =
   | "INVALID_KIND"
   | "SELF"
@@ -1323,8 +1323,8 @@ export type RelationErrorCode =
   | "CYCLE";
 
 /**
- * Erreur metier d un lien de parrainage refuse (regles 1/1/3/2, cycle, doublon).
- * Le `message` est en francais, pret a etre affiche a l utilisateur.
+ * Business error for a rejected sponsorship link (rules 1/1/3/2, cycle,
+ * duplicate). The `message` is a localized string, ready to show to the user.
  */
 export class RelationError extends Error {
   code: RelationErrorCode;
@@ -1335,7 +1335,7 @@ export class RelationError extends Error {
   }
 }
 
-/** Nombre de parrains d un type donne pointant vers `personId` (liens entrants). */
+/** Number of sponsors of a given type pointing at `personId` (incoming links). */
 function countIncoming(personId: string, kind: RelationKind): number {
   const row = getDatabase()
     .prepare(
@@ -1345,7 +1345,7 @@ function countIncoming(personId: string, kind: RelationKind): number {
   return row.c;
 }
 
-/** Nombre de fillots d un type donne issus de `personId` (liens sortants). */
+/** Number of godchildren of a given type from `personId` (outgoing links). */
 function countOutgoing(personId: string, kind: RelationKind): number {
   const row = getDatabase()
     .prepare(
@@ -1355,7 +1355,7 @@ function countOutgoing(personId: string, kind: RelationKind): number {
   return row.c;
 }
 
-/** Vrai s il existe deja un lien (quel que soit le type) de source vers target. */
+/** True if a link (of any type) from source to target already exists. */
 function edgeExists(sourceId: string, targetId: string): boolean {
   return (
     getDatabase()
@@ -1366,7 +1366,7 @@ function edgeExists(sourceId: string, targetId: string): boolean {
   );
 }
 
-/** Vrai si une fiche existe. */
+/** True if a record exists. */
 function personExists(id: string): boolean {
   return (
     getDatabase().prepare("SELECT 1 FROM people WHERE id = ?").get(id) !==
@@ -1375,9 +1375,9 @@ function personExists(id: string): boolean {
 }
 
 /**
- * Vrai si `toId` est atteignable depuis `fromId` en suivant les liens
- * parrain -> fillot (source -> target). Sert a detecter les cycles : ajouter
- * source -> target creerait un cycle si target peut deja atteindre source.
+ * True if `toId` is reachable from `fromId` by following parrain -> fillot
+ * links (source -> target). Used to detect cycles: adding source -> target
+ * would create a cycle if target can already reach source.
  */
 function canReach(fromId: string, toId: string): boolean {
   const database = getDatabase();
@@ -1456,7 +1456,7 @@ export function addParrainage(
     .run(sourceId, targetId, kind);
 }
 
-/** Lien de parrainage brut (ligne `relationships`), sinon null. */
+/** Raw sponsorship link (a `relationships` row), else null. */
 export function getRelationshipById(id: number): {
   id: number;
   source_id: string;
@@ -1473,7 +1473,7 @@ export function getRelationshipById(id: number): {
   return row ?? null;
 }
 
-/** Supprime un lien de parrainage par son id. Vrai si une ligne a ete retiree. */
+/** Delete a sponsorship link by its id. True if a row was removed. */
 export function removeRelationshipById(id: number): boolean {
   return (
     getDatabase().prepare("DELETE FROM relationships WHERE id = ?").run(id)
@@ -1481,7 +1481,7 @@ export function removeRelationshipById(id: number): boolean {
   );
 }
 
-/** Un membre de l entourage (parrain ou fillot) d une personne. */
+/** A member of a person's entourage (a parrain or a fillot). */
 export interface EntourageMember {
   relId: number;
   kind: RelationKind;
@@ -1493,13 +1493,13 @@ export interface EntourageMember {
   linked: boolean;
 }
 
-/** Entourage direct d une personne : parrains entrants, fillots sortants. */
+/** A person's direct entourage: incoming parrains, outgoing fillots. */
 export interface Entourage {
   parrains: EntourageMember[];
   fillots: EntourageMember[];
 }
 
-/** Ligne brute d une jointure relationship + people. */
+/** Raw row of a relationship + people join. */
 interface EntourageRow {
   relId: number;
   type: string;
@@ -1523,8 +1523,8 @@ function toMember(row: EntourageRow): EntourageMember {
 }
 
 /**
- * Entourage direct d une personne. `parrains` = liens entrants (source = parrain),
- * `fillots` = liens sortants (target = fillot).
+ * A person's direct entourage. `parrains` = incoming links (source = parrain),
+ * `fillots` = outgoing links (target = fillot).
  */
 export function getEntourage(personId: string): Entourage {
   const database = getDatabase();
@@ -1613,7 +1613,7 @@ export function isSameFamily(aId: string, bId: string): boolean {
 
 /**
  * Update a placeholder's identity (name/promo), enforcing the "NOM Prenom"
- * format. No-op (returns false) when the fiche is missing or is a real account
+ * format. No-op (returns false) when the record is missing or is a real account
  * (auth_sub set): a linked person's identity is owned by MiConnect and must not
  * be edited by relatives here.
  */
@@ -1639,7 +1639,7 @@ export function updatePlaceholderIdentity(
 }
 
 /**
- * Delete a placeholder fiche and its relationships/links. Refuses (returns false)
+ * Delete a placeholder record and its relationships/links. Refuses (returns false)
  * on a real account (auth_sub set) so an actual user is never removed this way.
  */
 export function deletePlaceholderPerson(id: string): boolean {
@@ -1673,7 +1673,7 @@ export interface MergeSuggestionPerson {
   linked: boolean;
 }
 
-/** A candidate pair of near-duplicate fiches for the admin to review. */
+/** A candidate pair of near-duplicate records for the admin to review. */
 export interface MergeSuggestion {
   a: MergeSuggestionPerson;
   b: MergeSuggestionPerson;
@@ -1686,7 +1686,7 @@ function pairKey(a: string, b: string): string {
 }
 
 /**
- * Near-duplicate pairs for the admin to review: two fiches whose names are equal
+ * Near-duplicate pairs for the admin to review: two records whose names are equal
  * or nearly equal (edit distance <= NAME_MATCH_MAX_DISTANCE, nom/prenom inversion
  * tolerated) with compatible promo (equal, unknown on one side, or within a
  * small year tolerance). Pairs where BOTH are real accounts are excluded (two
@@ -1792,16 +1792,16 @@ export function ignoreMergePair(aId: string, bId: string): void {
     .run(x, y);
 }
 
-/** Membre d entourage expose a une app externe (Canari) : keye par sub. */
+/** An entourage member exposed to an external app (Canari): keyed by sub. */
 export interface ExternalEntourageMember {
   prenom: string;
   nom: string;
   level: number | null;
   kind: RelationKind;
-  sub: string | null; // sub Authentik du membre (pour lier vers son profil Canari)
+  sub: string | null; // the member's Authentik sub (to link to their Canari profile)
 }
 
-/** Entourage (parrains/fillots) d une personne, keye par son sub Authentik. */
+/** A person's entourage (parrains/fillots), keyed by their Authentik sub. */
 export interface ExternalEntourage {
   found: boolean;
   parrains: ExternalEntourageMember[];
@@ -1827,9 +1827,9 @@ function toExternalMember(row: ExternalRow): ExternalEntourageMember {
 }
 
 /**
- * Entourage d une personne resolue par son sub Authentik (= cle commune avec
- * Canari). Renvoie `found: false` si aucune fiche n est liee a ce sub. Chaque
- * membre porte son propre sub pour permettre a Canari de lier vers son profil.
+ * A person's entourage resolved by their Authentik sub (= the shared key with
+ * Canari). Returns `found: false` if no record is linked to this sub. Each
+ * member carries its own sub so Canari can link to its profile.
  */
 export function getEntourageBySub(sub: string): ExternalEntourage {
   const database = getDatabase();
@@ -1860,7 +1860,7 @@ export function getEntourageBySub(sub: string): ExternalEntourage {
   return { found: true, parrains, fillots };
 }
 
-/** Fiche homonyme proposee comme candidate de liaison (dedup a la creation). */
+/** A namesake record proposed as a link candidate (dedup at creation). */
 export interface NamesakeCandidate {
   id: string;
   firstName: string;
@@ -1870,8 +1870,8 @@ export interface NamesakeCandidate {
 }
 
 /**
- * Fiches dont le nom+prenom normalises correspondent, liees ou non (dedup a la
- * creation d un membre d entourage : on propose de relier plutot que dupliquer).
+ * Records whose normalized last+first name match, linked or not (dedup when
+ * creating an entourage member: propose linking rather than duplicating).
  */
 export function findPeopleByName(
   lastName: string,
@@ -1904,8 +1904,8 @@ export function findPeopleByName(
 }
 
 /**
- * Cree une fiche placeholder (sans compte) pour un membre d entourage. L id est
- * genere en `prenom.nom[.promo][.idx]`. `createdBy` trace l auteur de la fiche.
+ * Create a placeholder record (no account) for an entourage member. The id is
+ * generated as `prenom.nom[.promo][.idx]`. `createdBy` records the author.
  */
 export function createPlaceholderPerson(
   firstName: string,
