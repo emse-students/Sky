@@ -15,6 +15,7 @@
     GitMerge,
   } from "lucide-svelte";
   import { goto } from "$app/navigation";
+  import { m } from "$lib/paraglide/messages";
 
   let people: any[] = $state([]);
   let searchTerm = $state("");
@@ -42,7 +43,7 @@
       filteredPeople.every((p) => selectedIds.includes(p.id)),
   );
 
-  // Form state. La bio et la photo viennent de Canari/MiGallery : non editables ici.
+  // Form state. Bio and photo come from Canari/MiGallery: not editable here.
   let form = $state({
     id: "",
     prenom: "",
@@ -67,10 +68,17 @@
     }
   }
 
-  /** Promeut/retrograde une fiche (gestion des admins). */
+  /** Promote/demote a fiche (admin management). */
   async function toggleRole(person: any) {
     const role = person.role === "admin" ? "user" : "admin";
-    if (!confirm(`Définir ${person.prenom} ${person.nom} comme ${role} ?`)) {
+    if (
+      !confirm(
+        m.admin_people_role_confirm({
+          name: `${person.prenom} ${person.nom}`,
+          role,
+        }),
+      )
+    ) {
       return;
     }
     const res = await fetch(`/api/admin/people/${person.id}`, {
@@ -93,8 +101,10 @@
     if (!target || !source) return;
     if (
       !confirm(
-        `Fusionner "${source.prenom} ${source.nom}" et "${target.prenom} ${target.nom}" ?\n\n` +
-          `La fiche reliée à un compte est conservée et récupère les liens de l'autre, qui est supprimée.`,
+        m.admin_people_merge_confirm({
+          source: `${source.prenom} ${source.nom}`,
+          target: `${target.prenom} ${target.nom}`,
+        }),
       )
     ) {
       return;
@@ -109,15 +119,17 @@
       await loadPeople();
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || "La fusion a échoué.");
+      alert(data.error || m.admin_people_merge_alert_failed());
     }
   }
 
-  /** Delie le compte Authentik : la fiche redevient un placeholder. */
+  /** Unlink the Authentik account: the fiche becomes a placeholder again. */
   async function unlinkAccount(person: any) {
     if (
       !confirm(
-        `Délier le compte de ${person.prenom} ${person.nom} ? La fiche redevient un placeholder (le graphe est conservé).`,
+        m.admin_people_unlink_confirm({
+          name: `${person.prenom} ${person.nom}`,
+        }),
       )
     ) {
       return;
@@ -147,7 +159,12 @@
   }
 
   async function deleteSelected() {
-    if (!confirm(`Supprimer ${selectedIds.length} utilisateurs ?`)) return;
+    if (
+      !confirm(
+        m.admin_people_delete_selected_confirm({ count: selectedIds.length }),
+      )
+    )
+      return;
     loading = true;
     try {
       await Promise.all(
@@ -192,14 +209,14 @@
   }
 
   async function savePerson() {
-    // Nom, prenom and promo are mandatory (ID too when creating).
+    // Last name, first name and promo are mandatory (ID too when creating).
     if (
       !form.prenom.trim() ||
       !form.nom.trim() ||
       !form.level ||
       (isCreating && !form.id.trim())
     ) {
-      alert("Nom, prénom et promotion sont obligatoires (ID à la création).");
+      alert(m.admin_people_required());
       return;
     }
     try {
@@ -226,7 +243,7 @@
         cancelEdit();
       } else {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || "Échec de l'enregistrement.");
+        alert(d.error || m.admin_people_save_failed());
       }
     } catch (error) {
       console.error("Save error:", error);
@@ -247,7 +264,7 @@
   }
 
   async function deletePerson(id: string) {
-    if (!confirm(`Supprimer définitivement ${id} ?`)) return;
+    if (!confirm(m.admin_people_delete_confirm({ id }))) return;
 
     try {
       const res = await fetch(`/api/admin/people/${id}`, {
@@ -264,19 +281,19 @@
 </script>
 
 <svelte:head>
-  <title>Gestion des utilisateurs - Admin</title>
+  <title>{m.admin_people_page_title()}</title>
 </svelte:head>
 
 <div class="admin-layout">
   <header class="admin-header">
     <button class="btn-back" onclick={() => goto("/admin")}>
       <ArrowLeft size={20} />
-      <span>Retour</span>
+      <span>{m.common_back()}</span>
     </button>
-    <h1>Gestion des utilisateurs</h1>
+    <h1>{m.admin_people_heading()}</h1>
     <button class="btn-create" onclick={startCreate}>
       <UserPlus size={18} />
-      <span>Nouveau</span>
+      <span>{m.admin_people_new()}</span>
     </button>
   </header>
 
@@ -286,32 +303,36 @@
         <Search size={20} />
         <input
           type="text"
-          placeholder="Rechercher par nom, ID ou promo..."
+          placeholder={m.admin_people_search_placeholder()}
           bind:value={searchTerm}
         />
       </div>
 
       {#if loading}
-        <div class="loading">Chargement...</div>
+        <div class="loading">{m.common_loading()}</div>
       {:else}
         {#if selectedIds.length > 0}
           <div class="selection-bar" transition:fade>
             <div class="selection-info">
-              <span class="count">{selectedIds.length} sélectionné(s)</span>
+              <span class="count"
+                >{m.admin_people_selected_count({
+                  count: selectedIds.length,
+                })}</span
+              >
               <button class="btn-link" onclick={() => (selectedIds = [])}
-                >Tout désélectionner</button
+                >{m.admin_people_deselect_all()}</button
               >
             </div>
             <div class="selection-actions">
               {#if selectedIds.length === 2}
                 <button class="btn-merge" onclick={mergeSelected}>
                   <GitMerge size={16} />
-                  <span>Fusionner</span>
+                  <span>{m.admin_merge()}</span>
                 </button>
               {/if}
               <button class="btn-danger-outline" onclick={deleteSelected}>
                 <Trash2 size={16} />
-                <span>Supprimer</span>
+                <span>{m.common_delete()}</span>
               </button>
             </div>
           </div>
@@ -328,12 +349,12 @@
                   />
                 </th>
                 <th>ID</th>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Promo</th>
-                <th>Compte</th>
-                <th>Rôle</th>
-                <th>Actions</th>
+                <th>{m.common_lastname()}</th>
+                <th>{m.common_firstname()}</th>
+                <th>{m.admin_people_col_promo()}</th>
+                <th>{m.admin_people_col_account()}</th>
+                <th>{m.admin_people_col_role()}</th>
+                <th>{m.admin_people_col_actions()}</th>
               </tr>
             </thead>
             <tbody>
@@ -357,9 +378,13 @@
                   <td>{person.level || "—"}</td>
                   <td>
                     {#if person.linked}
-                      <span class="badge linked">Compte</span>
+                      <span class="badge linked"
+                        >{m.admin_people_badge_account()}</span
+                      >
                     {:else}
-                      <span class="badge ghost">Fiche</span>
+                      <span class="badge ghost"
+                        >{m.admin_people_badge_fiche()}</span
+                      >
                     {/if}
                   </td>
                   <td>
@@ -368,13 +393,15 @@
                       class:admin={person.role === "admin"}
                       class:ghost={person.role !== "admin"}
                     >
-                      {person.role === "admin" ? "Admin" : "User"}
+                      {person.role === "admin"
+                        ? m.admin_people_badge_admin()
+                        : m.admin_people_badge_user()}
                     </span>
                   </td>
                   <td class="actions">
                     <button
                       class="btn-icon"
-                      title="Voir/éditer son arbre"
+                      title={m.admin_people_view_tree()}
                       onclick={() => goto(`/tree?id=${person.id}`)}
                     >
                       <Network size={16} />
@@ -382,8 +409,8 @@
                     <button
                       class="btn-icon"
                       title={person.role === "admin"
-                        ? "Retirer admin"
-                        : "Promouvoir admin"}
+                        ? m.admin_people_remove_admin()
+                        : m.admin_people_make_admin()}
                       onclick={() => toggleRole(person)}
                     >
                       <Shield size={16} />
@@ -391,7 +418,7 @@
                     {#if person.linked}
                       <button
                         class="btn-icon"
-                        title="Délier le compte"
+                        title={m.admin_people_unlink()}
                         onclick={() => unlinkAccount(person)}
                       >
                         <Unlink size={16} />
@@ -413,14 +440,19 @@
           </table>
         </div>
         <div class="table-footer">
-          {filteredPeople.length} / {people.length} utilisateurs
+          {m.admin_people_footer({
+            filtered: filteredPeople.length,
+            total: people.length,
+          })}
         </div>
       {/if}
     {:else}
       <div class="edit-form" transition:fade>
         <div class="form-header">
           <h2>
-            {isCreating ? "Nouveau profil" : `Édition : ${editingPerson.id}`}
+            {isCreating
+              ? m.admin_people_new_profile()
+              : m.admin_people_edit_title({ id: editingPerson.id })}
           </h2>
           <button class="btn-close" onclick={cancelEdit}>
             <X size={20} />
@@ -429,38 +461,38 @@
 
         <div class="form-grid">
           <div class="form-group">
-            <label for="id">ID (identifiant unique)</label>
+            <label for="id">{m.admin_people_id_label()}</label>
             <input
               id="id"
               type="text"
               bind:value={form.id}
-              placeholder="prenom.nom"
+              placeholder={m.admin_people_id_placeholder()}
               disabled={!isCreating}
             />
           </div>
 
           <div class="form-group">
-            <label for="prenom">Prénom</label>
+            <label for="prenom">{m.common_firstname()}</label>
             <input
               id="prenom"
               type="text"
               bind:value={form.prenom}
-              placeholder="Jean"
+              placeholder={m.admin_people_firstname_placeholder()}
             />
           </div>
 
           <div class="form-group">
-            <label for="nom">Nom</label>
+            <label for="nom">{m.common_lastname()}</label>
             <input
               id="nom"
               type="text"
               bind:value={form.nom}
-              placeholder="Dupont"
+              placeholder={m.admin_people_lastname_placeholder()}
             />
           </div>
 
           <div class="form-group">
-            <label for="level">Promotion</label>
+            <label for="level">{m.admin_people_promo_label()}</label>
             <input
               id="level"
               type="number"
@@ -471,15 +503,16 @@
         </div>
 
         <p class="form-note">
-          La photo de profil et la biographie proviennent de Canari/MiGallery et
-          ne sont pas modifiables ici.
+          {m.admin_people_form_note()}
         </p>
 
         <div class="form-actions">
-          <button class="btn-cancel" onclick={cancelEdit}>Annuler</button>
+          <button class="btn-cancel" onclick={cancelEdit}
+            >{m.common_cancel()}</button
+          >
           <button class="btn-save" onclick={savePerson}>
             <Save size={18} />
-            <span>Enregistrer</span>
+            <span>{m.common_save()}</span>
           </button>
         </div>
       </div>

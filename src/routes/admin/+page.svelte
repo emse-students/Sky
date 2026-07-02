@@ -13,6 +13,8 @@
     RefreshCw,
     GitMerge,
   } from "lucide-svelte";
+  import { m } from "$lib/paraglide/messages";
+  import { formatPromoShort } from "$lib/utils/format";
 
   type SuggPerson = {
     id: string;
@@ -66,7 +68,7 @@
         await Promise.all([loadSuggestions(), loadStats()]);
       } else {
         const d = await res.json().catch(() => ({}));
-        flash(d.error || "Échec de la fusion.", "error");
+        flash(d.error || m.admin_merge_failed(), "error");
       }
     } finally {
       suggBusy = false;
@@ -94,7 +96,8 @@
 
   /** Ignore every currently listed suggestion. */
   async function ignoreAll() {
-    if (!confirm(`Ignorer les ${suggestions.length} suggestions ?`)) return;
+    if (!confirm(m.admin_ignore_all_confirm({ count: suggestions.length })))
+      return;
     suggBusy = true;
     try {
       for (const s of [...suggestions]) {
@@ -112,7 +115,7 @@
 
   /** Merge every currently listed pair (skips ones that became invalid). */
   async function mergeAll() {
-    if (!confirm(`Fusionner les ${suggestions.length} paires suggérées ?`)) {
+    if (!confirm(m.admin_merge_all_confirm({ count: suggestions.length }))) {
       return;
     }
     suggBusy = true;
@@ -130,7 +133,7 @@
     }
   }
 
-  /** Charge les compteurs (personnes, liens de parrainage). */
+  /** Load the counters (people, sponsorship links). */
   async function loadStats() {
     try {
       const [peopleRes, relRes] = await Promise.all([
@@ -168,9 +171,9 @@
       a.download = `sky-backup-${new Date().toISOString().split("T")[0]}.db`;
       a.click();
       URL.revokeObjectURL(url);
-      flash("Base exportée.", "success");
+      flash(m.admin_export_done(), "success");
     } catch {
-      flash("Échec de l'export.", "error");
+      flash(m.admin_export_failed(), "error");
     } finally {
       busy = false;
     }
@@ -189,14 +192,22 @@
       const data = await res.json();
       if (res.ok && data.success) {
         flash(
-          `Positions recalculées : ${data.positioned}/${data.total} étoiles placées.`,
+          m.admin_positions_done({
+            positioned: data.positioned,
+            total: data.total,
+          }),
           "success",
         );
       } else {
-        flash(`Échec du recalcul : ${data.error ?? "erreur inconnue"}`, "error");
+        flash(
+          m.admin_positions_failed({
+            error: data.error ?? m.admin_recalc_unknown_error(),
+          }),
+          "error",
+        );
       }
     } catch (e) {
-      flash("Échec du recalcul des positions.", "error");
+      flash(m.admin_positions_failed_generic(), "error");
       console.error("[Admin] recalc positions error", e);
     } finally {
       busy = false;
@@ -207,11 +218,7 @@
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (
-      !confirm(
-        "Remplacer la base actuelle par ce fichier ? Une sauvegarde est faite avant, mais l'opération réécrit les données en cours.",
-      )
-    ) {
+    if (!confirm(m.admin_import_confirm())) {
       input.value = "";
       return;
     }
@@ -224,10 +231,10 @@
         body: formData,
       });
       if (!res.ok) throw new Error("import");
-      flash("Base importée. Rechargement...", "success");
+      flash(m.admin_import_done(), "success");
       setTimeout(() => window.location.reload(), 1200);
     } catch {
-      flash("Échec de l'import.", "error");
+      flash(m.admin_import_failed(), "error");
     } finally {
       busy = false;
       input.value = "";
@@ -236,20 +243,20 @@
 </script>
 
 <svelte:head>
-  <title>Administration - Sky</title>
+  <title>{m.admin_page_title()}</title>
 </svelte:head>
 
 {#if !isAdmin}
   <div class="denied">
     <AlertCircle size={48} />
-    <h1>Accès refusé</h1>
-    <p>Réservé aux administrateurs.</p>
+    <h1>{m.admin_denied_title()}</h1>
+    <p>{m.admin_denied_body()}</p>
   </div>
 {:else}
   <div class="admin">
     <header>
-      <h1>Administration</h1>
-      <p>Gestion des personnes et des liens de parrainage.</p>
+      <h1>{m.admin_heading()}</h1>
+      <p>{m.admin_subtitle()}</p>
     </header>
 
     {#if message}
@@ -260,20 +267,20 @@
       <section class="suggestions">
         <div class="sugg-head">
           <h2>
-            <GitMerge size={18} /> Fusions suggérées ({suggestions.length})
+            <GitMerge size={18} />
+            {m.admin_suggestions_title({ count: suggestions.length })}
           </h2>
           <div class="sugg-bulk">
             <button class="sugg-btn ignore" disabled={suggBusy} onclick={ignoreAll}
-              >Tout ignorer</button
+              >{m.admin_ignore_all()}</button
             >
             <button class="sugg-btn merge" disabled={suggBusy} onclick={mergeAll}
-              >Tout fusionner</button
+              >{m.admin_merge_all()}</button
             >
           </div>
         </div>
         <p class="sugg-sub">
-          Étoiles très proches, potentiellement en double. Vérifie avant de
-          fusionner.
+          {m.admin_suggestions_sub()}
         </p>
         <ul class="sugg-list">
           {#each suggestions as s (s.a.id + "|" + s.b.id)}
@@ -281,31 +288,40 @@
               <div class="sugg-pair">
                 <span class="sugg-name"
                   >{s.a.nom.toUpperCase()} {s.a.prenom}
-                  <small>P{s.a.level ?? "?"}{s.a.linked ? " · compte" : ""}</small
+                  <small
+                    >{formatPromoShort(s.a.level)}{s.a.linked
+                      ? ` · ${m.admin_sugg_account()}`
+                      : ""}</small
                   ></span
                 >
                 <span class="sugg-vs">↔</span>
                 <span class="sugg-name"
                   >{s.b.nom.toUpperCase()} {s.b.prenom}
-                  <small>P{s.b.level ?? "?"}{s.b.linked ? " · compte" : ""}</small
+                  <small
+                    >{formatPromoShort(s.b.level)}{s.b.linked
+                      ? ` · ${m.admin_sugg_account()}`
+                      : ""}</small
                   ></span
                 >
                 <span class="sugg-dist"
-                  >{s.distance === 0 ? "identique" : `distance ${s.distance}`}</span
+                  >{s.distance === 0
+                    ? m.admin_sugg_identical()
+                    : m.admin_sugg_distance({ distance: s.distance })}</span
                 >
               </div>
               <div class="sugg-actions">
                 <button
                   class="sugg-btn ignore"
                   disabled={suggBusy}
-                  onclick={() => ignorePair(s)}>Ignorer</button
+                  onclick={() => ignorePair(s)}>{m.admin_ignore()}</button
                 >
                 <button
                   class="sugg-btn merge"
                   disabled={suggBusy}
                   onclick={() => mergePair(s)}
                 >
-                  <GitMerge size={14} /> Fusionner
+                  <GitMerge size={14} />
+                  {m.admin_merge()}
                 </button>
               </div>
             </li>
@@ -319,14 +335,14 @@
         <Users size={28} />
         <div>
           <div class="num">{stats.people}</div>
-          <div class="lbl">Personnes</div>
+          <div class="lbl">{m.admin_stat_people()}</div>
         </div>
       </div>
       <div class="stat">
         <Link2 size={28} />
         <div>
           <div class="num">{stats.relationships}</div>
-          <div class="lbl">Liens de parrainage</div>
+          <div class="lbl">{m.admin_stat_relationships()}</div>
         </div>
       </div>
     </div>
@@ -335,30 +351,27 @@
     <button class="primary-card" onclick={() => goto("/admin/people")}>
       <Users size={28} />
       <div class="pc-text">
-        <span class="pc-title">Gérer les personnes</span>
-        <span class="pc-sub"
-          >Rechercher, éditer, fusionner, lier un compte, définir les admins,
-          éditer l'arbre de chacun.</span
-        >
+        <span class="pc-title">{m.admin_manage_people()}</span>
+        <span class="pc-sub">{m.admin_manage_people_sub()}</span>
       </div>
       <ChevronRight size={22} />
     </button>
 
     <!-- Advanced tools -->
-    <h2 class="section">Outils avancés</h2>
+    <h2 class="section">{m.admin_advanced_tools()}</h2>
     <div class="tools">
       <div class="tool">
-        <h3><Download size={18} /> Exporter</h3>
-        <p>Télécharger une copie de la base (sauvegarde).</p>
+        <h3><Download size={18} /> {m.admin_export()}</h3>
+        <p>{m.admin_export_desc()}</p>
         <button class="btn" disabled={busy} onclick={exportDatabase}
-          >Exporter</button
+          >{m.admin_export()}</button
         >
       </div>
       <div class="tool">
-        <h3><Upload size={18} /> Importer</h3>
-        <p>Remplacer la base par une sauvegarde. Sensible.</p>
+        <h3><Upload size={18} /> {m.admin_import()}</h3>
+        <p>{m.admin_import_desc()}</p>
         <label class="btn" class:disabled={busy}>
-          Choisir un fichier
+          {m.admin_choose_file()}
           <input
             type="file"
             accept=".db,.sqlite,.sqlite3"
@@ -369,17 +382,17 @@
         </label>
       </div>
       <div class="tool">
-        <h3><Archive size={18} /> Ancienne base</h3>
-        <p>Consulter le snapshot historique (lecture seule).</p>
+        <h3><Archive size={18} /> {m.admin_legacy()}</h3>
+        <p>{m.admin_legacy_desc()}</p>
         <button class="btn" onclick={() => goto("/admin/legacy")}
-          >Consulter</button
+          >{m.admin_consult()}</button
         >
       </div>
       <div class="tool">
-        <h3><RefreshCw size={18} /> Positions</h3>
-        <p>Recalculer la disposition des étoiles (si des gens n'apparaissent pas).</p>
+        <h3><RefreshCw size={18} /> {m.admin_positions()}</h3>
+        <p>{m.admin_positions_desc()}</p>
         <button class="btn" disabled={busy} onclick={recalcPositions}
-          >Recalculer</button
+          >{m.admin_recalc()}</button
         >
       </div>
     </div>
