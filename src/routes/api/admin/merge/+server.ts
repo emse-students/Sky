@@ -5,6 +5,7 @@ import {
   getPersonAuthSub,
 } from "$lib/server/database";
 import type { RequestHandler } from "@sveltejs/kit";
+import { m } from "$lib/paraglide/messages";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
@@ -35,13 +36,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const sourceLinked = getPersonAuthSub(sourceId) !== null;
     const targetLinked = getPersonAuthSub(targetId) !== null;
     if (sourceLinked && targetLinked) {
-      return json(
-        {
-          error:
-            "Impossible de fusionner deux comptes reliés : une étoile = une personne.",
-        },
-        { status: 409 },
-      );
+      return json({ error: m.api_merge_two_linked() }, { status: 409 });
     }
 
     // The linked fiche (connected account) always survives, whatever the

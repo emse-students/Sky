@@ -12,6 +12,7 @@ import {
   personMatchScore,
 } from "$utils/format";
 import { layoutGraph } from "$server/positions";
+import { m } from "$lib/paraglide/messages";
 
 const DB_PATH = path.join(process.cwd(), "database", "sky.db");
 const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
@@ -1405,9 +1406,9 @@ function canReach(fromId: string, toId: string): boolean {
 }
 
 /**
- * Cree un lien de parrainage `sourceId` (parrain) -> `targetId` (fillot) du type
- * donne, en appliquant toutes les regles : pas d auto-lien, fiches existantes,
- * pas de doublon, maxima 1/1/3/2, pas de cycle. Leve `RelationError` sinon.
+ * Create a sponsorship link `sourceId` (sponsor) -> `targetId` (godchild) of the
+ * given type, enforcing every rule: no self-link, both records must exist, no
+ * duplicate, maxima 1/1/3/2, no cycle. Throws `RelationError` otherwise.
  */
 export function addParrainage(
   sourceId: string,
@@ -1418,38 +1419,35 @@ export function addParrainage(
     `[Entourage] addParrainage source=${sourceId} target=${targetId} kind=${kind}`,
   );
   if (!isRelationKind(kind)) {
-    throw new RelationError("INVALID_KIND", "Type de lien invalide.");
+    throw new RelationError("INVALID_KIND", m.rel_err_invalid_kind());
   }
   if (sourceId === targetId) {
-    throw new RelationError(
-      "SELF",
-      "Une personne ne peut pas se parrainer elle-meme.",
-    );
+    throw new RelationError("SELF", m.rel_err_self());
   }
   if (!personExists(sourceId) || !personExists(targetId)) {
-    throw new RelationError("NOT_FOUND", "Personne introuvable.");
+    throw new RelationError("NOT_FOUND", m.rel_err_not_found());
   }
   if (edgeExists(sourceId, targetId)) {
-    throw new RelationError("DUPLICATE", "Ce lien existe deja.");
+    throw new RelationError("DUPLICATE", m.rel_err_duplicate());
   }
   if (countOutgoing(sourceId, kind) >= MAX_FILLOTS[kind]) {
     throw new RelationError(
       "MAX_FILLOT",
       kind === "parrainage"
-        ? "Limite de 3 fillots officiels atteinte."
-        : "Limite de 2 fillots d'adoption atteinte.",
+        ? m.rel_err_max_fillot_official()
+        : m.rel_err_max_fillot_adoption(),
     );
   }
   if (countIncoming(targetId, kind) >= MAX_PARRAINS[kind]) {
     throw new RelationError(
       "MAX_PARRAIN",
       kind === "parrainage"
-        ? "Un parrain officiel existe deja."
-        : "Un parrain d'adoption existe deja.",
+        ? m.rel_err_max_parrain_official()
+        : m.rel_err_max_parrain_adoption(),
     );
   }
   if (canReach(targetId, sourceId)) {
-    throw new RelationError("CYCLE", "Ce lien creerait un cycle dans l'arbre.");
+    throw new RelationError("CYCLE", m.rel_err_cycle());
   }
   getDatabase()
     .prepare(
@@ -1631,7 +1629,12 @@ export function updatePlaceholderIdentity(
          updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND auth_sub IS NULL`,
     )
-    .run(formatFirstName(firstName), formatLastName(lastName), level, id).changes;
+    .run(
+      formatFirstName(firstName),
+      formatLastName(lastName),
+      level,
+      id,
+    ).changes;
   return changes > 0;
 }
 
@@ -1694,9 +1697,7 @@ function pairKey(a: string, b: string): string {
 export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
   const database = getDatabase();
   const people = database
-    .prepare(
-      "SELECT id, first_name, last_name, level, auth_sub FROM people",
-    )
+    .prepare("SELECT id, first_name, last_name, level, auth_sub FROM people")
     .all() as {
     id: string;
     first_name: string;
@@ -1707,9 +1708,10 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
 
   const ignored = new Set(
     (
-      database
-        .prepare("SELECT a_id, b_id FROM ignored_merge_pairs")
-        .all() as { a_id: string; b_id: string }[]
+      database.prepare("SELECT a_id, b_id FROM ignored_merge_pairs").all() as {
+        a_id: string;
+        b_id: string;
+      }[]
     ).map((r) => pairKey(r.a_id, r.b_id)),
   );
 
@@ -1756,7 +1758,12 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
       ) {
         continue;
       }
-      const d = nameDistance(A.last_name, A.first_name, B.last_name, B.first_name);
+      const d = nameDistance(
+        A.last_name,
+        A.first_name,
+        B.last_name,
+        B.first_name,
+      );
       if (d > NAME_MATCH_MAX_DISTANCE) {
         continue;
       }
@@ -2013,7 +2020,12 @@ export function recalculatePositions(): Promise<PositionsStatus> {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(positions, null, 2));
 
-    const status = record(true, null, Object.keys(positions).length, nodeIds.length);
+    const status = record(
+      true,
+      null,
+      Object.keys(positions).length,
+      nodeIds.length,
+    );
     console.debug(
       `[Positions] Done: ${status.positioned}/${status.total} nodes positioned`,
     );

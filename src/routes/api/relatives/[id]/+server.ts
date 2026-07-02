@@ -7,6 +7,7 @@ import {
   countPersonRelations,
   recalculatePositions,
 } from "$lib/server/database";
+import { m } from "$lib/paraglide/messages";
 
 /**
  * Edit or delete a placeholder relative (a parrain/fillot not yet linked to a
@@ -15,10 +16,7 @@ import {
  * can fix a mistyped name or remove a wrong star anywhere in their tree. Real
  * accounts are protected by the DB layer (identity owned by MiConnect).
  */
-function canManage(
-  locals: App.Locals,
-  id: string,
-): boolean {
+function canManage(locals: App.Locals, id: string): boolean {
   const user = locals.user;
   if (!user) {
     return false;
@@ -43,7 +41,7 @@ function parseLevel(value: unknown): number | null {
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   if (!canManage(locals, params.id)) {
-    return json({ error: "Non autorisé" }, { status: 403 });
+    return json({ error: m.api_unauthorized() }, { status: 403 });
   }
   const data = (await request.json()) as {
     prenom?: string;
@@ -52,35 +50,25 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   };
   const level = parseLevel(data.level);
   if (!data.prenom?.trim() || !data.nom?.trim() || level === null) {
-    return json(
-      { error: "Nom, prénom et promotion sont obligatoires." },
-      { status: 400 },
-    );
+    return json({ error: m.modal_required_fields() }, { status: 400 });
   }
   const ok = updatePlaceholderIdentity(params.id, data.prenom, data.nom, level);
   if (!ok) {
-    return json(
-      { error: "Fiche introuvable ou reliée à un compte." },
-      { status: 409 },
-    );
+    return json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
   }
   return json({ success: true });
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
   // Allow deleting an orphan placeholder (no relation at all, so unowned) by any
-  // signed-in user: this is the "délier -> the star is now dangling" cleanup.
-  const orphan =
-    !!locals.user && countPersonRelations(params.id) === 0;
+  // signed-in user: this is the "unlink -> the star is now dangling" cleanup.
+  const orphan = !!locals.user && countPersonRelations(params.id) === 0;
   if (!canManage(locals, params.id) && !orphan) {
-    return json({ error: "Non autorisé" }, { status: 403 });
+    return json({ error: m.api_unauthorized() }, { status: 403 });
   }
   const ok = deletePlaceholderPerson(params.id);
   if (!ok) {
-    return json(
-      { error: "Fiche introuvable ou reliée à un compte." },
-      { status: 409 },
-    );
+    return json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
   }
   recalculatePositions().catch((e) => console.error("Recalc failed", e));
   return json({ success: true });
