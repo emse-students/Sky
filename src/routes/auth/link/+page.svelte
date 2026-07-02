@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { enhance } from "$app/forms";
   import { Star, UserPlus } from "lucide-svelte";
+  import { m } from "$lib/paraglide/messages";
 
   let { data, form } = $props();
 
@@ -11,18 +12,18 @@
 </script>
 
 <svelte:head>
-  <title>Quelle fiche es-tu ? - Sky</title>
+  <title>{m.link_page_title()}</title>
 </svelte:head>
 
 <div class="link">
   <div class="card">
     <Star size={40} class="icon" />
-    <h1>Quelle fiche es-tu&nbsp;?</h1>
+    <h1>{m.link_heading()}</h1>
     <p class="sub">
-      Plusieurs etoiles portent le nom <strong
-        >{data.firstName} {data.lastName}</strong
-      >{data.level ? ` (promo ${data.level})` : ""}. Choisis la tienne pour la
-      relier a ton compte, ou cree une nouvelle fiche.
+      {m.link_subtitle_before()}
+      <strong>{data.firstName} {data.lastName}</strong>{data.level
+        ? ` ${m.link_promo_paren({ level: data.level })}`
+        : ""}. {m.link_subtitle_after()}
     </p>
 
     {#if form?.error}
@@ -50,7 +51,10 @@
             />
             <Star size={18} />
             <span class="name">{c.lastName} {c.firstName}</span>
-            <span class="promo">{c.level ? `Promo ${c.level}` : "Promo ?"}</span
+            <span class="promo"
+              >{c.level
+                ? m.common_promo({ level: c.level })
+                : m.link_promo_unknown()}</span
             >
           </label>
         {/each}
@@ -58,12 +62,12 @@
         <label class="option new" class:active={choice === "new"}>
           <input type="radio" name="choice" value="new" bind:group={choice} />
           <UserPlus size={18} />
-          <span class="name">Aucune, creer ma fiche</span>
+          <span class="name">{m.link_option_new()}</span>
         </label>
       </div>
 
       <button class="submit" type="submit" disabled={submitting}>
-        {submitting ? "Liaison..." : "Continuer"}
+        {submitting ? m.link_submitting() : m.common_continue()}
       </button>
     </form>
   </div>
