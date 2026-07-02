@@ -351,13 +351,6 @@
               {/each}
             </div>
           {/if}
-          {#if !canari.profile.bio && canari.profile.associations.length === 0 && canari.profile.formerAssociations.length === 0}
-            <p class="muted">Aucune information de profil sur Canari.</p>
-          {/if}
-        </section>
-      {:else if canari && !canari.linked}
-        <section class="canari" in:fade>
-          <p class="muted">Fiche non liee a un compte Canari.</p>
         </section>
       {/if}
     </div>
@@ -820,12 +813,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #94a3b8;
-  }
-  .canari .muted {
-    margin: 0;
-    color: #64748b;
-    font-style: italic;
-    font-size: 0.9rem;
   }
   .chips {
     display: flex;
