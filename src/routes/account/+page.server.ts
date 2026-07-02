@@ -6,6 +6,7 @@ import {
   relinkSelf,
 } from "$server/database";
 import { SESSION_COOKIE_NAME } from "$server/session";
+import { m } from "$lib/paraglide/messages";
 
 /**
  * Account correction screen: shows the fiche the signed-in user is currently
@@ -45,13 +46,11 @@ export const actions: Actions = {
     }
     const targetId = String((await request.formData()).get("targetId") ?? "");
     if (!targetId) {
-      return fail(400, { error: "Aucune fiche sélectionnée." });
+      return fail(400, { error: m.account_no_fiche_selected() });
     }
     const ok = relinkSelf(user.id, targetId, token);
     if (!ok) {
-      return fail(400, {
-        error: "Cette fiche n'est plus disponible (déjà liée ou introuvable).",
-      });
+      return fail(400, { error: m.account_fiche_unavailable() });
     }
     throw redirect(302, "/");
   },

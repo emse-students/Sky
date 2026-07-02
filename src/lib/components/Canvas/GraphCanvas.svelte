@@ -144,10 +144,10 @@
   function draw() {
     if (!ctx) return;
 
-    // Clear avec transparence pour voir le fond étoilé
+    // Clear with transparency so the starfield background shows through.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Calculer la zone visible (viewport culling)
+    // Compute the visible area (viewport culling).
     const viewLeft = camera.x - canvas.width / 2 / camera.zoom;
     const viewRight = camera.x + canvas.width / 2 / camera.zoom;
     const viewTop = camera.y - canvas.height / 2 / camera.zoom;
@@ -159,10 +159,10 @@
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
-    // Draw relations (lines) - seulement si bien zoomé. On regroupe les traits par
-    // type (officiel plein, adoption pointillé) en un seul path/stroke par style :
-    // les changements d etat canvas (strokeStyle/setLineDash) sont couteux, donc
-    // on n en fait que deux pour tout le graphe au lieu de deux par lien.
+    // Draw relations (lines) - only when zoomed in enough. Lines are grouped by
+    // type (official solid, adoption dashed) into a single path/stroke per style:
+    // canvas state changes (strokeStyle/setLineDash) are costly, so we do only
+    // two for the whole graph instead of two per link.
     if (camera.zoom > 0.03) {
       ctx.lineWidth = 1 / camera.zoom;
       const dash = 5 / camera.zoom;
@@ -177,7 +177,7 @@
           const pos1 = positions[rel.id1];
           const pos2 = positions[rel.id2];
           if (!pos1 || !pos2) continue;
-          // Viewport culling : ignorer les liens entierement hors champ.
+          // Viewport culling: skip links entirely off-screen.
           if (
             (pos1.x < viewLeft && pos2.x < viewLeft) ||
             (pos1.x > viewRight && pos2.x > viewRight) ||
@@ -200,7 +200,7 @@
       const pos = positions[person.id];
       if (!pos) return;
 
-      // Skip si hors écran
+      // Skip if off-screen
       if (
         pos.x < viewLeft ||
         pos.x > viewRight ||
@@ -226,7 +226,7 @@
       }
       ctx.fill();
 
-      // Label - afficher tout le temps si zoomé
+      // Label - always shown once zoomed in
       if (camera.zoom > 0.15) {
         ctx.fillStyle = isSelected
           ? "#fbbf24"

@@ -3,6 +3,7 @@ import { sequence } from "@sveltejs/kit/hooks";
 import { getSessionPerson } from "$server/database";
 import { SESSION_COOKIE_NAME } from "$server/session";
 import { paraglideMiddleware } from "$lib/paraglide/server";
+import { m } from "$lib/paraglide/messages";
 
 /**
  * Binds the request locale (resolved from the cookie / Accept-Language header,
@@ -13,21 +14,22 @@ const paraglideHandler: Handle = ({ event, resolve }) =>
   paraglideMiddleware(event.request, ({ request, locale }) => {
     event.request = request;
     return resolve(event, {
-      transformPageChunk: ({ html }) => html.replace("%paraglide.lang%", locale),
+      transformPageChunk: ({ html }) =>
+        html.replace("%paraglide.lang%", locale),
     });
   });
 
 /**
- * Routes accessibles sans session. `/` (la landing avec le bouton Connexion) et
- * `/unauthorized` sont publiques en correspondance EXACTE ; les autres sont des
- * prefixes (flux de connexion, sonde de sante, proxy d avatars appele par <img>).
- * Les fichiers statiques (_app, assets) sont servis avant le hook. Comme Canari,
- * la landing publique evite la boucle de re-login silencieux apres deconnexion
- * (la session SSO Authentik n est pas tuee : reconnexion en un clic).
+ * Routes reachable without a session. `/` (the landing with the Login button) and
+ * `/unauthorized` are public on an EXACT match; the others are prefixes (login
+ * flow, health probe, avatar proxy called by <img>). Static files (_app, assets)
+ * are served before the hook. Like Canari, the public landing avoids the silent
+ * re-login loop after logout (the Authentik SSO session is not killed: one-click
+ * reconnect).
  */
 const PUBLIC_EXACT = new Set(["/", "/unauthorized"]);
-// `/api/external/` est protege par sa propre cle (SKY_API_KEY), pas par la
-// session ICM : il est consomme par Canari (serveur a serveur).
+// `/api/external/` is protected by its own key (SKY_API_KEY), not the ICM
+// session: it is consumed by Canari (server to server).
 const PUBLIC_PREFIXES = [
   "/auth/",
   "/api/health",
@@ -43,8 +45,8 @@ function isPublic(pathname: string): boolean {
 }
 
 /**
- * Resout la session opaque (cookie -> table sessions -> fiche people) et peuple
- * `event.locals.user`. Aucune redirection ici : seulement la resolution.
+ * Resolve the opaque session (cookie -> sessions table -> people record) and
+ * populate `event.locals.user`. No redirect here: resolution only.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
   const token = event.cookies.get(SESSION_COOKIE_NAME);
@@ -69,9 +71,9 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Gate global : tout Sky est reserve aux ICM. Sans session -> redirection vers la
- * connexion (ou 401 sur une route API). Session non-ICM et non-admin -> page de
- * refus (defense en profondeur : le callback OIDC gate deja a la connexion).
+ * Global gate: all of Sky is reserved for ICM. No session -> redirect to login
+ * (or 401 on an API route). Non-ICM, non-admin session -> refusal page (defense
+ * in depth: the OIDC callback already gates at login).
  */
 const gateHandler: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
@@ -82,14 +84,14 @@ const gateHandler: Handle = async ({ event, resolve }) => {
   const user = event.locals.user;
   if (!user) {
     if (pathname.startsWith("/api/")) {
-      return json({ error: "Non authentifie" }, { status: 401 });
+      return json({ error: m.api_unauthenticated() }, { status: 401 });
     }
     throw redirect(302, "/auth/login");
   }
 
   if (user.formation !== "ICM" && user.role !== "admin") {
     if (pathname.startsWith("/api/")) {
-      return json({ error: "Reserve aux ICM" }, { status: 403 });
+      return json({ error: m.api_icm_only() }, { status: 403 });
     }
     throw redirect(302, "/unauthorized");
   }

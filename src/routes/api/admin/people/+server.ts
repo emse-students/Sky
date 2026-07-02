@@ -7,8 +7,9 @@ import {
 } from "$lib/server/database";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
+import { m } from "$lib/paraglide/messages";
 
-/** Liste enrichie (role, etat de liaison du compte) pour l administration. */
+/** Enriched list (role, account link status) for administration. */
 export const GET: RequestHandler = ({ locals }) => {
   requireAdmin(locals);
   return json(getAllPeopleAdmin());
@@ -44,10 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Nom, prenom and promo are mandatory when creating a star.
     if (!prenom || !nom || data.level === null || data.level === undefined) {
-      return json(
-        { error: "Nom, prénom et promotion sont obligatoires." },
-        { status: 400 },
-      );
+      return json({ error: m.modal_required_fields() }, { status: 400 });
     }
 
     // Insert person

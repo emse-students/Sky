@@ -1,6 +1,7 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { recalculatePositions } from "$lib/server/database";
+import { m } from "$lib/paraglide/messages";
 
 /**
  * Admin-triggered positions recompute. Runs the layout synchronously and returns
@@ -10,7 +11,7 @@ import { recalculatePositions } from "$lib/server/database";
  */
 export const POST: RequestHandler = async ({ locals }) => {
   if (locals.user?.role !== "admin") {
-    return json({ error: "Réservé aux administrateurs" }, { status: 403 });
+    return json({ error: m.api_admin_only() }, { status: 403 });
   }
   try {
     const status = await recalculatePositions();

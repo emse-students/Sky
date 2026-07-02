@@ -16,8 +16,9 @@ import {
   RelationError,
   type RelationKind,
 } from "$lib/server/database";
+import { m } from "$lib/paraglide/messages";
 
-/** Liste brute des liens (lecture). */
+/** Raw list of links (read). */
 export const GET: RequestHandler = () => {
   try {
     const db = getDatabase();
@@ -29,25 +30,25 @@ export const GET: RequestHandler = () => {
   }
 };
 
-/** Description d une fiche a creer (membre d entourage inexistant en base). */
+/** Description of a record to create (an entourage member not yet in the DB). */
 interface NewPersonInput {
   firstName?: string;
   lastName?: string;
   level?: number | string | null;
 }
 
-/** Corps attendu pour l ajout d un lien d entourage. */
+/** Expected body for adding an entourage link. */
 interface AddRelationBody {
   type?: string;
   role?: "parrain" | "fillot";
   targetId?: string;
   newPerson?: NewPersonInput;
   confirmCreate?: boolean;
-  /** Personne au centre du lien (defaut: l utilisateur). Admin requis si autre. */
+  /** Person at the center of the link (default: the user). Admin required otherwise. */
   centerId?: string;
 }
 
-/** Convertit une promo (number | string) en entier, sinon null. */
+/** Coerce a promo (number | string) to an integer, or null. */
 function parseLevel(value: number | string | null | undefined): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -60,18 +61,18 @@ function parseLevel(value: number | string | null | undefined): number | null {
 }
 
 /**
- * Ajoute un lien d entourage pour l utilisateur connecte (son nœud = `me`).
- * `role=parrain` -> l autre est mon parrain (autre -> me) ; `role=fillot` ->
- * l autre est mon fillot (me -> autre). L autre est soit une fiche existante
- * (`targetId`), soit une nouvelle fiche (`newPerson`) ; dans ce dernier cas, si
- * des homonymes existent et que `confirmCreate` est faux, on renvoie les
- * candidats pour proposer une liaison plutot qu un doublon. Les regles 1/1/3/2
- * et l anti-cycle sont appliquees par le moteur (`addParrainage`).
+ * Add an entourage link for the signed-in user (their node = `me`).
+ * `role=parrain` -> the other is my sponsor (other -> me); `role=fillot` ->
+ * the other is my godchild (me -> other). The other is either an existing record
+ * (`targetId`) or a new record (`newPerson`); in the latter case, if namesakes
+ * exist and `confirmCreate` is false, the candidates are returned to offer a link
+ * rather than a duplicate. The 1/1/3/2 rules and the anti-cycle constraint are
+ * enforced by the engine (`addParrainage`).
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: "Non authentifie" }, { status: 401 });
+    return json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
   const body = (await request.json()) as AddRelationBody;
@@ -85,7 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   } = body;
 
   if (!isRelationKind(type)) {
-    return json({ error: "Type de lien invalide" }, { status: 400 });
+    return json({ error: m.api_invalid_relation_type() }, { status: 400 });
   }
   const kind: RelationKind = type;
 
@@ -97,10 +98,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     user.role !== "admin" &&
     !isSameFamily(user.profile_id, center)
   ) {
-    return json({ error: "Non autorise" }, { status: 403 });
+    return json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
-  // Resoudre l autre extremite du lien : fiche existante ou nouvelle (dedup).
+  // Resolve the other end of the link: existing record or new one (dedup).
   let otherId: string;
   if (targetId) {
     otherId = targetId;
@@ -108,7 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const level = parseLevel(newPerson.level);
     // Promo is mandatory when creating a new star.
     if (level === null) {
-      return json({ error: "La promotion est obligatoire." }, { status: 400 });
+      return json({ error: m.api_promo_required() }, { status: 400 });
     }
     if (!confirmCreate) {
       const candidates = findPeopleByName(
@@ -126,10 +127,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       user.profile_id,
     );
   } else {
-    return json({ error: "targetId ou newPerson requis" }, { status: 400 });
+    return json({ error: m.api_target_or_new_required() }, { status: 400 });
   }
 
-  // parrain = source, fillot = target (relatif a la personne centrale).
+  // parrain = source, fillot = target (relative to the central person).
   const sourceId = role === "parrain" ? otherId : center;
   const targetUser = role === "parrain" ? center : otherId;
 
@@ -140,10 +141,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ error: error.message, code: error.code }, { status: 409 });
     }
     console.error("Error creating relationship:", error);
-    return json({ error: "Echec de creation du lien" }, { status: 500 });
+    return json({ error: m.api_relation_create_failed() }, { status: 500 });
   }
 
-  // Recalcul des positions en tache de fond (meilleur effort).
+  // Recompute positions in the background (best effort).
   recalculatePositions().catch((err) =>
     console.error("Failed to recalculate positions:", err),
   );
@@ -158,25 +159,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 export const DELETE: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: "Non authentifie" }, { status: 401 });
+    return json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
   const body = (await request.json()) as { relationshipId?: number };
   const { relationshipId } = body;
   if (!relationshipId) {
-    return json({ error: "relationshipId manquant" }, { status: 400 });
+    return json({ error: m.api_relationship_id_missing() }, { status: 400 });
   }
 
   const rel = getRelationshipById(relationshipId);
   if (!rel) {
-    return json({ error: "Lien introuvable" }, { status: 404 });
+    return json({ error: m.api_relationship_not_found() }, { status: 404 });
   }
 
   const touchesMyFamily =
     isSameFamily(user.profile_id, rel.source_id) ||
     isSameFamily(user.profile_id, rel.target_id);
   if (!touchesMyFamily && user.role !== "admin") {
-    return json({ error: "Non autorise" }, { status: 403 });
+    return json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
   removeRelationshipById(relationshipId);
