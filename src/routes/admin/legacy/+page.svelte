@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { ArrowLeft, Search, Database, X } from "lucide-svelte";
+  import { m } from "$lib/paraglide/messages";
 
   interface LegacyPerson {
     id: string;
@@ -65,32 +66,34 @@
 </script>
 
 <svelte:head>
-  <title>Ancienne base (lecture seule) - Admin</title>
+  <title>{m.legacy_page_title()}</title>
 </svelte:head>
 
 <div class="legacy">
   <header>
     <button class="btn-back" onclick={() => goto("/admin")}>
-      <ArrowLeft size={18} /> Retour
+      <ArrowLeft size={18} /> {m.common_back()}
     </button>
-    <h1>Ancienne base <span class="ro">lecture seule</span></h1>
+    <h1>{m.legacy_heading()} <span class="ro">{m.legacy_readonly()}</span></h1>
     <div class="counts">
       <Database size={16} />
-      {counts.people} personnes &middot; {counts.relationships} relations &middot;
-      {counts.links} liens
+      {m.legacy_counts({
+        people: counts.people,
+        relationships: counts.relationships,
+        links: counts.links,
+      })}
     </div>
   </header>
 
   {#if !exists}
     <p class="empty">
-      Aucun snapshot legacy (<code>sky-legacy.db</code>). Il est cree au premier
-      demarrage apres la reconstruction.
+      {m.legacy_empty_before()}<code>sky-legacy.db</code>{m.legacy_empty_after()}
     </p>
   {:else}
     <div class="search">
       <Search size={18} />
       <input
-        placeholder="Rechercher (nom, prenom, id, promo)..."
+        placeholder={m.legacy_search_placeholder()}
         bind:value={query}
         oninput={onSearch}
       />
@@ -99,11 +102,15 @@
     <div class="grid">
       <div class="list">
         {#if loading}
-          <div class="muted">Chargement...</div>
+          <div class="muted">{m.common_loading()}</div>
         {:else}
           <table>
             <thead>
-              <tr><th>Nom</th><th>Prenom</th><th>Promo</th></tr>
+              <tr
+                ><th>{m.common_lastname()}</th><th>{m.common_firstname()}</th><th
+                  >{m.admin_people_col_promo()}</th
+                ></tr
+              >
             </thead>
             <tbody>
               {#each people as p (p.id)}
@@ -118,7 +125,9 @@
               {/each}
             </tbody>
           </table>
-          <div class="muted foot">{people.length} resultats (max 200)</div>
+          <div class="muted foot">
+            {m.legacy_results({ count: people.length })}
+          </div>
         {/if}
       </div>
 
@@ -129,14 +138,16 @@
           </button>
           <h2>{selected.last_name} {selected.first_name}</h2>
           <div class="muted mono">{selected.id}</div>
-          <div class="muted">Promo {selected.level ?? "-"}</div>
+          <div class="muted">
+            {m.common_promo({ level: selected.level ?? "-" })}
+          </div>
           {#if selected.bio}
             <p class="bio">{selected.bio}</p>
           {/if}
 
-          <h3>Parrains / marraines</h3>
+          <h3>{m.legacy_sponsors()}</h3>
           {#if relations.parrains.length === 0}
-            <div class="muted">Aucun</div>
+            <div class="muted">{m.legacy_none()}</div>
           {:else}
             {#each relations.parrains as r}
               <div class="rel">
@@ -146,9 +157,9 @@
             {/each}
           {/if}
 
-          <h3>Fillots / fillotes</h3>
+          <h3>{m.legacy_godchildren()}</h3>
           {#if relations.fillots.length === 0}
-            <div class="muted">Aucun</div>
+            <div class="muted">{m.legacy_none()}</div>
           {:else}
             {#each relations.fillots as r}
               <div class="rel">
