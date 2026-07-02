@@ -434,18 +434,12 @@
       </header>
 
       <section class="sidebar-info">
-        <div class="info-block">
-          <h3>Bio</h3>
-          {#if canariProfile?.profile?.bio}
+        {#if canariProfile?.profile?.bio}
+          <div class="info-block">
+            <h3>Bio</h3>
             <BioMarkdown source={canariProfile.profile.bio} />
-          {:else}
-            <p>
-              {canariProfile && !canariProfile.linked
-                ? "Fiche non liée à un compte Canari."
-                : "Pas de biographie sur Canari."}
-            </p>
-          {/if}
-        </div>
+          </div>
+        {/if}
 
         {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}
           <div class="info-block">
@@ -736,7 +730,7 @@
   }
   .dropdown-menu {
     position: absolute;
-    top: 50px;
+    top: calc(100% + 6px);
     right: 0;
     width: 200px;
     background: #1e293b;
@@ -748,6 +742,16 @@
     transform: translateY(10px);
     transition: all 0.2s;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  /* Invisible bridge covering the gap between the trigger and the menu, so
+     moving the mouse across it does not drop the hover and close the menu. */
+  .dropdown-menu::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -10px;
+    height: 10px;
   }
   .user-dropdown-container:hover .dropdown-menu {
     opacity: 1;
@@ -907,11 +911,6 @@
     letter-spacing: 1px;
     color: var(--text-dim);
     margin-bottom: 12px;
-  }
-  .info-block p {
-    line-height: 1.6;
-    color: #cbd5e1;
-    margin: 0;
   }
   .link-grid {
     display: grid;
