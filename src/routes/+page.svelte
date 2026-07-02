@@ -32,6 +32,8 @@
   import Linkedin from "$components/icons/Linkedin.svelte";
   import Github from "$components/icons/Github.svelte";
   import Instagram from "$components/icons/Instagram.svelte";
+  import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
+  import { m } from "$lib/paraglide/messages";
   import type { CanariProfileResponse } from "$types/graph";
 
   // UI State
@@ -43,11 +45,11 @@
   let isLoading = true;
 
   const loadingMessages = [
-    "Initialisation de la voûte céleste...",
-    "Cartographie des étoiles...",
-    "Synchronisation des constellations...",
-    "Calibration du télescope...",
-    "Déploiement de la galaxie...",
+    m.home_loading_vault(),
+    m.home_loading_stars(),
+    m.home_loading_constellations(),
+    m.home_loading_telescope(),
+    m.home_loading_galaxy(),
   ];
   let currentLoadingMessage =
     loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
@@ -207,7 +209,7 @@
 </script>
 
 <svelte:head>
-  <title>Sky - Cartographie ICM</title>
+  <title>{m.home_page_title()}</title>
 </svelte:head>
 
 <StarfieldCanvas />
@@ -243,7 +245,7 @@
         <Search size={18} class="search-icon" />
         <input
           type="text"
-          placeholder="Rechercher une étoile, une promo..."
+          placeholder={m.home_search_placeholder()}
           bind:value={searchTerm}
           oninput={handleSearch}
           onfocus={() => searchTerm && (isSearchActive = true)}
@@ -280,12 +282,14 @@
                 </div>
                 <div class="item-meta">
                   <span class="item-name">{getPersonName(result)}</span>
-                  <span class="item-sub">Promo {result.level || "—"}</span>
+                  <span class="item-sub"
+                    >{m.common_promo({ level: result.level || "-" })}</span
+                  >
                 </div>
               </button>
             {/each}
           {:else}
-            <div class="search-empty">Aucune étoile trouvée</div>
+            <div class="search-empty">{m.home_search_empty()}</div>
           {/if}
         </div>
       {/if}
@@ -293,7 +297,9 @@
 
     <div class="actions">
       {#if !isAuthenticated}
-        <button class="login-trigger" onclick={handleLogin}> Connexion </button>
+        <button class="login-trigger" onclick={handleLogin}>
+          {m.nav_login()}
+        </button>
       {:else}
         <div class="user-dropdown-container">
           <button class="user-trigger">
@@ -317,23 +323,27 @@
 
           <div class="dropdown-menu">
             <button onclick={goToMyProfile} class="menu-item">
-              <User size={16} /> Mon profil
+              <User size={16} /> {m.nav_my_profile()}
             </button>
             <a href="/tree" class="menu-item">
-              <Network size={16} /> Mon arbre
+              <Network size={16} /> {m.nav_my_tree()}
             </a>
             <a href="/account" class="menu-item">
-              <Link size={16} /> Corriger ma liaison
+              <Link size={16} /> {m.nav_fix_link()}
             </a>
             {#if user?.role === "admin"}
               <div class="menu-divider"></div>
               <a href="/admin" class="menu-item">
-                <Database size={16} /> Administration
+                <Database size={16} /> {m.nav_admin()}
               </a>
             {/if}
             <div class="menu-divider"></div>
+            <div class="menu-item locale-row">
+              <LocaleSwitcher />
+            </div>
+            <div class="menu-divider"></div>
             <button onclick={handleLogout} class="menu-item logout">
-              <LogOut size={16} /> Déconnexion
+              <LogOut size={16} /> {m.nav_logout()}
             </button>
           </div>
         </div>
@@ -359,16 +369,16 @@
     <div class="hub-header">
       <div class="hub-title">
         <Target size={16} />
-        <span>Mode Focus</span>
+        <span>{m.focus_mode()}</span>
       </div>
-      <button class="hub-reset" onclick={resetView}>Sortir</button>
+      <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
     </div>
     <div class="hub-body">
       <div class="range-group">
         <div class="range-labels">
-          <label for="fdepth">Profondeur du réseau</label>
+          <label for="fdepth">{m.focus_depth_label()}</label>
           <span class="range-value"
-            >{$focusDepth} {$focusDepth > 1 ? "sauts" : "saut"}</span
+            >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
           >
         </div>
         <input
@@ -388,7 +398,7 @@
     class="profile-sidebar"
     transition:fly={{ x: -400, duration: 400, easing: cubicOut }}
   >
-    <button class="close-sidebar" onclick={closeProfile} aria-label="Fermer">
+    <button class="close-sidebar" onclick={closeProfile} aria-label={m.common_close()}>
       <X size={24} />
     </button>
 
@@ -410,7 +420,9 @@
         </div>
         <h2>{getPersonName(currentProfile)}</h2>
         <div class="badge-promo">
-          Promotion {currentProfile.level || "Inconnue"}
+          {m.profile_promotion({
+            level: currentProfile.level || m.profile_promotion_unknown(),
+          })}
         </div>
 
         <div class="hero-actions">
@@ -418,7 +430,7 @@
             class="btn-center"
             onclick={() => centerOnPerson(currentProfile.id)}
           >
-            <Target size={16} /> Centrer la vue
+            <Target size={16} /> {m.profile_center_view()}
           </button>
           {#if canariProfile?.profile?.sub}
             <a
@@ -427,7 +439,7 @@
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ExternalLink size={16} /> Profil
+              <ExternalLink size={16} /> {m.profile_link()}
             </a>
           {/if}
         </div>
@@ -436,14 +448,14 @@
       <section class="sidebar-info">
         {#if canariProfile?.profile?.bio}
           <div class="info-block">
-            <h3>Bio</h3>
+            <h3>{m.profile_bio()}</h3>
             <BioMarkdown source={canariProfile.profile.bio} />
           </div>
         {/if}
 
         {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}
           <div class="info-block">
-            <h3>Coordonnées</h3>
+            <h3>{m.profile_contact()}</h3>
             <div class="link-grid">
               {#each Object.entries(currentProfile.links) as [type, url]}
                 <a
@@ -462,7 +474,7 @@
 
         {#if canariProfile?.profile?.associations?.length}
           <div class="info-block">
-            <h3>Associations</h3>
+            <h3>{m.profile_associations()}</h3>
             <div class="asso-list">
               {#each canariProfile.profile.associations as asso (asso.slug)}
                 <div class="asso-card">
@@ -481,7 +493,7 @@
 
         {#if canariProfile?.profile?.formerAssociations?.length}
           <div class="info-block">
-            <h3>Anciennes associations</h3>
+            <h3>{m.profile_former_associations()}</h3>
             <div class="asso-list">
               {#each canariProfile.profile.formerAssociations as asso, i (i)}
                 <div class="asso-card">
@@ -518,12 +530,10 @@
         />
       </div>
       <h1 class="login-title">SKY</h1>
-      <p class="login-tagline">La carte des étoiles des ICM de l'EMSE.</p>
-      <p class="login-sub">
-        Connecte-toi pour explorer l'arbre de parrainage.
-      </p>
-      <button class="login-cta" onclick={handleLogin}>Se connecter</button>
-      <p class="login-note">Réservé aux ICM, via MiConnect.</p>
+      <p class="login-tagline">{m.landing_tagline()}</p>
+      <p class="login-sub">{m.landing_sub()}</p>
+      <button class="login-cta" onclick={handleLogin}>{m.landing_cta()}</button>
+      <p class="login-note">{m.landing_note()}</p>
     </div>
   </div>
 {/if}
