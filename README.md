@@ -1,10 +1,10 @@
 # Sky
 
-Sky is the star map of EMSE's ICM sponsorship tree. Every ICM student is a star
-on an interactive canvas, connected by parrainage (sponsorship) and adoption
-links. A signed-in student can explore the graph and edit their own sponsorship
+Sky is the star map of EMSE's ICM godparent tree. Every ICM student is a star
+on an interactive canvas, connected by parrainage (godparent) and adoption
+links. A signed-in student can explore the graph and edit their own godparent
 entourage. Identity, avatars and the rest of the profile come from the shared
-EMSE stack (Authentik SSO, MiGallery, Canari); Sky owns only the sponsorship
+EMSE stack (Authentik SSO, MiGallery, Canari); Sky owns only the godparent
 graph.
 
 ## Stack
@@ -48,8 +48,8 @@ installs `--frozen`.
   (`auth_sub` NULL, id `prenom.nom[.promo][.idx]`) or an **account** (id = the
   Authentik `sub`). Login links an SSO identity to an existing record by name +
   promo, or creates one.
-- The sponsorship graph (`relationships`) enforces the rules 1 official sponsor /
-  1 adoption sponsor / 3 official godchildren / 2 adoption godchildren, plus
+- The godparent graph (`relationships`) enforces the rules 1 official godparent /
+  1 adoption godparent / 3 official godchildren / 2 adoption godchildren, plus
   no-cycle, server-side. Star positions are computed in-process and cached in
   `database/positions.json`.
 - Bio and clubs are read from Canari at request time; avatars are proxied from
@@ -58,22 +58,22 @@ installs `--frozen`.
 
 ## Environment variables
 
-| Variable | Required | Role |
-| -------- | -------- | ---- |
-| `MICONNECT_CLIENT_ID` | yes | Authentik OIDC client for the Sky app |
-| `MICONNECT_CLIENT_SECRET` | yes | Authentik OIDC secret |
-| `MIGALLERY_API_KEY` | yes | MiGallery avatar API access |
-| `SKY_ADMIN_SUBS` | no | Comma-separated Authentik subs bootstrapped as admin |
-| `MICONNECT_BASE_URL` | no | Authentik base; default `https://auth.canari-emse.fr` |
-| `MIGALLERY_API_URL` | no | MiGallery base; default `https://gallery.mitv.fr` |
-| `CANARI_API_URL` | no | Canari base; default `https://canari-emse.fr` |
-| `CANARI_API_KEY` | for profiles | Read the inbound Canari profile API |
-| `SKY_API_KEY` | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
+| Variable                  | Required     | Role                                                      |
+| ------------------------- | ------------ | --------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                     |
+| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                     |
+| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                               |
+| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin      |
+| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://auth.canari-emse.fr`     |
+| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`         |
+| `CANARI_API_URL`          | no           | Canari base; default `https://canari-emse.fr`             |
+| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
+| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
 ## Documentation
 
 - **[docs/wiki/](docs/wiki/index.md)** - the technical wiki (English): architecture,
-  authentication, identity model, data model, the sponsorship graph, matching and
+  authentication, identity model, data model, the godparent graph, matching and
   search, the frontend, integrations, the API reference, and deployment. This is
   the canonical source of truth.
 - **[MIGRATION.md](MIGRATION.md)** - runbook for cloning Sky onto a new server.

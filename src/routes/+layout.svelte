@@ -1,6 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { page } from "$app/stores";
+  import ConfirmDialog from "$components/ConfirmDialog.svelte";
 
   let { children } = $props();
 
@@ -11,3 +12,6 @@
 <main class:map-view={isMap}>
   {@render children()}
 </main>
+
+<!-- Global host for in-app confirm/alert modals (replaces browser dialogs). -->
+<ConfirmDialog />

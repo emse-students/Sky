@@ -3,10 +3,22 @@
   import { ArrowLeft, Search, Link2, Check } from "lucide-svelte";
   import { goto } from "$app/navigation";
   import { personMatchScore } from "$lib/utils/format";
+  import { confirmDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
   import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
 
   let { data, form } = $props();
+
+  // The relink form is submitted programmatically once the in-app confirm
+  // modal is accepted (a native confirm() cannot gate an async submit here).
+  let relinkForm: HTMLFormElement | undefined = $state();
+
+  /** Ask for confirmation, then submit the relink form if accepted. */
+  async function confirmRelink() {
+    if (await confirmDialog(m.account_relink_confirm())) {
+      relinkForm?.requestSubmit();
+    }
+  }
 
   let searchTerm = $state("");
   // Currently selected target fiche id (the one the account will move to).
@@ -106,18 +118,9 @@
     </ul>
 
     {#if chosenId}
-      <form
-        method="POST"
-        action="?/relink"
-        use:enhance={() => {
-          if (!confirm(m.account_relink_confirm())) {
-            return ({ update }) => update({ reset: false });
-          }
-          return async ({ update }) => update();
-        }}
-      >
+      <form method="POST" action="?/relink" use:enhance bind:this={relinkForm}>
         <input type="hidden" name="targetId" value={chosenId} />
-        <button type="submit" class="btn-relink">
+        <button type="button" class="btn-relink" onclick={confirmRelink}>
           <Link2 size={18} />
           <span>{m.account_relink_button()}</span>
         </button>

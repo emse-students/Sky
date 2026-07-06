@@ -12,18 +12,18 @@ missing, with an inline fallback schema baked into the code.
 One row per person, whether or not they have an account (see
 [identity-model.md](identity-model.md)).
 
-| Column | Notes |
-| ------ | ----- |
-| `id` TEXT PK | account: the Authentik `sub`; placeholder: `prenom.nom[.promo][.idx]` |
-| `first_name`, `last_name` | display form "Prenom" / "NOM" |
-| `level` INTEGER | graduation year (promo); nullable |
-| `bio`, `image_url` | legacy/optional; profile now comes from Canari |
-| `auth_sub` TEXT | Authentik sub; `NULL` for placeholders |
-| `email`, `formation` | from the SSO; `formation` drives the ICM gate |
-| `role` TEXT | `'user'` \| `'admin'`, default `'user'` |
-| `last_login` INTEGER | epoch of last SSO login |
-| `created_by` TEXT | id of the person who created a placeholder |
-| `created_at`, `updated_at` | timestamps |
+| Column                     | Notes                                                                 |
+| -------------------------- | --------------------------------------------------------------------- |
+| `id` TEXT PK               | account: the Authentik `sub`; placeholder: `prenom.nom[.promo][.idx]` |
+| `first_name`, `last_name`  | display form "Prenom" / "NOM"                                         |
+| `level` INTEGER            | graduation year (promo); nullable                                     |
+| `bio`, `image_url`         | legacy/optional; profile now comes from Canari                        |
+| `auth_sub` TEXT            | Authentik sub; `NULL` for placeholders                                |
+| `email`, `formation`       | from the SSO; `formation` drives the ICM gate                         |
+| `role` TEXT                | `'user'` \| `'admin'`, default `'user'`                               |
+| `last_login` INTEGER       | epoch of last SSO login                                               |
+| `created_by` TEXT          | id of the person who created a placeholder                            |
+| `created_at`, `updated_at` | timestamps                                                            |
 
 A **partial unique index** `idx_people_auth_sub ON people(auth_sub) WHERE
 auth_sub IS NOT NULL` enforces one account per record while allowing many
@@ -32,26 +32,26 @@ searches.
 
 ### `relationships`
 
-The directed sponsorship graph. `source_id` is the sponsor (parrain),
+The directed godparent graph. `source_id` is the godparent (parrain),
 `target_id` the godchild (fillot).
 
-| Column | Notes |
-| ------ | ----- |
-| `id` INTEGER PK | autoincrement |
-| `source_id`, `target_id` TEXT | FK to `people(id)`, `ON DELETE CASCADE` |
-| `type` TEXT | `'parrainage'` (official) or `'adoption'` |
-| `created_at` | timestamp |
+| Column                        | Notes                                     |
+| ----------------------------- | ----------------------------------------- |
+| `id` INTEGER PK               | autoincrement                             |
+| `source_id`, `target_id` TEXT | FK to `people(id)`, `ON DELETE CASCADE`   |
+| `type` TEXT                   | `'parrainage'` (official) or `'adoption'` |
+| `created_at`                  | timestamp                                 |
 
 `UNIQUE(source_id, target_id, type)` prevents duplicates. The business rules
 (maxima 1/1/3/2, no cycle) are enforced in code, not by the schema; see
-[sponsorship-graph.md](sponsorship-graph.md).
+[godparent-graph.md](godparent-graph.md).
 
 ### `sessions` and `pending_links`
 
 - `sessions(token PK, person_id FK, expires_at, created_at)` - opaque login
   sessions (7-day tokens). Replaces the former separate `auth.db`.
 - `pending_links(token PK, sub, first_name, last_name, level, email, formation,
-  role, expires_at, created_at)` - SSO identities waiting for the user to pick a
+role, expires_at, created_at)` - SSO identities waiting for the user to pick a
   record on `/auth/link` (ambiguous login).
 
 Both are swept of expired rows on each login.
@@ -83,7 +83,7 @@ at read time (see [integrations.md](integrations.md)).
 
 The star-map layout is not in SQLite. `recalculatePositions()` computes a
 `{ id: {x, y} }` map with the in-process ForceAtlas2 layout (see
-[sponsorship-graph.md](sponsorship-graph.md)) and writes
+[godparent-graph.md](godparent-graph.md)) and writes
 `database/positions.json`. The frontend fetches it via `GET /api/positions`; any
 person missing from it is scattered deterministically client-side so no star is
 ever hidden.

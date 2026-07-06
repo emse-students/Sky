@@ -1,10 +1,10 @@
 # Sky technical wiki
 
-Sky is the star map of EMSE's ICM sponsorship tree. It renders every ICM student
-as a star on an interactive canvas, connected by parrainage (sponsorship) and
-adoption links, and lets a signed-in student edit their own sponsorship
+Sky is the star map of EMSE's ICM godparent tree. It renders every ICM student
+as a star on an interactive canvas, connected by parrainage (godparent) and
+adoption links, and lets a signed-in student edit their own godparent
 entourage. Identity, avatars and the rest of the profile come from the shared
-EMSE stack (Authentik SSO, MiGallery, Canari); Sky owns only the sponsorship
+EMSE stack (Authentik SSO, MiGallery, Canari); Sky owns only the godparent
 graph.
 
 This wiki is the canonical, English source of truth for how Sky works. It is
@@ -23,18 +23,18 @@ disagree, the code wins and the page is a bug.
 
 ## Map of the wiki
 
-| Page | What it covers |
-| ---- | -------------- |
-| [architecture.md](architecture.md) | Request lifecycle, hook sequence, route map, repo layout |
-| [authentication.md](authentication.md) | OIDC flow, the ICM gate, sessions, admin roles |
-| [identity-model.md](identity-model.md) | Placeholder vs account records, login linking, relink/unlink/merge |
-| [data-model.md](data-model.md) | SQLite schema, FTS, `positions.json`, the legacy snapshot |
-| [sponsorship-graph.md](sponsorship-graph.md) | Relations, the 1/1/3/2 rules, cycles, families, the entourage editor, layout |
-| [matching-and-search.md](matching-and-search.md) | Tolerant name matching and search ranking |
-| [frontend.md](frontend.md) | Stores, canvas rendering, focus mode, the profile panel, i18n |
-| [integrations.md](integrations.md) | MiGallery avatars, Canari profile, the outbound entourage API |
-| [api-reference.md](api-reference.md) | Every HTTP endpoint, its auth and its shape |
-| [deployment.md](deployment.md) | Docker, CD, secrets, migrations, backups |
+| Page                                             | What it covers                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)               | Request lifecycle, hook sequence, route map, repo layout                     |
+| [authentication.md](authentication.md)           | OIDC flow, the ICM gate, sessions, admin roles                               |
+| [identity-model.md](identity-model.md)           | Placeholder vs account records, login linking, relink/unlink/merge           |
+| [data-model.md](data-model.md)                   | SQLite schema, FTS, `positions.json`, the legacy snapshot                    |
+| [godparent-graph.md](godparent-graph.md)         | Relations, the 1/1/3/2 rules, cycles, families, the entourage editor, layout |
+| [matching-and-search.md](matching-and-search.md) | Tolerant name matching and search ranking                                    |
+| [frontend.md](frontend.md)                       | Stores, canvas rendering, focus mode, the profile panel, i18n                |
+| [integrations.md](integrations.md)               | MiGallery avatars, Canari profile, the outbound entourage API                |
+| [api-reference.md](api-reference.md)             | Every HTTP endpoint, its auth and its shape                                  |
+| [deployment.md](deployment.md)                   | Docker, CD, secrets, migrations, backups                                     |
 
 ## Conventions used in Sky code
 
@@ -44,5 +44,5 @@ disagree, the code wins and the page is a bug.
   `…` is the one intentional non-ASCII character.
 - Path aliases: `$lib`, `$components`, `$stores`, `$types`, `$utils`, `$server`.
 - Domain vocabulary kept as identifiers: `nom`/`prenom` (DB columns and the
-  `Person` shape), `parrain`/`fillot` (sponsor/godchild), `promo` (graduation
+  `Person` shape), `parrain`/`fillot` (godparent/godchild), `promo` (graduation
   year, stored as `people.level`), `fiche` (a `people` record).

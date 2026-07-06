@@ -1,6 +1,6 @@
 # Integrations
 
-Sky owns only the sponsorship graph. Identity, avatars and the rest of a profile
+Sky owns only the godparent graph. Identity, avatars and the rest of a profile
 come from three shared EMSE services. All of them are keyed by the Authentik
 `sub`, which is why an account record stores it as `auth_sub` (see
 [identity-model.md](identity-model.md)).
@@ -51,7 +51,7 @@ The shapes are typed in `src/lib/types/graph.ts` (`CanariProfile`,
 ## Sky -> Canari - entourage (outbound)
 
 `GET /api/external/entourage/[sub]` is Sky's own public API, consumed by Canari
-to render the close sponsorship tree on a profile page. It is **not** ICM
+to render the close godparent tree on a profile page. It is **not** ICM
 session-gated (it is exempt in `hooks.server.ts`); instead it is protected by a
 timing-safe `x-api-key` check against `SKY_API_KEY`. An empty `SKY_API_KEY`
 rejects every call. It returns `getEntourageBySub(sub)` (the person's parrains and
@@ -61,9 +61,9 @@ Config: `SKY_API_KEY` (the shared secret Canari presents).
 
 ## Summary of keys
 
-| Direction | Endpoint | Auth | Env |
-| --------- | -------- | ---- | --- |
-| Sky -> MiGallery | `.../api/users/{sub}/avatar` | `x-api-key` | `MIGALLERY_API_KEY`, `MIGALLERY_API_URL` |
-| Sky -> Canari | `.../api/external/profile/{sub}` | `x-api-key` | `CANARI_API_KEY`, `CANARI_API_URL` |
-| Canari -> Sky | `/api/external/entourage/{sub}` | `x-api-key` | `SKY_API_KEY` |
-| Sky -> Authentik | `/application/o/*` | client secret | `MICONNECT_*` |
+| Direction        | Endpoint                         | Auth          | Env                                      |
+| ---------------- | -------------------------------- | ------------- | ---------------------------------------- |
+| Sky -> MiGallery | `.../api/users/{sub}/avatar`     | `x-api-key`   | `MIGALLERY_API_KEY`, `MIGALLERY_API_URL` |
+| Sky -> Canari    | `.../api/external/profile/{sub}` | `x-api-key`   | `CANARI_API_KEY`, `CANARI_API_URL`       |
+| Canari -> Sky    | `/api/external/entourage/{sub}`  | `x-api-key`   | `SKY_API_KEY`                            |
+| Sky -> Authentik | `/application/o/*`               | client secret | `MICONNECT_*`                            |

@@ -19,7 +19,7 @@ function validKey(provided: string | null): boolean {
 }
 
 /**
- * Public API protected by x-api-key (SKY_API_KEY): a person's sponsorship
+ * Public API protected by x-api-key (SKY_API_KEY): a person's godparent
  * entourage keyed by their Authentik sub. Consumed by Canari to show the close
  * tree on the profile page. Exempt from the session gate (cf. hooks.server.ts)
  * because authentication is the key, not an ICM session.

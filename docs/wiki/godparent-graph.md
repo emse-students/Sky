@@ -1,7 +1,7 @@
-# Sponsorship graph
+# Godparent graph
 
-The sponsorship graph is the one thing Sky owns. It is a directed graph over
-`people`: an edge `source -> target` means `source` sponsors `target`
+The godparent graph is the one thing Sky owns. It is a directed graph over
+`people`: an edge `source -> target` means `source` is the godparent of `target`
 (parrain -> fillot). Each edge has a `type`, `'parrainage'` (official) or
 `'adoption'`. All business rules live in `src/lib/server/database.ts`.
 
@@ -12,21 +12,21 @@ a link. It enforces, in order, throwing a typed `RelationError` on the first
 violation:
 
 1. `INVALID_KIND` - `kind` is not `'parrainage'`/`'adoption'`.
-2. `SELF` - a person cannot sponsor themselves.
+2. `SELF` - a person cannot be their own godparent.
 3. `NOT_FOUND` - both records must exist.
 4. `DUPLICATE` - no existing edge (of any type) already links the two.
-5. `MAX_FILLOT` - the sponsor is under the per-type godchild cap.
-6. `MAX_PARRAIN` - the godchild is under the per-type sponsor cap.
+5. `MAX_FILLOT` - the godparent is under the per-type godchild cap.
+6. `MAX_PARRAIN` - the godchild is under the per-type godparent cap.
 7. `CYCLE` - adding the edge must not create a cycle.
 
 ### The 1 / 1 / 3 / 2 caps
 
 ```
-MAX_PARRAINS = { parrainage: 1, adoption: 1 }   // incoming (sponsors of a person)
+MAX_PARRAINS = { parrainage: 1, adoption: 1 }   // incoming (godparents of a person)
 MAX_FILLOTS  = { parrainage: 3, adoption: 2 }   // outgoing (godchildren of a person)
 ```
 
-So a person has at most one official sponsor and one adoption sponsor, and at
+So a person has at most one official godparent and one adoption godparent, and at
 most three official godchildren and two adoption godchildren. Counts come from
 `countIncoming` / `countOutgoing`, filtered by `type`.
 
@@ -46,7 +46,7 @@ message directly and branch on the machine `code`.
 
 ## Families
 
-A "family" is a connected component of the sponsorship graph, treated as
+A "family" is a connected component of the godparent graph, treated as
 undirected. `isSameFamily(aId, bId)` runs a BFS over both incoming and outgoing
 edges and returns true when `b` is reachable from `a` (or they are the same id).
 
@@ -69,7 +69,7 @@ endpoints:
   to self; must be self, same-family, or admin), and either an existing
   `targetId` or a `newPerson`. Creating a `newPerson` requires a promo and does a
   dedup pass (`findPeopleByName`): on a name collision it returns `409
-  needsConfirmation` with candidates, unless `confirmCreate` is set, in which case
+needsConfirmation` with candidates, unless `confirmCreate` is set, in which case
   it calls `createPlaceholderPerson`. On success it recomputes positions in the
   background.
 

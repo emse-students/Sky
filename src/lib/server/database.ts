@@ -749,7 +749,7 @@ export function setPersonRole(id: string, role: "user" | "admin"): boolean {
 /**
  * Unlink a record from its Authentik account: the record becomes a placeholder
  * again (auth_sub NULL, role 'user') and its sessions are revoked. The graph and
- * the sponsorship links are kept.
+ * the godparent links are kept.
  */
 export function unlinkPersonAuth(id: string): boolean {
   console.debug(`[Admin] unlinkPersonAuth id=${id}`);
@@ -1078,7 +1078,7 @@ export function deleteExpiredPendingLinks(): void {
 function slugPart(value: string): string {
   return (value ?? "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 }
@@ -1283,10 +1283,10 @@ export function deleteRelationship(
 }
 
 // ============================================
-// ENTOURAGE / SPONSORSHIP CONSTRAINTS
+// ENTOURAGE / GODPARENT CONSTRAINTS
 // ============================================
 
-/** Sponsorship link type: official or adoption. */
+/** Godparent link type: official or adoption. */
 export type RelationKind = "parrainage" | "adoption";
 
 /** True if the value is a known link type. */
@@ -1295,8 +1295,8 @@ export function isRelationKind(value: unknown): value is RelationKind {
 }
 
 /**
- * Maximum sponsors (parrains/marraines) per person and per type. A person has
- * at most 1 official sponsor and 1 adoption sponsor.
+ * Maximum godparents (parrains/marraines) per person and per type. A person has
+ * at most 1 official godparent and 1 adoption godparent.
  */
 export const MAX_PARRAINS: Record<RelationKind, number> = {
   parrainage: 1,
@@ -1312,7 +1312,7 @@ export const MAX_FILLOTS: Record<RelationKind, number> = {
   adoption: 2,
 };
 
-/** Machine code for a sponsorship-rule violation. */
+/** Machine code for a godparent-rule violation. */
 export type RelationErrorCode =
   | "INVALID_KIND"
   | "SELF"
@@ -1323,7 +1323,7 @@ export type RelationErrorCode =
   | "CYCLE";
 
 /**
- * Business error for a rejected sponsorship link (rules 1/1/3/2, cycle,
+ * Business error for a rejected godparent link (rules 1/1/3/2, cycle,
  * duplicate). The `message` is a localized string, ready to show to the user.
  */
 export class RelationError extends Error {
@@ -1335,7 +1335,7 @@ export class RelationError extends Error {
   }
 }
 
-/** Number of sponsors of a given type pointing at `personId` (incoming links). */
+/** Number of godparents of a given type pointing at `personId` (incoming links). */
 function countIncoming(personId: string, kind: RelationKind): number {
   const row = getDatabase()
     .prepare(
@@ -1406,7 +1406,7 @@ function canReach(fromId: string, toId: string): boolean {
 }
 
 /**
- * Create a sponsorship link `sourceId` (sponsor) -> `targetId` (godchild) of the
+ * Create a godparent link `sourceId` (godparent) -> `targetId` (godchild) of the
  * given type, enforcing every rule: no self-link, both records must exist, no
  * duplicate, maxima 1/1/3/2, no cycle. Throws `RelationError` otherwise.
  */
@@ -1456,7 +1456,7 @@ export function addParrainage(
     .run(sourceId, targetId, kind);
 }
 
-/** Raw sponsorship link (a `relationships` row), else null. */
+/** Raw godparent link (a `relationships` row), else null. */
 export function getRelationshipById(id: number): {
   id: number;
   source_id: string;
@@ -1473,7 +1473,7 @@ export function getRelationshipById(id: number): {
   return row ?? null;
 }
 
-/** Delete a sponsorship link by its id. True if a row was removed. */
+/** Delete a godparent link by its id. True if a row was removed. */
 export function removeRelationshipById(id: number): boolean {
   return (
     getDatabase().prepare("DELETE FROM relationships WHERE id = ?").run(id)
@@ -1680,9 +1680,12 @@ export interface MergeSuggestion {
   distance: number;
 }
 
-/** Canonical, order-independent key for a pair of ids. */
+/**
+ * Canonical, order-independent key for a pair of ids. Uses a NUL separator,
+ * which cannot appear in an id, so distinct pairs never collide.
+ */
 function pairKey(a: string, b: string): string {
-  return a < b ? `${a} ${b}` : `${b} ${a}`;
+  return a < b ? `${a}\0${b}` : `${b}\0${a}`;
 }
 
 /**
