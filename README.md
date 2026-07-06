@@ -91,4 +91,7 @@ installs `--frozen`.
 
 ## License
 
-Internal EMSE project.
+**PolyForm Noncommercial 1.0.0**: open source, noncommercial use only. See
+[LICENSE](LICENSE) for details.
+
+Credits: **Les ROOTZ** (EMSE) - Jolan BOUDIN, with a contribution from Arthur NOIRY.
