@@ -63,7 +63,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@humanspeak/svelte-markdown": "^1.6.0",
+    "@humanspeak/svelte-markdown": "^1.6.5",
     "better-sqlite3": "^12.6.2",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
