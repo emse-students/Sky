@@ -13,6 +13,7 @@
     RefreshCw,
     GitMerge,
   } from "lucide-svelte";
+  import { confirmDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
 
@@ -96,7 +97,11 @@
 
   /** Ignore every currently listed suggestion. */
   async function ignoreAll() {
-    if (!confirm(m.admin_ignore_all_confirm({ count: suggestions.length })))
+    if (
+      !(await confirmDialog(
+        m.admin_ignore_all_confirm({ count: suggestions.length }),
+      ))
+    )
       return;
     suggBusy = true;
     try {
@@ -115,7 +120,11 @@
 
   /** Merge every currently listed pair (skips ones that became invalid). */
   async function mergeAll() {
-    if (!confirm(m.admin_merge_all_confirm({ count: suggestions.length }))) {
+    if (
+      !(await confirmDialog(
+        m.admin_merge_all_confirm({ count: suggestions.length }),
+      ))
+    ) {
       return;
     }
     suggBusy = true;
@@ -133,7 +142,7 @@
     }
   }
 
-  /** Load the counters (people, sponsorship links). */
+  /** Load the counters (people, godparent links). */
   async function loadStats() {
     try {
       const [peopleRes, relRes] = await Promise.all([
@@ -218,7 +227,7 @@
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (!confirm(m.admin_import_confirm())) {
+    if (!(await confirmDialog(m.admin_import_confirm(), { danger: true }))) {
       input.value = "";
       return;
     }

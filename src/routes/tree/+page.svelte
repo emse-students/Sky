@@ -17,6 +17,7 @@
   } from "lucide-svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
+  import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
   import type {
@@ -133,7 +134,7 @@
 
   function openAdd(role: RelationRole, kind: RelationKind) {
     const who =
-      role === "parrain" ? m.tree_role_sponsor() : m.tree_role_godchild();
+      role === "parrain" ? m.tree_role_godparent() : m.tree_role_godchild();
     modal = { role, kind, title: m.tree_add_title({ who, kind: KIND_LABEL[kind] }) };
   }
 
@@ -162,7 +163,12 @@
       // (a mistyped star recreated elsewhere leaves such an orphan behind).
       if (result.orphan) {
         const o = result.orphan;
-        if (confirm(m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }))) {
+        if (
+          await confirmDialog(
+            m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }),
+            { danger: true, confirmLabel: m.common_delete() },
+          )
+        ) {
           await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
             method: "DELETE",
           });
@@ -205,7 +211,7 @@
       await load(centerId);
     } else {
       const d = await res.json().catch(() => ({}));
-      alert(d.error || m.tree_edit_failed());
+      await alertDialog(d.error || m.tree_edit_failed());
     }
   }
 
@@ -213,9 +219,10 @@
   async function deleteStar() {
     if (!editing || !data) return;
     if (
-      !confirm(
+      !(await confirmDialog(
         m.tree_delete_confirm({ name: `${editing.prenom} ${editing.nom}` }),
-      )
+        { danger: true, confirmLabel: m.common_delete() },
+      ))
     ) {
       return;
     }
@@ -228,7 +235,7 @@
       await load(centerId);
     } else {
       const d = await res.json().catch(() => ({}));
-      alert(d.error || m.tree_delete_failed());
+      await alertDialog(d.error || m.tree_delete_failed());
     }
   }
 </script>
@@ -258,7 +265,7 @@
     <div class="state">{m.tree_no_fiche()}</div>
   {:else}
     <div class="tree" in:fade>
-      <!-- Ascendants (sponsors) -->
+      <!-- Ascendants (godparents) -->
       <div class="row ascendants">
         {#each slots(data.parrains, "parrainage", data.maxParrains.parrainage) as s}
           {@render slotCard(s.member, "parrain", "parrainage")}

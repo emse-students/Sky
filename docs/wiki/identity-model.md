@@ -76,18 +76,18 @@ account. Three operations rearrange links:
   linked, or the target is the same / missing / already linked.
 
 - **Unlink (admin)** - `unlinkPersonAuth(id)`. Clears `auth_sub`, resets `role`
-  to `'user'`, and revokes the record's sessions. The graph and sponsorship links
+  to `'user'`, and revokes the record's sessions. The graph and godparent links
   are kept; the record becomes a placeholder.
 
 - **Merge (admin)** - `mergePeople(sourceId, targetId)`. Collapses two records
-  into one, keeping the sponsorship links. A record linked to an account always
+  into one, keeping the godparent links. A record linked to an account always
   survives (one star = one person), so two linked accounts cannot be merged
   (`/api/admin/merge` returns an error). Duplicate-detection to suggest merges is
-  covered in [sponsorship-graph.md](sponsorship-graph.md).
+  covered in [godparent-graph.md](godparent-graph.md).
 
 ## Data ownership
 
-Sky is the source of truth **only** for the sponsorship links (`relationships`).
+Sky is the source of truth **only** for the godparent links (`relationships`).
 The rest of a profile (bio, current and former clubs) comes from **Canari** via
 its public API, keyed by `sub` (see [integrations.md](integrations.md)). The
 historical `bio`, `external_links` and `associations` columns/tables are no

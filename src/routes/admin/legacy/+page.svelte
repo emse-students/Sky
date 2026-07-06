@@ -145,7 +145,7 @@
             <p class="bio">{selected.bio}</p>
           {/if}
 
-          <h3>{m.legacy_sponsors()}</h3>
+          <h3>{m.legacy_godparents()}</h3>
           {#if relations.parrains.length === 0}
             <div class="muted">{m.legacy_none()}</div>
           {:else}

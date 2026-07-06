@@ -62,7 +62,7 @@ function parseLevel(value: number | string | null | undefined): number | null {
 
 /**
  * Add an entourage link for the signed-in user (their node = `me`).
- * `role=parrain` -> the other is my sponsor (other -> me); `role=fillot` ->
+ * `role=parrain` -> the other is my godparent (other -> me); `role=fillot` ->
  * the other is my godchild (me -> other). The other is either an existing record
  * (`targetId`) or a new record (`newPerson`); in the latter case, if namesakes
  * exist and `confirmCreate` is false, the candidates are returned to offer a link

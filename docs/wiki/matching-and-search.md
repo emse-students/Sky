@@ -31,7 +31,7 @@ not merged.
   `findUnlinkedFuzzyByName` offers resembling records for confirmation. Sky never
   auto-links on a fuzzy match alone.
 - **Merge suggestions** (`getMergeSuggestions`, see
-  [sponsorship-graph.md](sponsorship-graph.md)): pairs within
+  [godparent-graph.md](godparent-graph.md)): pairs within
   `NAME_MATCH_MAX_DISTANCE` and a 3-year promo tolerance are proposed as likely
   duplicates.
 

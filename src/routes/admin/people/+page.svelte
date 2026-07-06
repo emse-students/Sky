@@ -15,6 +15,7 @@
     GitMerge,
   } from "lucide-svelte";
   import { goto } from "$app/navigation";
+  import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
 
   let people: any[] = $state([]);
@@ -72,12 +73,12 @@
   async function toggleRole(person: any) {
     const role = person.role === "admin" ? "user" : "admin";
     if (
-      !confirm(
+      !(await confirmDialog(
         m.admin_people_role_confirm({
           name: `${person.prenom} ${person.nom}`,
           role,
         }),
-      )
+      ))
     ) {
       return;
     }
@@ -100,12 +101,12 @@
     const source = people.find((p) => p.id === selectedIds[1]);
     if (!target || !source) return;
     if (
-      !confirm(
+      !(await confirmDialog(
         m.admin_people_merge_confirm({
           source: `${source.prenom} ${source.nom}`,
           target: `${target.prenom} ${target.nom}`,
         }),
-      )
+      ))
     ) {
       return;
     }
@@ -119,18 +120,18 @@
       await loadPeople();
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || m.admin_people_merge_alert_failed());
+      await alertDialog(data.error || m.admin_people_merge_alert_failed());
     }
   }
 
   /** Unlink the Authentik account: the fiche becomes a placeholder again. */
   async function unlinkAccount(person: any) {
     if (
-      !confirm(
+      !(await confirmDialog(
         m.admin_people_unlink_confirm({
           name: `${person.prenom} ${person.nom}`,
         }),
-      )
+      ))
     ) {
       return;
     }
@@ -160,9 +161,10 @@
 
   async function deleteSelected() {
     if (
-      !confirm(
+      !(await confirmDialog(
         m.admin_people_delete_selected_confirm({ count: selectedIds.length }),
-      )
+        { danger: true, confirmLabel: m.common_delete() },
+      ))
     )
       return;
     loading = true;
@@ -216,7 +218,7 @@
       !form.level ||
       (isCreating && !form.id.trim())
     ) {
-      alert(m.admin_people_required());
+      await alertDialog(m.admin_people_required());
       return;
     }
     try {
@@ -243,7 +245,7 @@
         cancelEdit();
       } else {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || m.admin_people_save_failed());
+        await alertDialog(d.error || m.admin_people_save_failed());
       }
     } catch (error) {
       console.error("Save error:", error);
@@ -264,7 +266,13 @@
   }
 
   async function deletePerson(id: string) {
-    if (!confirm(m.admin_people_delete_confirm({ id }))) return;
+    if (
+      !(await confirmDialog(m.admin_people_delete_confirm({ id }), {
+        danger: true,
+        confirmLabel: m.common_delete(),
+      }))
+    )
+      return;
 
     try {
       const res = await fetch(`/api/admin/people/${id}`, {
