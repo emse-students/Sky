@@ -2,6 +2,8 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import {
   isSameFamily,
+  isValidPromo,
+  MIN_PROMO,
   updatePlaceholderIdentity,
   deletePlaceholderPerson,
   countPersonRelations,
@@ -51,6 +53,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const level = parseLevel(data.level);
   if (!data.prenom?.trim() || !data.nom?.trim() || level === null) {
     return json({ error: m.modal_required_fields() }, { status: 400 });
+  }
+  // Reject typos: no promotion predates the school's founding year.
+  if (!isValidPromo(level)) {
+    return json(
+      { error: m.api_promo_invalid({ min: MIN_PROMO }) },
+      { status: 400 },
+    );
   }
   const ok = updatePlaceholderIdentity(params.id, data.prenom, data.nom, level);
   if (!ok) {

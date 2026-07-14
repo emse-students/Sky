@@ -18,6 +18,9 @@ violation:
 5. `MAX_FILLOT` - the godparent is under the per-type godchild cap.
 6. `MAX_PARRAIN` - the godchild is under the per-type godparent cap.
 7. `CYCLE` - adding the edge must not create a cycle.
+8. `PROMO_UNKNOWN` - both promotions must be known (a `null` level blocks the link).
+9. `PROMO_ORDER` - the godchild must be a strictly more recent promotion than the godparent.
+10. `PROMO_GAP` - the two promotions are at most `MAX_PROMO_GAP` (3) years apart.
 
 ### The 1 / 1 / 3 / 2 caps
 
@@ -35,6 +38,21 @@ most three official godchildren and two adoption godchildren. Counts come from
 `canReach(fromId, toId)` does a BFS following `source -> target` edges. Adding
 `source -> target` would create a cycle iff `target` can already reach `source`,
 so `addParrainage` rejects when `canReach(targetId, sourceId)` is true.
+
+### Promotion rules
+
+A godchild is always a strictly more recent promotion than their godparent, and
+at most `MAX_PROMO_GAP` (3) years younger. `checkPromoPair(parrainLevel,
+fillotLevel)` is the pure validator (returns the violated code or `null`); both
+promotions must be known, so a `null` level blocks the link (`PROMO_UNKNOWN`).
+The rule applies to both link kinds. `level` is the graduation year; comparing
+it is equivalent to comparing entry years (both offset by 3).
+
+Separately, promotions entered by users are range-checked at creation:
+`isValidPromo(level)` accepts `null` (unknown) or an integer `>= MIN_PROMO`
+(1816, the school's founding year). It guards the star-creation and edit
+endpoints (`POST /api/relationships`, `PUT /api/relatives/[id]`, and the admin
+people routes), which return `m.api_promo_invalid` with HTTP `400` on a typo.
 
 ### Error surfacing
 

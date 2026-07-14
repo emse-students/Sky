@@ -13,6 +13,8 @@ import {
   countPersonRelations,
   isRelationKind,
   isSameFamily,
+  isValidPromo,
+  MIN_PROMO,
   RelationError,
   type RelationKind,
 } from "$lib/server/database";
@@ -110,6 +112,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Promo is mandatory when creating a new star.
     if (level === null) {
       return json({ error: m.api_promo_required() }, { status: 400 });
+    }
+    // Reject typos: no promotion predates the school's founding year.
+    if (!isValidPromo(level)) {
+      return json(
+        { error: m.api_promo_invalid({ min: MIN_PROMO }) },
+        { status: 400 },
+      );
     }
     if (!confirmCreate) {
       const candidates = findPeopleByName(
