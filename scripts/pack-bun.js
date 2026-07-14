@@ -15,27 +15,23 @@ await fs.promises.mkdir(outDir, { recursive: true });
 const filename = `${name.replace(/[^a-z0-9.-]/gi, "_")}-${version}-full.tgz`;
 const outPath = path.join(outDir, filename);
 
-console.log("📦 Création du package complet de l'application...");
+console.log("📦 Building the full application package...");
 console.log(`📍 Destination: ${outPath}`);
 console.log("");
 
-const filesToInclude = [];
-
 const buildDir = path.resolve(process.cwd(), "build");
 if (!fs.existsSync(buildDir)) {
-  console.error(
-    "❌ Le dossier build/ n'existe pas. Lancez d'abord \"npm run build\".",
-  );
+  console.error('❌ build/ does not exist. Run "npm run build" first.');
   process.exit(1);
 }
-console.log("✅ build/ trouvé");
+console.log("✅ build/ found");
 
 const dataDir = path.resolve(process.cwd(), "database");
 if (fs.existsSync(dataDir)) {
-  console.log("✅ database/ trouvé (base de données)");
+  console.log("✅ database/ found");
 } else {
   console.warn(
-    "⚠️  database/ non trouvé - le package n'inclura pas de base de données",
+    "⚠️  database/ not found - the package will not include a database",
   );
 }
 
@@ -43,14 +39,16 @@ const envFile = path.resolve(process.cwd(), ".env");
 const includeEnv =
   String(process.env.PACK_INCLUDE_ENV || "").toLowerCase() === "true";
 if (fs.existsSync(envFile) && includeEnv) {
-  console.log("✅ .env trouvé et inclusion demandée via PACK_INCLUDE_ENV=true");
+  console.log(
+    "✅ .env found and inclusion requested via PACK_INCLUDE_ENV=true",
+  );
 } else if (fs.existsSync(envFile) && !includeEnv) {
   console.warn(
-    "⚠️  .env trouvé mais NON inclus dans le package (sécurité). Si vous voulez l'inclure, exportez PACK_INCLUDE_ENV=true avant d'exécuter le script.",
+    "⚠️  .env found but NOT included in the package (security). To include it, export PACK_INCLUDE_ENV=true before running the script.",
   );
 } else {
   console.warn(
-    "⚠️  .env non trouvé - le package n'inclura pas de configuration",
+    "⚠️  .env not found - the package will not include configuration",
   );
 }
 
@@ -61,14 +59,14 @@ if (fs.existsSync(readmeFile)) {
   console.log("✅ README.md");
 }
 
-// 6. Scripts (pour utilisation sur la machine cible)
+// Scripts (for use on the target machine)
 const scriptsDir = path.resolve(process.cwd(), "scripts");
 if (fs.existsSync(scriptsDir)) {
   console.log("✅ scripts/");
 }
 
 console.log("");
-console.log("🔄 Création de l'archive...");
+console.log("🔄 Creating the archive...");
 
 try {
   await tar.create(
@@ -77,10 +75,10 @@ try {
       file: outPath,
       cwd: process.cwd(),
       filter: (p) => {
-        // Normaliser le chemin pour la comparaison
+        // Normalise the path for comparison
         const normalizedPath = p.replace(/\\/g, "/").replace(/^\.\//, "");
 
-        // Exclure les dossiers de données temporaires ou volumineux
+        // Exclude temporary or bulky data directories
         const excludes = ["build/artifacts", "database/backups"];
 
         if (
@@ -92,7 +90,7 @@ try {
           return false;
         }
 
-        // Exclure les fichiers de base de données temporaires (WAL, SHM)
+        // Exclude transient SQLite files (WAL, SHM)
         if (
           normalizedPath.endsWith("-wal") ||
           normalizedPath.endsWith("-shm")
@@ -117,18 +115,18 @@ try {
   const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
 
   console.log("");
-  console.log("✅ Package créé avec succès !");
-  console.log(`📦 Fichier: ${filename}`);
-  console.log(`📏 Taille: ${sizeMB} MB`);
-  console.log(`📍 Emplacement: ${outPath}`);
+  console.log("✅ Package created successfully!");
+  console.log(`📦 File: ${filename}`);
+  console.log(`📏 Size: ${sizeMB} MB`);
+  console.log(`📍 Location: ${outPath}`);
   console.log("");
-  console.log("💡 Pour déployer sur une autre machine:");
-  console.log("   1. Copiez le fichier .tgz");
-  console.log("   2. Extrayez: tar -xzf " + filename);
-  console.log("   3. Installez les dépendances: bun install --production");
-  console.log("   4. Configurez .env si nécessaire");
-  console.log("   5. Lancez: bun run build/index.js");
+  console.log("💡 To deploy on another machine:");
+  console.log("   1. Copy the .tgz file");
+  console.log("   2. Extract: tar -xzf " + filename);
+  console.log("   3. Install dependencies: bun install --production");
+  console.log("   4. Configure .env if needed");
+  console.log("   5. Start: bun run build/index.js");
 } catch (error) {
-  console.error("❌ Erreur lors de la création du package:", error.message);
+  console.error("❌ Failed to create the package:", error.message);
   process.exit(1);
 }

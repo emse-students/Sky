@@ -8,27 +8,24 @@ const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, "../database/sky.db");
 const oldPositionsPath = path.join(__dirname, "../database/positions.json");
-const newPositionsPath = path.join(__dirname, "../database/positions.json.new");
 
-console.log("📍 Mise à jour de positions.json avec les nouveaux IDs...\n");
+console.log("📍 Migrating positions.json to the new IDs...\n");
 
-// Lire l'ancien fichier
+// Read the existing file
 const oldPositions = JSON.parse(fs.readFileSync(oldPositionsPath, "utf-8"));
-console.log(
-  `Anciennes positions : ${Object.keys(oldPositions).length} entrées`,
-);
+console.log(`Old positions: ${Object.keys(oldPositions).length} entries`);
 
-// Ouvrir la base de données
+// Open the database
 const db = new Database(dbPath, { readonly: true });
 
-// Créer la correspondance nom_prenom → prenom.nom
+// Build the mapping last_first -> prenom.nom (new id)
 const mapping = {};
 const allPeople = db
   .prepare("SELECT id, first_name, last_name FROM people")
   .all();
 
 for (const person of allPeople) {
-  // Normaliser : enlever accents et mettre en minuscules
+  // Normalise: strip accents and lowercase
   const normalize = (str) =>
     str
       .normalize("NFD")
@@ -44,16 +41,16 @@ for (const person of allPeople) {
   mapping[oldId] = newId;
 }
 
-console.log("Exemples de mapping:");
+console.log("Mapping samples:");
 Object.entries(mapping)
   .slice(0, 5)
   .forEach(([old, newId]) => {
     console.log(`  ${old} → ${newId}`);
   });
 
-console.log(`Mapping créé : ${Object.keys(mapping).length} correspondances\n`);
+console.log(`Mapping built: ${Object.keys(mapping).length} entries\n`);
 
-// Convertir les positions
+// Convert the positions
 const newPositions = {};
 let convertedCount = 0;
 let notFoundCount = 0;
@@ -64,21 +61,21 @@ for (const [oldId, position] of Object.entries(oldPositions)) {
     newPositions[newId] = position;
     convertedCount++;
   } else {
-    console.warn(`⚠️ Pas de correspondance pour: ${oldId}`);
+    console.warn(`⚠️ No mapping for: ${oldId}`);
     notFoundCount++;
   }
 }
 
-console.log(`✅ Converties : ${convertedCount}`);
-console.log(`❌ Non trouvées : ${notFoundCount}`);
-console.log(`Total : ${Object.keys(newPositions).length}\n`);
+console.log(`✅ Converted: ${convertedCount}`);
+console.log(`❌ Not found: ${notFoundCount}`);
+console.log(`Total: ${Object.keys(newPositions).length}\n`);
 
-// Écrire le nouveau fichier
+// Write the file back in place
 fs.writeFileSync(
   oldPositionsPath,
   JSON.stringify(newPositions, null, 2),
   "utf-8",
 );
-console.log("✅ positions.json mis à jour !\n");
+console.log("✅ positions.json updated!\n");
 
 db.close();

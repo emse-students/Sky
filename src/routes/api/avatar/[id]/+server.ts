@@ -66,8 +66,8 @@ export const GET: RequestHandler = async ({ params }) => {
       console.debug(
         `[Avatar API] No photo (${response?.status ?? "no-account"}) -> initials`,
       );
-      // Get person from database for proper initials
-      let initials = "?";
+      // Get person from database for proper initials (every branch below assigns).
+      let initials: string;
       try {
         const person = getPersonById(id);
         if (person) {
