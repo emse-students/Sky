@@ -8,7 +8,7 @@
 # dependance Python au runtime.
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-FROM node:22-bookworm AS build
+FROM node:24-bookworm AS build
 WORKDIR /app
 ENV HUSKY=0
 # Outils de compilation pour le module natif better-sqlite3 (node-gyp -> python3).
@@ -23,7 +23,7 @@ COPY . .
 RUN node_modules/.bin/vite build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
