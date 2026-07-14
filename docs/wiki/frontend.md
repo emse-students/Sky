@@ -36,6 +36,12 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
   camera transform, groups relations, and skips off-screen nodes (viewport
   culling) before drawing stars and labels. It renders `filteredGraph`, so focus
   mode naturally narrows what is drawn.
+  - Nodes are tinted by promo (a person's `level`, their entry year): darker =
+    older, lighter = more recent. The scale (`promoColor` in
+    `src/lib/utils/promoColor.ts`) is normalised against the min/max promo of the
+    currently displayed nodes, so the full ramp is used whatever the span;
+    unknown promos get a neutral tint. Selected (amber) and hovered (light blue)
+    nodes keep their highlight color.
 - **`StarfieldCanvas.svelte`** is the animated background.
 - Avatars are `<img>` pointing at `/api/avatar/{id}`; on load error the UI falls
   back to initials (`getPersonInitials`). A per-id `imageErrors` flag tracks this.

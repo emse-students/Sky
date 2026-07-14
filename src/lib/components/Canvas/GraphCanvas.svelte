@@ -9,13 +9,14 @@
   } from "$stores/graphStore";
   import { cameraStore } from "$stores/cameraStore";
   import { getPersonName } from "$lib/utils/format";
+  import { computePromoBounds, promoColor } from "$lib/utils/promoColor";
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
   let animationFrame: number;
 
-  // Rendu a la demande : on ne redessine que lorsque la camera bouge ou qu un
-  // etat visible change (dirty), pour ne rien calculer quand la scene est stable.
+  // On-demand rendering: only redraw when the camera moves or a visible state
+  // changes (dirty), so nothing is computed while the scene is stable.
   let dirty = true;
   function requestRedraw() {
     dirty = true;
@@ -32,7 +33,11 @@
   $: ({ people, relations, positions } = $filteredGraph);
   $: camera = $cameraStore;
 
-  // Toute modification des donnees visibles declenche un redraw.
+  // Promo -> node color bounds, recomputed only when the visible people change.
+  // A person's `level` holds their promo (entry year); see promoMatches().
+  $: promoBounds = computePromoBounds(people.map((p) => p.level));
+
+  // Any change to the visible data triggers a redraw.
   $: {
     void people;
     void relations;
@@ -222,7 +227,8 @@
       } else if (isHovered) {
         ctx.fillStyle = "#60a5fa";
       } else {
-        ctx.fillStyle = "#3b82f6";
+        // Tint by promo: darker = older, lighter = more recent.
+        ctx.fillStyle = promoColor(person.level, promoBounds);
       }
       ctx.fill();
 
