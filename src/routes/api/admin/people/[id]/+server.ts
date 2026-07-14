@@ -5,6 +5,8 @@ import {
   recalculatePositions,
   setPersonRole,
   unlinkPersonAuth,
+  isValidPromo,
+  MIN_PROMO,
 } from "$lib/server/database";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
@@ -22,6 +24,14 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
     nom: string;
     level: number | null;
   };
+
+  // Reject typos: no promotion predates the school's founding year (null clears it).
+  if (!isValidPromo(data.level)) {
+    return json(
+      { error: m.api_promo_invalid({ min: MIN_PROMO }) },
+      { status: 400 },
+    );
+  }
 
   try {
     const db = getDatabase();

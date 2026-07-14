@@ -4,6 +4,8 @@ import {
   getDatabase,
   recalculatePositions,
   getAllPeopleAdmin,
+  isValidPromo,
+  MIN_PROMO,
 } from "$lib/server/database";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
@@ -46,6 +48,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Last name, first name and class are mandatory when creating a star.
     if (!prenom || !nom || data.level === null || data.level === undefined) {
       return json({ error: m.modal_required_fields() }, { status: 400 });
+    }
+    // Reject typos: no promotion predates the school's founding year.
+    if (!isValidPromo(data.level)) {
+      return json(
+        { error: m.api_promo_invalid({ min: MIN_PROMO }) },
+        { status: 400 },
+      );
     }
 
     // Insert person

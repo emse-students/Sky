@@ -1312,6 +1312,51 @@ export const MAX_FILLOTS: Record<RelationKind, number> = {
   adoption: 2,
 };
 
+/**
+ * Earliest valid promotion year: the school (Ecole des Mines de Saint-Etienne)
+ * was founded in 1816, so no promotion can predate it. Used to reject typos at
+ * creation time.
+ */
+export const MIN_PROMO = 1816;
+
+/**
+ * Maximum promotion-year gap between a godparent and their godchild. A godchild
+ * is always a strictly more recent promotion, at most this many years apart.
+ */
+export const MAX_PROMO_GAP = 3;
+
+/**
+ * True if a promotion year is acceptable as user input: either unknown (null) or
+ * an integer not before the school's founding year ({@link MIN_PROMO}). The
+ * required-ness of the field is enforced separately by the callers.
+ */
+export function isValidPromo(level: number | null): boolean {
+  return level === null || (Number.isInteger(level) && level >= MIN_PROMO);
+}
+
+/**
+ * Validate the promotions of a would-be godparent/godchild pair. Returns the
+ * violated rule's code, or null when the pair is acceptable: both promos must be
+ * known, the godchild ({@link fillotLevel}) must be a strictly more recent
+ * promotion than the godparent ({@link parrainLevel}), and they must be at most
+ * {@link MAX_PROMO_GAP} years apart. Applies to both link kinds.
+ */
+export function checkPromoPair(
+  parrainLevel: number | null,
+  fillotLevel: number | null,
+): "PROMO_UNKNOWN" | "PROMO_ORDER" | "PROMO_GAP" | null {
+  if (parrainLevel === null || fillotLevel === null) {
+    return "PROMO_UNKNOWN";
+  }
+  if (fillotLevel <= parrainLevel) {
+    return "PROMO_ORDER";
+  }
+  if (fillotLevel - parrainLevel > MAX_PROMO_GAP) {
+    return "PROMO_GAP";
+  }
+  return null;
+}
+
 /** Machine code for a godparent-rule violation. */
 export type RelationErrorCode =
   | "INVALID_KIND"
@@ -1320,7 +1365,10 @@ export type RelationErrorCode =
   | "DUPLICATE"
   | "MAX_PARRAIN"
   | "MAX_FILLOT"
-  | "CYCLE";
+  | "CYCLE"
+  | "PROMO_UNKNOWN"
+  | "PROMO_ORDER"
+  | "PROMO_GAP";
 
 /**
  * Business error for a rejected godparent link (rules 1/1/3/2, cycle,
@@ -1374,6 +1422,14 @@ function personExists(id: string): boolean {
   );
 }
 
+/** Promotion (graduation year) of a record, or null if unknown or absent. */
+function personLevel(id: string): number | null {
+  const row = getDatabase()
+    .prepare("SELECT level FROM people WHERE id = ?")
+    .get(id) as { level: number | null } | undefined;
+  return row ? row.level : null;
+}
+
 /**
  * True if `toId` is reachable from `fromId` by following parrain -> fillot
  * links (source -> target). Used to detect cycles: adding source -> target
@@ -1408,7 +1464,9 @@ function canReach(fromId: string, toId: string): boolean {
 /**
  * Create a godparent link `sourceId` (godparent) -> `targetId` (godchild) of the
  * given type, enforcing every rule: no self-link, both records must exist, no
- * duplicate, maxima 1/1/3/2, no cycle. Throws `RelationError` otherwise.
+ * duplicate, maxima 1/1/3/2, no cycle, and the promo rules (godchild strictly
+ * more recent, both promos known, at most MAX_PROMO_GAP years apart). Throws
+ * `RelationError` otherwise.
  */
 export function addParrainage(
   sourceId: string,
@@ -1448,6 +1506,20 @@ export function addParrainage(
   }
   if (canReach(targetId, sourceId)) {
     throw new RelationError("CYCLE", m.rel_err_cycle());
+  }
+  // Promo rules: source = godparent, target = godchild. The godchild must be a
+  // strictly more recent, at-most-MAX_PROMO_GAP-younger promotion, and both
+  // promos must be known.
+  switch (checkPromoPair(personLevel(sourceId), personLevel(targetId))) {
+    case "PROMO_UNKNOWN":
+      throw new RelationError("PROMO_UNKNOWN", m.rel_err_promo_unknown());
+    case "PROMO_ORDER":
+      throw new RelationError("PROMO_ORDER", m.rel_err_promo_order());
+    case "PROMO_GAP":
+      throw new RelationError(
+        "PROMO_GAP",
+        m.rel_err_promo_gap({ max: MAX_PROMO_GAP }),
+      );
   }
   getDatabase()
     .prepare(
