@@ -167,8 +167,7 @@ export function personMatchScore(
   if (nameReversed.includes(q)) {
     return 2;
   }
-  const lvl =
-    level !== null && level !== undefined ? String(level) : "";
+  const lvl = level !== null && level !== undefined ? String(level) : "";
   if (lvl && lvl.includes(q)) {
     return 5;
   }

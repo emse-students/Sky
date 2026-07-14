@@ -86,7 +86,10 @@ export function ensureAllPositioned(
     const h = hashString(person.id);
     const angle = ((h % 3600) / 3600) * Math.PI * 2;
     const ring = maxRadius + 3000 + ((h >>> 12) % 6000);
-    positions[person.id] = { x: Math.cos(angle) * ring, y: Math.sin(angle) * ring };
+    positions[person.id] = {
+      x: Math.cos(angle) * ring,
+      y: Math.sin(angle) * ring,
+    };
     missing++;
   }
 

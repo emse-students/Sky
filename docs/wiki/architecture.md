@@ -66,14 +66,14 @@ src/routes/
 
 Server logic lives in `src/lib/server/`:
 
-| File | Responsibility |
-| ---- | -------------- |
-| `database.ts` | All SQLite access: people, relationships, sessions, linking, merge, positions recompute |
-| `oidc.ts` | Authentik OIDC flow (authorize URL, code exchange, userinfo, claims) |
-| `positions.ts` | Pure ForceAtlas2 layout of the graph |
-| `session.ts` | The `sky_session` cookie helpers |
-| `link.ts` | The `__pending_link` cookie name (ambiguous-login token) |
-| `guards.ts` | `requireAdmin(locals)` |
+| File           | Responsibility                                                                          |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `database.ts`  | All SQLite access: people, relationships, sessions, linking, merge, positions recompute |
+| `oidc.ts`      | Authentik OIDC flow (authorize URL, code exchange, userinfo, claims)                    |
+| `positions.ts` | Pure ForceAtlas2 layout of the graph                                                    |
+| `session.ts`   | The `sky_session` cookie helpers                                                        |
+| `link.ts`      | The `__pending_link` cookie name (ambiguous-login token)                                |
+| `guards.ts`    | `requireAdmin(locals)`                                                                  |
 
 ## Deployment topology
 
