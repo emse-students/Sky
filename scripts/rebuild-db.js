@@ -31,7 +31,9 @@ const db = new Database(dbPath);
 async function main() {
   // 1. Snapshot legacy (une seule fois).
   if (!fs.existsSync(legacyPath)) {
-    console.log("[rebuild-db] Snapshot de la base actuelle -> sky-legacy.db ...");
+    console.log(
+      "[rebuild-db] Snapshot de la base actuelle -> sky-legacy.db ...",
+    );
     await db.backup(legacyPath);
     console.log("[rebuild-db] Snapshot legacy cree.");
   } else {
@@ -68,7 +70,9 @@ async function main() {
     ).run();
   });
   wipe();
-  console.log("[rebuild-db] Tables vivantes videes (people/relationships/links/assos).");
+  console.log(
+    "[rebuild-db] Tables vivantes videes (people/relationships/links/assos).",
+  );
 }
 
 main()

@@ -46,7 +46,11 @@ export function layoutGraph(
   nodeIds: string[],
   edges: [string, string][],
 ): Record<string, Point> {
-  const graph = new Graph({ type: "undirected", multi: false, allowSelfLoops: false });
+  const graph = new Graph({
+    type: "undirected",
+    multi: false,
+    allowSelfLoops: false,
+  });
   for (const id of nodeIds) {
     if (!graph.hasNode(id)) {
       graph.addNode(id);
@@ -94,7 +98,11 @@ export function layoutGraph(
  * TARGET_EDGE_LENGTH. Returns the local positions and the enclosing radius.
  */
 function layoutComponent(graph: Graph, comp: string[]): LaidOutComponent {
-  const sub = new Graph({ type: "undirected", multi: false, allowSelfLoops: false });
+  const sub = new Graph({
+    type: "undirected",
+    multi: false,
+    allowSelfLoops: false,
+  });
   for (const n of comp) {
     sub.addNode(n);
   }

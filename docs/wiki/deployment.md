@@ -9,13 +9,13 @@ procedure changes.
 
 ## Topology
 
-| Element | Detail |
-| ------- | ------ |
-| Runtime | Docker container `sky`, Node, port 3001 |
-| Data | `database/` mounted as a volume: `sky.db` + `schema.sql` + generated `positions.json` |
-| Image | `ghcr.io/emse-students/sky:latest` (built by CD) |
-| CD | `.github/workflows/deploy.yml` (runs after "CI (Bun)"): build-image -> deploy |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron) |
+| Element | Detail                                                                                |
+| ------- | ------------------------------------------------------------------------------------- |
+| Runtime | Docker container `sky`, Node, port 3001                                               |
+| Data    | `database/` mounted as a volume: `sky.db` + `schema.sql` + generated `positions.json` |
+| Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
+| CD      | `.github/workflows/deploy.yml` (runs after "CI (Bun)"): build-image -> deploy         |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron)                    |
 
 Node, not Bun, is the runtime because `better-sqlite3` is loaded by unbundled
 maintenance scripts that Bun cannot run. The graph layout is TypeScript
@@ -42,17 +42,17 @@ re-running them is safe.
 The CD generates `.env` from GitHub repo secrets. Non-secret values have defaults
 in `docker-compose.prod.yml`.
 
-| Variable | Required | Role |
-| -------- | -------- | ---- |
-| `MICONNECT_CLIENT_ID` | yes | Authentik OIDC client for the Sky app |
-| `MICONNECT_CLIENT_SECRET` | yes | Authentik OIDC secret |
-| `MIGALLERY_API_KEY` | yes | MiGallery avatar API access |
-| `SKY_ADMIN_SUBS` | no | Comma-separated Authentik subs bootstrapped as admin |
-| `MICONNECT_BASE_URL` | no | Authentik base; default `https://auth.canari-emse.fr` |
-| `MIGALLERY_API_URL` | no | MiGallery base; default `https://gallery.mitv.fr` |
-| `CANARI_API_URL` | no | Canari base; default `https://canari-emse.fr` |
-| `CANARI_API_KEY` | for profiles | Read the inbound Canari profile API |
-| `SKY_API_KEY` | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
+| Variable                  | Required     | Role                                                      |
+| ------------------------- | ------------ | --------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                     |
+| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                     |
+| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                               |
+| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin      |
+| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://auth.canari-emse.fr`     |
+| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`         |
+| `CANARI_API_URL`          | no           | Canari base; default `https://canari-emse.fr`             |
+| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
+| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
 The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
 
