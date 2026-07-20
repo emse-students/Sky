@@ -119,6 +119,8 @@
   "admin_sugg_distance": "distance {distance}",
   "admin_ignore": "Ignore",
   "admin_merge": "Merge",
+  "merge_resolve_title": "Merge records",
+  "merge_resolve_sub": "These records differ. Choose which information to keep.",
   "admin_stat_people": "People",
   "admin_stat_relationships": "Godparent links",
   "admin_manage_people": "Manage people",

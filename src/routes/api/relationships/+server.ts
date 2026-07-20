@@ -7,7 +7,7 @@ import {
   removeRelationshipById,
   getRelationshipById,
   findPeopleByName,
-  createPlaceholderPerson,
+  createPlaceholderAndLink,
   getPersonById,
   getPersonAuthSub,
   countPersonRelations,
@@ -103,11 +103,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
-  // Resolve the other end of the link: existing record or new one (dedup).
-  let otherId: string;
-  if (targetId) {
-    otherId = targetId;
-  } else if (newPerson?.firstName && newPerson?.lastName) {
+  // Validate the new-star input BEFORE any write (promo present & valid, dedup
+  // confirmation). These early-return without touching the DB, so a rejected
+  // creation never leaves a record behind.
+  let creation: { firstName: string; lastName: string; level: number } | null =
+    null;
+  if (!targetId) {
+    if (!newPerson?.firstName || !newPerson?.lastName) {
+      return json({ error: m.api_target_or_new_required() }, { status: 400 });
+    }
     const level = parseLevel(newPerson.level);
     // Promo is mandatory when creating a new star.
     if (level === null) {
@@ -129,22 +133,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ needsConfirmation: true, candidates }, { status: 409 });
       }
     }
-    otherId = createPlaceholderPerson(
-      newPerson.firstName,
-      newPerson.lastName,
+    creation = {
+      firstName: newPerson.firstName,
+      lastName: newPerson.lastName,
       level,
-      user.profile_id,
-    );
-  } else {
-    return json({ error: m.api_target_or_new_required() }, { status: 400 });
+    };
   }
 
-  // parrain = source, fillot = target (relative to the central person).
-  const sourceId = role === "parrain" ? otherId : center;
-  const targetUser = role === "parrain" ? center : otherId;
-
+  // Link the other end. For a brand-new star, creation and linking happen in one
+  // transaction (createPlaceholderAndLink): if a relation rule fails, the
+  // creation rolls back so no orphan star is left dangling.
+  let otherId: string;
   try {
-    addParrainage(sourceId, targetUser, kind);
+    if (creation) {
+      otherId = createPlaceholderAndLink(
+        creation.firstName,
+        creation.lastName,
+        creation.level,
+        user.profile_id,
+        center,
+        role,
+        kind,
+      );
+    } else {
+      // Existing target (creation is null implies targetId is set).
+      otherId = targetId as string;
+      // parrain = source, fillot = target (relative to the central person).
+      const sourceId = role === "parrain" ? otherId : center;
+      const targetUser = role === "parrain" ? center : otherId;
+      addParrainage(sourceId, targetUser, kind);
+    }
   } catch (error) {
     if (error instanceof RelationError) {
       return json({ error: error.message, code: error.code }, { status: 409 });

@@ -340,7 +340,20 @@ export function deletePerson(id: string): boolean {
   return result.changes > 0;
 }
 
-export function mergePeople(sourceId: string, targetId: string): void {
+/**
+ * Merge `sourceId` into `targetId`: move every relation and external link onto
+ * the survivor, then delete the source. When `survivorIdentity` is given, the
+ * survivor's display identity (nom/prenom/promo) is overwritten with the chosen
+ * values - this is how the admin keeps one fiche's data over the other when they
+ * differ. The survivor's `id` is never changed (it is a stable PK referenced by
+ * relations), only its display columns. Omit `survivorIdentity` to keep the
+ * survivor's own values unchanged (silent survivor-wins).
+ */
+export function mergePeople(
+  sourceId: string,
+  targetId: string,
+  survivorIdentity?: { prenom: string; nom: string; level: number | null },
+): void {
   const database = getDatabase();
 
   database.transaction(() => {
@@ -407,6 +420,21 @@ export function mergePeople(sourceId: string, targetId: string): void {
 
     // 4. Delete the source person
     database.prepare("DELETE FROM people WHERE id = ?").run(sourceId);
+
+    // 5. Apply the chosen identity to the survivor (only when resolving a
+    // conflict). Re-format to keep the "NOM"/"Prenom" display convention.
+    if (survivorIdentity) {
+      database
+        .prepare(
+          "UPDATE people SET last_name = ?, first_name = ?, level = ? WHERE id = ?",
+        )
+        .run(
+          formatLastName(survivorIdentity.nom),
+          formatFirstName(survivorIdentity.prenom),
+          survivorIdentity.level,
+          targetId,
+        );
+    }
   })();
 }
 
@@ -2000,6 +2028,36 @@ export function createPlaceholderPerson(
     )
     .run(id, prenom, nom, level, "default.jpg", createdBy);
   return id;
+}
+
+/**
+ * Atomically create a placeholder star AND link it to `centerId` in one
+ * transaction. The relation rules (addParrainage: promo order/gap, slot maxima,
+ * cycle, ...) are enforced INSIDE the transaction, so any violation rolls back
+ * the creation - no orphan placeholder is ever persisted. This is why linking
+ * validation must not run after a standalone createPlaceholderPerson. Returns the
+ * new person id; throws `RelationError` (nothing persisted) on a rule violation.
+ */
+export function createPlaceholderAndLink(
+  firstName: string,
+  lastName: string,
+  level: number | null,
+  createdBy: string,
+  centerId: string,
+  role: "parrain" | "fillot",
+  kind: RelationKind,
+): string {
+  console.debug(
+    `[Entourage] createPlaceholderAndLink center=${centerId} role=${role} kind=${kind}`,
+  );
+  return getDatabase().transaction(() => {
+    const id = createPlaceholderPerson(firstName, lastName, level, createdBy);
+    // parrain = the new star is the godparent (source), fillot = the godchild.
+    const sourceId = role === "parrain" ? id : centerId;
+    const targetId = role === "parrain" ? centerId : id;
+    addParrainage(sourceId, targetId, kind);
+    return id;
+  })();
 }
 
 // ============================================
