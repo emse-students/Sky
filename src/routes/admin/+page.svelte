@@ -16,6 +16,11 @@
   import { confirmDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
+  import {
+    identityMatches,
+    type MergeIdentity,
+  } from "$lib/utils/mergeIdentity";
+  import MergeResolveModal from "$lib/components/MergeResolveModal.svelte";
 
   type SuggPerson = {
     id: string;
@@ -32,6 +37,8 @@
   let busy = $state(false);
   let suggestions = $state<Suggestion[]>([]);
   let suggBusy = $state(false);
+  // The pair awaiting identity-conflict resolution (drives MergeResolveModal).
+  let pendingMerge = $state<Suggestion | null>(null);
 
   let user = $derived($page.data.user);
   let isAdmin = $derived(user?.role === "admin");
@@ -56,14 +63,31 @@
     }
   }
 
-  /** Merge a suggested pair (the linked fiche survives; see /api/admin/merge). */
+  /**
+   * Merge a suggested pair. Identical fiches merge straight away; when the data
+   * differs, open the resolver so the admin picks which values the survivor
+   * keeps (the linked fiche survives; see /api/admin/merge).
+   */
   async function mergePair(s: Suggestion) {
+    if (identityMatches(s.a, s.b)) {
+      await submitMerge(s);
+    } else {
+      pendingMerge = s;
+    }
+  }
+
+  /** POST the merge, optionally with the chosen survivor identity. */
+  async function submitMerge(s: Suggestion, resolution?: MergeIdentity) {
     suggBusy = true;
     try {
       const res = await fetch("/api/admin/merge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId: s.a.id, targetId: s.b.id }),
+        body: JSON.stringify({
+          sourceId: s.a.id,
+          targetId: s.b.id,
+          resolution,
+        }),
       });
       if (res.ok) {
         await Promise.all([loadSuggestions(), loadStats()]);
@@ -280,11 +304,15 @@
             {m.admin_suggestions_title({ count: suggestions.length })}
           </h2>
           <div class="sugg-bulk">
-            <button class="sugg-btn ignore" disabled={suggBusy} onclick={ignoreAll}
-              >{m.admin_ignore_all()}</button
+            <button
+              class="sugg-btn ignore"
+              disabled={suggBusy}
+              onclick={ignoreAll}>{m.admin_ignore_all()}</button
             >
-            <button class="sugg-btn merge" disabled={suggBusy} onclick={mergeAll}
-              >{m.admin_merge_all()}</button
+            <button
+              class="sugg-btn merge"
+              disabled={suggBusy}
+              onclick={mergeAll}>{m.admin_merge_all()}</button
             >
           </div>
         </div>
@@ -296,7 +324,8 @@
             <li class="sugg-item">
               <div class="sugg-pair">
                 <span class="sugg-name"
-                  >{s.a.nom.toUpperCase()} {s.a.prenom}
+                  >{s.a.nom.toUpperCase()}
+                  {s.a.prenom}
                   <small
                     >{formatPromoShort(s.a.level)}{s.a.linked
                       ? ` · ${m.admin_sugg_account()}`
@@ -305,7 +334,8 @@
                 >
                 <span class="sugg-vs">↔</span>
                 <span class="sugg-name"
-                  >{s.b.nom.toUpperCase()} {s.b.prenom}
+                  >{s.b.nom.toUpperCase()}
+                  {s.b.prenom}
                   <small
                     >{formatPromoShort(s.b.level)}{s.b.linked
                       ? ` · ${m.admin_sugg_account()}`
@@ -337,6 +367,20 @@
           {/each}
         </ul>
       </section>
+    {/if}
+
+    {#if pendingMerge}
+      <MergeResolveModal
+        a={pendingMerge.a}
+        b={pendingMerge.b}
+        survivor={pendingMerge.a.linked ? "a" : "b"}
+        onResolve={(identity) => {
+          const s = pendingMerge;
+          pendingMerge = null;
+          if (s) submitMerge(s, identity);
+        }}
+        onCancel={() => (pendingMerge = null)}
+      />
     {/if}
 
     <div class="stats">

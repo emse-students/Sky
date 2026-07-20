@@ -119,6 +119,8 @@
   "admin_sugg_distance": "distance {distance}",
   "admin_ignore": "Ignorer",
   "admin_merge": "Fusionner",
+  "merge_resolve_title": "Fusionner les fiches",
+  "merge_resolve_sub": "Ces fiches diffèrent. Choisissez les informations à conserver.",
   "admin_stat_people": "Personnes",
   "admin_stat_relationships": "Liens de parrainage",
   "admin_manage_people": "Gérer les personnes",
