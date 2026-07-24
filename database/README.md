@@ -1,58 +1,58 @@
 # Sky Database
 
-Base de données SQLite pour le système de généalogie étudiante EMSE.
+SQLite database for the EMSE student genealogy system.
 
-## 📁 Fichiers
+## 📁 Files
 
-- **`sky.db`** - Base de données SQLite principale
-- **`sky.db.backup`** - Sauvegarde de sécurité
-- **`schema.sql`** - Schéma de référence (v3.0)
-- **`SCHEMA_REFERENCE.md`** - Documentation complète du schéma
+- **`sky.db`** - Main SQLite database
+- **`sky.db.backup`** - Safety backup
+- **`schema.sql`** - Reference schema (v3.0)
+- **`SCHEMA_REFERENCE.md`** - Complete schema documentation
 
-## 🚀 Utilisation
+## 🚀 Usage
 
 ### Administration
 
-L'administration se fait via l'interface web **`/admin`** (Svelte 5, reservee aux
-admins) : recherche/edition des profils, gestion des relations (Parrainage/
-Adoption) et des liens, fusion de profils, suppression avec CASCADE.
+Administration is done via the **`/admin`** web interface (Svelte 5, reserved
+for admins): profile search/editing, relationship management
+(Godparent/Adoption) and links, profile merging, CASCADE deletion.
 
-### Recalcul des Positions
+### Position Recalculation
 
-Les positions du graphe sont calculees en **TypeScript in-process**
-(`src/lib/server/positions.ts`, ForceAtlas2 via graphology) et ecrites dans
-`database/positions.json`. Le recalcul est automatique a chaque modification du
-graphe (creation/suppression de lien ou de fiche, import) ; un bouton
-**« Recalculer »** dans `/admin` permet aussi de le relancer manuellement.
+Graph positions are computed **TypeScript in-process**
+(`src/lib/server/positions.ts`, ForceAtlas2 via graphology) and written to
+`database/positions.json`. Recalculation is automatic on every graph
+modification (link or record creation/deletion, import); a **"Recalculate"**
+button in `/admin` also allows manual re-triggering.
 
 ## 📊 Structure
 
-### Tables Principales
+### Main Tables
 
-1. **`people`** - Profils individuels (5100+ entrées)
-2. **`relationships`** - Relations de parrainage/adoption (1500+ relations)
-3. **`external_links`** - Liens sociaux (LinkedIn, GitHub, etc.)
+1. **`people`** - Individual profiles (5100+ entries)
+2. **`relationships`** - Godparent/adoption relationships (1500+ relationships)
+3. **`external_links`** - Social links (LinkedIn, GitHub, etc.)
 
-### Types de Relations
+### Relationship Types
 
-- **`parrainage`** - Relation officielle de parrainage (1495 relations)
-- **`adoption`** - Relation d'adoption (13 relations)
+- **`parrainage`** - Official godparent relationship (1495 relationships)
+- **`adoption`** - Adoption relationship (13 relationships)
 
 ## 🔧 Migrations
 
-Voir `SCHEMA_REFERENCE.md` pour l'historique complet des migrations.
+See `SCHEMA_REFERENCE.md` for the full migration history.
 
-**Dernière migration:** v3.0 (1er février 2026)
+**Latest migration:** v3.0 (February 1, 2026)
 
-- Renommage `family1` → `parrainage`, `family2` → `adoption`
-- Suppression des colonnes inutilisées (`bio`, `year`, `notes`, `label`)
-- Suppression des tables obsolètes (`associations`, `relationship_types`)
+- Renamed `family1` → `parrainage`, `family2` → `adoption`
+- Removed unused columns (`bio`, `year`, `notes`, `label`)
+- Removed obsolete tables (`associations`, `relationship_types`)
 
 ## 📖 Documentation
 
-Consulter [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) pour :
+See [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) for:
 
-- Description détaillée de toutes les tables
-- Guide d'utilisation complet
-- Requêtes SQL utiles
-- Bonnes pratiques
+- Detailed description of all tables
+- Complete usage guide
+- Useful SQL queries
+- Best practices

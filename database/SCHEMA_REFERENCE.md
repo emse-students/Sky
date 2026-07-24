@@ -1,168 +1,164 @@
-# 📚 Sky Database - Référence Complète du Schéma
+# 📚 Sky Database — Complete Schema Reference
 
-> **Version:** 3.0 (Nettoyage complet - suppression des champs inutilisés)  
-> **Dernière mise à jour:** 1 février 2026  
-> **Type:** SQLite3 avec FTS5 (Full-Text Search)
-
----
-
-## 🎯 Vue d'ensemble
-
-La base de données Sky stocke les informations sur les membres de l'ICM (Institut Camille Jordan) et leurs relations de parrainage/adoption. Elle est structurée comme un **graphe orienté** où :
-
-- Les **nœuds** = personnes (`people`)
-- Les **arêtes** = relations (`relationships`)
+> **Version:** 3.0 (Full cleanup — removal of unused fields)  
+> **Last updated:** February 1, 2026  
+> **Type:** SQLite3 with FTS5 (Full-Text Search)
 
 ---
 
-## 📋 Tables Principales
+## 🎯 Overview
 
-### 1. `people` — Profils individuels
+The Sky database stores information about ICM (Institut Camille Jordan) members
+and their godparent/adoption relationships. It is structured as a **directed
+graph** where:
 
-Stocke toutes les informations sur chaque personne.
-
-| Colonne      | Type      | Nullable | Description                           |
-| ------------ | --------- | -------- | ------------------------------------- |
-| `id`         | TEXT      | ❌       | Identifiant unique (ex: `prenom.nom`) |
-| `first_name` | TEXT      | ❌       | Prénom                                |
-| `last_name`  | TEXT      | ❌       | Nom de famille                        |
-| `level`      | INTEGER   | ✅       | Année de promotion (ex: 2024)         |
-| `image_url`  | TEXT      | ✅       | URL de l'avatar (MiGallery ou local)  |
-| `created_at` | TIMESTAMP | ✅       | Date de création                      |
-| `updated_at` | TIMESTAMP | ✅       | Date de dernière modification         |
-
-**Clé primaire:** `id`
-
-**Index:**
-
-- `idx_people_level` sur `level`
-- `idx_people_last_name` sur `last_name`
-- `idx_people_first_name` sur `first_name`
+- **Nodes** = people (`people`)
+- **Edges** = relationships (`relationships`)
 
 ---
 
-### 2. `relationships` — Relations généalogiques
+## 📋 Main Tables
 
-Représente les liens de parrainage/adoption entre deux personnes.  
-**Structure orientée:** `source_id` → `target_id`
+### 1. `people` — Individual Profiles
 
-| Colonne     | Type    | Nullable | Description                          |
-| ----------- | ------- | -------- | ------------------------------------ |
-| `id`        | INTEGER | ❌       | ID auto-incrémenté                   |
-| `source_id` | TEXT    | ❌       | ID du parrain/marraine (nœud source) |
-| `target_id` | TEXT    | ❌       | ID du filleul(e) (nœud cible)        |
-| `type`      | TEXT    | ❌       | Type de relation (voir ci-dessous)   |
-| `year`      | INTEGER | ✅       | Année d'établissement de la relation |
+Stores all information about each person.
 
-| `**Clé primaire:**`id`
+| Column       | Type      | Nullable | Description                            |
+| ------------ | --------- | -------- | -------------------------------------- |
+| `id`         | TEXT      | ❌       | Unique identifier (ex: `first.last`)   |
+| `first_name` | TEXT      | ❌       | First name                             |
+| `last_name`  | TEXT      | ❌       | Last name                              |
+| `level`      | INTEGER   | ✅       | Promotion year (ex: 2024)              |
+| `image_url`  | TEXT      | ✅       | Avatar URL (MiGallery or local)        |
+| `created_at` | TIMESTAMP | ✅       | Creation date                          |
+| `updated_at` | TIMESTAMP | ✅       | Last modification date                 |
 
-**Contraintes:**
+**Primary key:** `id`
 
-- `UNIQUE(source_id, target_id, type)` — Évite les doublons
+**Indexes:**
+
+- `idx_people_level` on `level`
+- `idx_people_last_name` on `last_name`
+- `idx_people_first_name` on `first_name`
+
+---
+
+### 2. `relationships` — Genealogical Relationships
+
+Represents godparent/adoption links between two people.  
+**Directed structure:** `source_id` → `target_id`
+
+| Column     | Type    | Nullable | Description                                            |
+| ---------- | ------- | -------- | ------------------------------------------------------ |
+| `id`       | INTEGER | ❌       | Auto-incremented ID                                    |
+| `source_id` | TEXT   | ❌       | Godparent ID (source node)                             |
+| `target_id` | TEXT   | ❌       | Godchild ID (target node)                              |
+| `type`     | TEXT    | ❌       | Relationship type (see below)                          |
+| `year`     | INTEGER | ✅       | Year the relationship was established                  |
+
+**Primary key:** `id`
+
+**Constraints:**
+
+- `UNIQUE(source_id, target_id, type)` — Prevents duplicates
 - `FOREIGN KEY source_id → people(id) ON DELETE CASCADE`
 - `FOREIGN KEY target_id → people(id) ON DELETE CASCADE`
-- `FOREIGN KEY type → relationship_types(type)`
 
-**Index:**
+**Indexes:**
 
-- `idx_relationships_source` sur `source_id`
-- `idx_relationships_target` sur `target_id`
-- `idx_relationships_type` sur `type`
+- `idx_relationships_source` on `source_id`
+- `idx_relationships_target` on `target_id`
+- `idx_relationships_type` on `type`
 
-#### 📌 Types de relations (`type`)
+#### 📌 Relationship Types (`type`)
 
-| Valeur       | Signification       | Statut   | Couleur   |
-| ------------ | ------------------- | -------- | --------- |
-| `family1`    | Parrainage OFFICIEL | ✅ Actif | `#3b82f6` |
-| `family2`    | Adoption            | ✅ Actif | `#8b5cf6` |
-| `parrainage` | Ancien format       | Statut   | Couleur   |
-| ------------ | -------------       | -------- | --------- |
-| `parrainage` | Officiel            | ✅ Actif | `#3b82f6` |
-| `adoption`   | Adoption            | ✅ Actif | `#8b5cf6` |
+| Value        | Meaning               | Status    | Color     |
+| ------------ | --------------------- | --------- | --------- |
+| `parrainage` | Official godparent    | ✅ Active | `#3b82f6` |
+| `adoption`   | Adoption              | ✅ Active | `#8b5cf6` |
 
-Parent (source_id) ──[type]──> Child (target_id)
-Parrain Filleul
+```
+Godparent (source_id) ──[type]──> Godchild (target_id)
+```
 
-````
-
-**Exemple:**
+**Example:**
 
 ```sql
--- Lucas est le parrain officiel de Jolan
+-- Lucas is Jolan's official godparent
 INSERT INTO relationships (source_id, target_id, type)
-VALUES ('lucas.hausner', 'jolan.boudin', 'family1');
-````
+VALUES ('lucas.hausner', 'jolan.boudin', 'parrainage');
+```
 
-Pour récupérer :
+To retrieve:
 
-- **Parrains de Jolan:** `WHERE target_id = 'jolan.boudin'`
-- **Filleuls de Lucas:** `WHERE source_id = 'lucas.hausner'`
+- **Jolan's godparents:** `WHERE target_id = 'jolan.boudin'`
+- **Lucas's godchildren:** `WHERE source_id = 'lucas.hausner'`
 
----parrainage
+---
 
-### 3. `external_links` — Liens externes
+### 3. `external_links` — External Links
 
-Stocke les réseaux sociaux et autres liens externes associés à une personne.
+Stores social media and other external links associated with a person.
 
-| Colonne         | Type      | Nullable | Description                    |
-| --------------- | --------- | -------- | ------------------------------ |
-| `id`            | INTEGER   | ❌       | ID auto-incrémenté             |
-| `person_id`     | TEXT      | ❌       | Référence à `people(id)`       |
-| `type`          | TEXT      | ❌       | Type de lien (voir ci-dessous) |
-| `url`           | TEXT      | ❌       | URL du lien                    |
-| `label`         | TEXT      | ✅       | Label personnalisé (optionnel) |
-| `display_order` | INTEGER   | ✅       | Ordre d'affichage (défaut: 0)  |
-| `created_at`    | TIMESTAMP | ✅       | Date de création               |
+| Column         | Type      | Nullable | Description                       |
+| -------------- | --------- | -------- | --------------------------------- |
+| `id`           | INTEGER   | ❌       | Auto-incremented ID               |
+| `person_id`    | TEXT      | ❌       | Reference to `people(id)`         |
+| `type`         | TEXT      | ❌       | Link type (see below)             |
+| `url`          | TEXT      | ❌       | Link URL                          |
+| `label`        | TEXT      | ✅       | Custom label (optional)           |
+| `display_order` | INTEGER  | ✅       | Display order (default: 0)        |
+| `created_at`   | TIMESTAMP | ✅       | Creation date                     |
 
-**Clé primaire:** `id`
+**Primary key:** `id`
 
-**Contraintes:**
+**Constraints:**
 
 - `FOREIGN KEY person_id → people(id) ON DELETE CASCADE`
 
-**Index:**
+**Indexes:**
 
-- `idx_external_links_person` sur `person_id`
+- `idx_external_links_person` on `person_id`
 
-#### 📌 Types de liens (`type`)
+#### 📌 Link Types (`type`)
 
-| Valeur      | Description         |
-| ----------- | ------------------- |
-| `LinkedIn`  | Profil LinkedIn     |
-| `Email`     | Adresse email       |
-| `GitHub`    | Profil GitHub       |
-| `Instagram` | Profil Instagram    |
-| `Phone`     | Numéro de téléphone |
-| `Website`   | Site web personnel  |
+| Value      | Description       |
+| ---------- | ----------------- |
+| `LinkedIn` | LinkedIn profile  |
+| `Email`    | Email address     |
+| `GitHub`   | GitHub profile    |
+| `Instagram` | Instagram profile |
+| `Phone`    | Phone number      |
+| `Website`  | Personal website  |
 
 ---
 
 ## 🔍 Full-Text Search (FTS5)
 
-### Table `people_fts`
+### `people_fts` Table
 
-Table virtuelle pour la recherche rapide dans les noms.
+Virtual table for fast name search.
 
-**Colonnes indexées:**
+**Indexed columns:**
 
 - `first_name`
 - `last_name`
 
-**Champ non-indexé:**
+**Non-indexed field:**
 
-- `id` (UNINDEXED, juste pour référence)
+- `id` (UNINDEXED, for reference only)
 
-**Synchronisation automatique:**
-La table `people_fts` est maintenue à jour automatiquement via des triggers :
+**Automatic synchronization:**
+The `people_fts` table is kept up to date automatically via triggers:
 
-- `people_fts_insert` — Ajout d'une nouvelle personne
-- `people_fts_update` — Modification d'un nom
-- `people_fts_delete` — Suppression d'une personne
+- `people_fts_insert` — New person added
+- `people_fts_update` — Name modified
+- `people_fts_delete` — Person deleted
 
-**Exemple de recherche:**
+**Search example:**
 
 ```sql
--- Rechercher "jolan"
+-- Search for "jolan"
 SELECT p.*
 FROM people p
 JOIN people_fts fts ON p.rowid = fts.rowid
@@ -172,129 +168,129 @@ ORDER BY rank;
 
 ---
 
-## 📊 Vues SQL (Views)
+## 📊 SQL Views
 
 ### `v_people_complete`
 
-Vue enrichie avec toutes les informations liées à une personne.
+Enriched view with all information related to a person.
 
-**Colonnes supplémentaires:**
+**Additional columns:**
 
-- `links` (JSON) — Array des liens externes
-- `associations` (JSON) — Array des associations
-- `relationship_count` (INTEGER) — Nombre total de relations
+- `links` (JSON) — Array of external links
+- `associations` (JSON) — Array of associations
+- `relationship_count` (INTEGER) — Total number of relationships
 
 ### `v_relationships_detailed`
 
-Vue enrichie des relations avec les noms complets.
+Enriched view of relationships with full names.
 
-**Colonnes:**
+**Columns:**
 
-- Toutes les colonnes de `relationships`
-- `source_name` — Nom du parrain/marraine
-- `target_name` — Nom du filleul(e)
-- `type_display` — Nom affiché du type
-- `type_color` — Couleur du type
+- All columns from `relationships`
+- `source_name` — Godparent name
+- `target_name` — Godchild name
+- `type_display` — Display name of the type
+- `type_color` — Color of the type
 
 ---
 
-## 🗂️ Règles de CASCADE
+## 🗂️ CASCADE Rules
 
-Toutes les tables secondaires utilisent `ON DELETE CASCADE` :
+All secondary tables use `ON DELETE CASCADE`:
 
-| Table            | Action                                 |
-| ---------------- | -------------------------------------- |
-| `relationships`  | Suppression auto si personne supprimée |
-| `external_links` | Suppression auto si personne supprimée |
+| Table            | Action                                             |
+| ---------------- | -------------------------------------------------- |
+| `relationships`  | Auto-delete when a person is deleted               |
+| `external_links` | Auto-delete when a person is deleted               |
 
-**Exemple:**
+**Example:**
 
 ```sql
--- Supprimer une personne supprime automatiquement :
--- - Toutes ses relations (en tant que source OU target)
--- - Tous ses liens externes
+-- Deleting a person automatically deletes:
+-- - All their relationships (as source OR target)
+-- - All their external links
 DELETE FROM people WHERE id = 'john.doe';
 ```
 
 ---
 
-## 🔄 Historique des Migrations
+## 🔄 Migration History
 
-### Migration 2.0 → 3.0 (1er février 2026)
+### Migration 2.0 → 3.0 (February 1, 2026)
 
-**Changements appliqués:**
+**Changes applied:**
 
-1. ✅ **Renommage des types de relation**
-   - `family1` → `parrainage` (1495 relations mises à jour)
-   - `family2` → `adoption` (13 relations mises à jour)
+1. ✅ **Relationship type renaming**
+   - `family1` → `parrainage` (1495 relationships updated)
+   - `family2` → `adoption` (13 relationships updated)
 
-2. ✅ **Suppression de colonnes inutilisées**
-   - `relationships.year` (0% utilisé)
-   - `relationships.notes` (0% utilisé)
-   - `people.bio` (0% utilisé)
-   - `external_links.label` (0% utilisé)
+2. ✅ **Removal of unused columns**
+   - `relationships.year` (0% used)
+   - `relationships.notes` (0% used)
+   - `people.bio` (0% used)
+   - `external_links.label` (0% used)
 
-3. ✅ **Suppression de tables obsolètes**
-   - Table `associations` (vide)
-   - Table `relationship_types` (remplacée par des valeurs directes)
+3. ✅ **Removal of obsolete tables**
+   - Table `associations` (empty)
+   - Table `relationship_types` (replaced by direct values)
 
-4. ✅ **Scripts de migration utilisés:**
-   - `scripts/cleanup_db.py` — Nettoyage complet de la base
+4. ✅ **Migration scripts used:**
+   - `scripts/cleanup_db.py` — Full database cleanup
 
-### Migration 1.0 → 2.0 (1er février 2026)
+### Migration 1.0 → 2.0 (February 1, 2026)
 
-**Changements appliqués:**
+**Changes applied:**
 
-1. ✅ **Suppression de `nickname`**
-   - Colonne supprimée de `people`
-   - FTS triggers reconstruits sans `nickname`
-   - Backend TypeScript mis à jour
+1. ✅ **Removal of `nickname`**
+   - Column removed from `people`
+   - FTS triggers rebuilt without `nickname`
+   - TypeScript backend updated
 
-2. ✅ **Conversion initiale des types**
+2. ✅ **Initial type conversion**
    - `parrainage` → `family1`
 
-3. ✅ **Scripts de migration utilisés:**
+3. ✅ **Migration scripts used:**
    - `scripts/remove_nickname_db.py`
    - `scripts/fix_db.py`
 
 ---
 
-## 🛠️ Outils d'Administration
+## 🛠️ Administration Tools
 
-L'administration se fait via l'**interface web `/admin`** (Svelte 5, reservee aux
-admins) :
+Administration is done via the **`/admin` web interface** (Svelte 5, reserved
+for admins):
 
-- ✅ Recherche et visualisation des profils
-- ✅ Édition CRUD complète des personnes
-- ✅ Gestion des liens sociaux
-- ✅ Gestion des relations (Parrainage/Adoption × Parrains/Filleuls)
-- ✅ Fusion de profils (merge), avec verrou « une etoile = une personne »
-- ✅ Suppression avec CASCADE automatique
-- ✅ Recalcul manuel des positions du graphe
-
----
-
-## 📝 Bonnes Pratiques
-
-### ✅ À FAIRE
-
-1. **Toujours utiliser `parrainage` et `adoption`** pour les nouvelles relations
-2. **Vérifier l'existence des IDs** avant d'insérer des relations
-3. **Utiliser les transactions** pour les opérations multiples
-4. **Respecter la direction** : Parrain (source) → Filleul (target)
-
-### ❌ À ÉVITER
-
-1. **Ne jamais** référencer `nickname`, `bio`, `year`, `notes`, `label` (n'existent plus)
-2. **Ne pas** créer de relations circulaires directes (même si techniquement possible)
-3. **Ne pas** insérer de doublons (contrainte UNIQUE)
-4. **Ne pas** utiliser les anciens types `family1`/`family2` (obsolètes)
+- ✅ Profile search and visualization
+- ✅ Full CRUD editing of people
+- ✅ Social link management
+- ✅ Relationship management (Godparent/Adoption × Godparents/Godchildren)
+- ✅ Profile merging, with "one star = one person" lock
+- ✅ Automatic CASCADE deletion
+- ✅ Manual graph position recalculation
 
 ---
 
-## 🔧 Requêtes Utiles
+## 📝 Best Practices
 
-### Trouver tous les parrains d'une personne
+### ✅ DO
+
+1. **Always use `parrainage` and `adoption`** for new relationships
+2. **Verify ID existence** before inserting relationships
+3. **Use transactions** for multi-step operations
+4. **Respect direction**: Godparent (source) → Godchild (target)
+
+### ❌ DON'T
+
+1. **Never** reference `nickname`, `bio`, `year`, `notes`, `label` (no longer exist)
+2. **Do not** create direct circular relationships (even if technically possible)
+3. **Do not** insert duplicates (UNIQUE constraint)
+4. **Do not** use the old types `family1`/`family2` (obsolete)
+
+---
+
+## 🔧 Useful Queries
+
+### Find all godparents of a person
 
 ```sql
 SELECT p.first_name, p.last_name, r.type
@@ -304,7 +300,7 @@ WHERE r.target_id = 'jolan.boudin'
 AND r.type IN ('parrainage', 'adoption');
 ```
 
-### Trouver tous les filleuls d'une personne
+### Find all godchildren of a person
 
 ```sql
 SELECT p.first_name, p.last_name, r.type
@@ -314,19 +310,19 @@ WHERE r.source_id = 'lucas.hausner'
 AND r.type IN ('parrainage', 'adoption');
 ```
 
-### Statistiques par promotion
+### Statistics by promotion
 
 ```sql
 SELECT
     level,
-    COUNT(*) as nb_personnes,
-    COUNT(DISTINCT CASE WHEN image_url IS NOT NULL THEN id END) as nb_avec_photo
+    COUNT(*) as nb_people,
+    COUNT(DISTINCT CASE WHEN image_url IS NOT NULL THEN id END) as nb_with_photo
 FROM people
 GROUP BY level
 ORDER BY level DESC;
 ```
 
-### Détecter les relations orphelines
+### Detect orphan relationships
 
 ```sql
 SELECT r.*
@@ -338,21 +334,21 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 
 ---
 
-## 📦 Fichiers Associés
+## 📦 Related Files
 
-| Fichier                       | Description                                |
-| ----------------------------- | ------------------------------------------ |
-| `database/schema.sql`         | Définition SQL de référence                |
-| `database/sky.db`             | Base de données SQLite3 active             |
-| `database/sky.db.backup`      | Backup de sécurité                         |
-| `src/lib/server/database.ts`  | Couche d'accès TypeScript (Backend)        |
-| `src/lib/types/graph.ts`      | Définitions TypeScript des types           |
-| `src/routes/admin/`           | Interface web d'administration (Svelte 5)  |
-| `src/lib/server/positions.ts` | Calcul des positions pour la visualisation |
+| File                          | Description                              |
+| ----------------------------- | ---------------------------------------- |
+| `database/schema.sql`         | Reference SQL definition                 |
+| `database/sky.db`             | Active SQLite3 database                  |
+| `database/sky.db.backup`      | Safety backup                            |
+| `src/lib/server/database.ts`  | TypeScript data access layer (Backend)   |
+| `src/lib/types/graph.ts`      | TypeScript type definitions              |
+| `src/routes/admin/`           | Web administration interface (Svelte 5)  |
+| `src/lib/server/positions.ts` | Position computation for visualization   |
 
 ---
 
-## 🎨 Schéma Relationnel (ERD)
+## 🎨 Entity-Relationship Diagram (ERD)
 
 ```
 ┌─────────────────┐
@@ -362,7 +358,6 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 │ first_name      │      │
 │ last_name       │      │
 │ level           │      │
-│ bio             │      │
 │ image_url       │      │
 └─────────────────┘      │
          ▲               │
@@ -376,42 +371,20 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 │ person_id (FK) ───┘    │
 │ type              │    │
 │ url               │    │
-│ label             │    │
+│ display_order     │    │
 └───────────────────┘    │
-                         │
+                          │
 ┌────────────────────┐   │
-│   associations     │   │
+│   relationships    │   │
 │────────────────────│   │
 │ id (PK)            │   │
-│ person_id (FK) ────┼───┘
-│ name               │
-│ role               │
-│ start_year         │
-│ end_year           │
-└────────────────────┘
-
-┌─────────────────────┐
-│   relationships     │
-│─────────────────────│
-│ id (PK)             │
-│ source_id (FK) ─────┼──► people(id)
-│ target_id (FK) ─────┼──► people(id)
-│ type (FK) ──────────┼──► relationship_types(type)
-│ year                │
-│ notes               │
-└─────────────────────┘
-
-┌──────────────────────┐
-│ relationship_types   │
-│──────────────────────│
-│ type (PK)            │
-│ display_name         │
-│ description          │
-│ color                │
-│ priority             │
-└──────────────────────┘
+│ source_id (FK) ────┼──► people(id)
+│ target_id (FK) ────┼──► people(id)
+│ type               │   │
+│ year               │   │
+└────────────────────┘   │
 ```
 
 ---
 
-**Fin du document de référence** 🚀
+**End of reference document** 🚀

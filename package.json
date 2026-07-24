@@ -32,7 +32,7 @@
     "package": "bun run build && bun ./scripts/pack-bun.js",
     "package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
     "version:show": "node -e \"console.log(require('./package.json').version)\"",
-    "test": "echo 'No tests implemented yet'"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
