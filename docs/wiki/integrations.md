@@ -61,6 +61,12 @@ The third row is the one that had to be split out: a refused API key turns every
 avatar in the tree into initials, which is exactly what a tree of faceless
 accounts looks like, and nothing said which it was.
 
+The route logs **nothing** on its ordinary paths, and that is deliberate. It used
+to trace every request, every DB hit, every success and every miss, plus the key's
+presence at module load - so a map of N stars wrote several N lines, and the two
+lines that accuse were buried in them. A line here is either an accusation or it
+does not exist.
+
 Config: `MIGALLERY_API_KEY` (required for photos), `MIGALLERY_API_URL` (default
 `https://gallery.mitv.fr`).
 

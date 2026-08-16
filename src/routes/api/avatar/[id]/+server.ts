@@ -8,12 +8,8 @@ const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
 const MIGALLERY_API_URL =
   process.env.MIGALLERY_API_URL || "https://gallery.mitv.fr";
 
-console.debug(
-  "[Avatar API] MIGALLERY_API_KEY:",
-  MIGALLERY_API_KEY ? "✓ Set" : "✗ Missing",
-);
-console.debug("[Avatar API] MIGALLERY_API_URL:", MIGALLERY_API_URL);
-
+// A key that IS configured is the normal state and says nothing; only its absence is an event, and
+// it is fatal to every face on the map, so it is an error and not a debug line.
 if (!MIGALLERY_API_KEY) {
   console.error(
     "[Avatar API] MIGALLERY_API_KEY is not set in environment variables",
@@ -22,8 +18,6 @@ if (!MIGALLERY_API_KEY) {
 
 export const GET: RequestHandler = async ({ params }) => {
   const { id } = params;
-
-  console.debug(`[Avatar API] Fetching avatar for: ${id}`);
 
   if (!MIGALLERY_API_KEY) {
     console.error("[Avatar API] API key not configured");
@@ -34,7 +28,6 @@ export const GET: RequestHandler = async ({ params }) => {
     // 1. Check if user has a custom image in database
     const person = getPersonById(id);
     if (person && person.image) {
-      console.debug(`[Avatar API] Found custom image in DB for ${id}`);
       // If it's a full URL, redirect or fetch it? Redirect is faster/easier for external URLs
       // but if we want to hide origin or handle CORS, we might proxy.
       // For simplicity and speed, let's redirect if it looks like a URL.
@@ -68,8 +61,6 @@ export const GET: RequestHandler = async ({ params }) => {
           error instanceof Error ? `${error.name} ${error.message}` : error,
         );
       }
-    } else {
-      console.debug(`[Avatar API] ${id} has no linked account -> initials`);
     }
 
     if (response && !response.ok && response.status !== 404) {
@@ -83,7 +74,8 @@ export const GET: RequestHandler = async ({ params }) => {
     }
 
     if (!response || !response.ok) {
-      console.debug(`[Avatar API] No photo for ${id} -> initials`);
+      // Not logged, at any level: a placeholder record and a linked account with no photo are the
+      // ordinary state of most of the tree, and one line per faceless star is one line per star.
       // Get person from database for proper initials (every branch below assigns).
       let initials: string;
       try {
@@ -130,10 +122,6 @@ export const GET: RequestHandler = async ({ params }) => {
     // Forward the image with appropriate headers
     const imageBuffer = await response.arrayBuffer();
     const contentType = response.headers.get("content-type") || "image/jpeg";
-
-    console.debug(
-      `[Avatar API] Success! Content-Type: ${contentType}, Size: ${imageBuffer.byteLength}`,
-    );
 
     return new Response(imageBuffer, {
       headers: {
