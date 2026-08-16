@@ -1,6 +1,7 @@
 import type { RequestHandler } from "./$types";
 import { getPersonById, getPersonAuthSub } from "$lib/server/database";
 import { getPersonInitials } from "$lib/utils/format";
+import { OUTBOUND_BUDGET_MS } from "$lib/server/outbound";
 
 // Environment variable - loaded by Bun or SvelteKit
 const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
@@ -48,24 +49,41 @@ export const GET: RequestHandler = async ({ params }) => {
     // 2. Try MiGallery via the Authentik sub (photo key). A placeholder record
     // (no linked account) has no MiGallery photo -> initials directly.
     const sub = getPersonAuthSub(id);
-    const response = sub
-      ? await fetch(`${MIGALLERY_API_URL}/api/users/${sub}/avatar`, {
-          headers: { "x-api-key": MIGALLERY_API_KEY },
-        })
-      : null;
 
+    // An upstream that cannot be reached is NOT an upstream saying "no photo", and the two may not
+    // share a log level: one is this person having no picture, the other is MiGallery being down
+    // or refusing OUR key. Both degrade to initials - a decoration never costs the caller an error
+    // - but only the first is silent. `response` stays null for either, so the branch below reads
+    // "we have no image to serve", whatever the reason.
+    let response: Response | null = null;
     if (sub) {
-      console.debug(
-        `[Avatar API] MiGallery status for ${sub}: ${response?.status}`,
-      );
+      try {
+        response = await fetch(`${MIGALLERY_API_URL}/api/users/${sub}/avatar`, {
+          headers: { "x-api-key": MIGALLERY_API_KEY },
+          signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+        });
+      } catch (error) {
+        console.error(
+          `[Avatar API] MiGallery unreachable within ${OUTBOUND_BUDGET_MS}ms (${MIGALLERY_API_URL}):`,
+          error instanceof Error ? `${error.name} ${error.message}` : error,
+        );
+      }
     } else {
       console.debug(`[Avatar API] ${id} has no linked account -> initials`);
     }
 
-    if (!response || !response.ok) {
-      console.debug(
-        `[Avatar API] No photo (${response?.status ?? "no-account"}) -> initials`,
+    if (response && !response.ok && response.status !== 404) {
+      // 401/403 here is OUR key being refused, and it would otherwise be indistinguishable from a
+      // faceless account: every avatar in the tree would quietly turn into initials and nothing
+      // would say why. Named loudly, with the destination, because the fix is a deployment one.
+      console.error(
+        `[Avatar API] MiGallery answered ${response.status} for a photo lookup - key refused or upstream broken`,
       );
+      response = null;
+    }
+
+    if (!response || !response.ok) {
+      console.debug(`[Avatar API] No photo for ${id} -> initials`);
       // Get person from database for proper initials (every branch below assigns).
       let initials: string;
       try {

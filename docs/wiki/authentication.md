@@ -42,6 +42,12 @@ not under the app slug:
 The app slug only appears in the token issuer, never in the endpoint URL (a
 slugged `/o/<slug>/authorize/` returns 404 under Authentik).
 
+Both server-side calls (`/token/`, `/userinfo/`) carry the shared
+`OUTBOUND_BUDGET_MS` deadline - see
+[the outbound budget](integrations.md#the-outbound-budget). A login that FAILS
+returns the user to the start, which they can act on; a login left hanging on an
+Authentik that holds the socket open gives them nothing to act on at all.
+
 ### Claim handling
 
 This Authentik instance exposes the first/last name as custom camelCase claims

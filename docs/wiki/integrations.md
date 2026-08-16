@@ -5,6 +5,22 @@ come from three shared EMSE services. All of them are keyed by the Authentik
 `sub`, which is why an account record stores it as `auth_sub` (see
 [identity-model.md](identity-model.md)).
 
+## The outbound budget
+
+`fetch` has **no default deadline**, so an upstream that accepts a connection and
+then says nothing holds it - and the request behind it - for as long as it likes.
+Nothing recovers from that: there is no error to catch, no fallback to reach,
+only a page that never finishes. Every server-to-server call therefore carries
+`signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS)`, one 4 s constant declared in
+`src/lib/server/outbound.ts` and shared by all four call sites (MiGallery, the
+Canari profile, and Authentik's token and userinfo endpoints). It is the same
+budget Canari's own avatar proxy uses, so a slow MiGallery degrades at the same
+moment everywhere it is read.
+
+A budget expires as a **throw** (`TimeoutError`), never as a status, so it is the
+`catch` of each call - not a status check - that has to name the upstream as
+unreachable.
+
 ## Authentik (miconnect) - identity
 
 The OIDC provider. Covered in full in [authentication.md](authentication.md).
@@ -24,10 +40,26 @@ load it) and resolves in this order:
    `MIGALLERY_API_URL/api/users/{sub}/avatar` with the `x-api-key` header. A
    placeholder (no linked account) has no MiGallery photo and skips straight to
    initials.
-3. On any miss (no account, non-OK response), return a generated SVG with the
-   person's initials (`getPersonInitials`, with an id-based fallback). Placeholder
-   SVGs are served `Cache-Control: no-store` so the real photo appears as soon as
-   the account links; real photos use a short cache with revalidation.
+3. On any miss (no account, non-OK response, upstream unreachable), return a
+   generated SVG with the person's initials (`getPersonInitials`, with an id-based
+   fallback). Placeholder SVGs are served `Cache-Control: no-store` so the real
+   photo appears as soon as the account links; real photos use a short cache with
+   revalidation.
+
+An avatar is a **decoration**: no MiGallery condition may cost the caller an
+error, and none of them ever waits without end. What separates them is the log
+level, not the status code, because all three answer 200 with an SVG:
+
+| MiGallery says            | Answer    | Logged as                                      |
+| ------------------------- | --------- | ---------------------------------------------- |
+| an image                  | the image | nothing                                        |
+| 404, or no linked account | initials  | `debug` - this person has no photo, a fact     |
+| 401/403/5xx               | initials  | `error` - OUR key refused, or upstream broken  |
+| nothing within the budget | initials  | `error`, naming the budget and the destination |
+
+The third row is the one that had to be split out: a refused API key turns every
+avatar in the tree into initials, which is exactly what a tree of faceless
+accounts looks like, and nothing said which it was.
 
 Config: `MIGALLERY_API_KEY` (required for photos), `MIGALLERY_API_URL` (default
 `https://gallery.mitv.fr`).
