@@ -1,6 +1,7 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { getPersonAuthSub } from "$lib/server/database";
+import { OUTBOUND_BUDGET_MS } from "$lib/server/outbound";
 import type { CanariProfile } from "$types/graph";
 
 // Canari public URL and external-profile API key (server-side only).
@@ -38,7 +39,11 @@ export const GET: RequestHandler = async ({ params }) => {
   try {
     const res = await fetch(
       `${CANARI_API_URL}/api/external/profile/${encodeURIComponent(sub)}`,
-      { headers: { "x-api-key": CANARI_API_KEY } },
+      {
+        headers: { "x-api-key": CANARI_API_KEY },
+        // A profile is a decoration on a panel that is already drawn; it never waits without end.
+        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      },
     );
     if (res.status === 404) {
       return json({ linked: true, profile: null });

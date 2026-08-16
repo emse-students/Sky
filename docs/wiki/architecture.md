@@ -74,6 +74,18 @@ Server logic lives in `src/lib/server/`:
 | `session.ts`   | The `sky_session` cookie helpers                                                        |
 | `link.ts`      | The `__pending_link` cookie name (ambiguous-login token)                                |
 | `guards.ts`    | `requireAdmin(locals)`                                                                  |
+| `outbound.ts`  | `OUTBOUND_BUDGET_MS`, the single deadline every server-to-server fetch carries          |
+
+## Tests
+
+`bun run test` (vitest). The `include` pattern in `vitest.config.ts` names **both**
+`src/**` and `tests/**`: it used to name only the first, so `tests/api.test.ts`
+had never once run. It was not passing and it was not failing - it was invisible,
+and its assertions had rotted against the route it claimed to cover (a mock
+missing an export the route calls, and an env assignment placed after a hoisted
+import, so every case would have answered 500). A test file nobody executes reads
+as coverage on every review; if a suite is added outside these two roots, the
+pattern is what has to change.
 
 ## Deployment topology
 

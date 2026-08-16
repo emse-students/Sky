@@ -10,6 +10,7 @@
  */
 
 import { formatFirstName, formatLastName } from "$utils/format";
+import { OUTBOUND_BUDGET_MS } from "./outbound";
 
 /** Response of Authentik's /token/ endpoint. */
 interface OidcToken {
@@ -116,6 +117,9 @@ async function exchangeCodeForTokens(
         client_secret: process.env.MICONNECT_CLIENT_SECRET || "",
         redirect_uri: redirectUri,
       }).toString(),
+      // A login that hangs is worse than a login that fails: the caller below turns a null into a
+      // redirect back to the start, which a user can act on. An open socket, they cannot.
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
     });
 
     if (!response.ok) {
@@ -140,6 +144,7 @@ async function fetchUserProfile(
   try {
     const response = await fetch(`${getBaseUrl()}/application/o/userinfo/`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
     });
     if (!response.ok) {
       console.error(
