@@ -67,6 +67,18 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=16384"
         run: npm run lint
 
+      # `format` is in package.json and was in nobody's pipeline, so three files
+      # drifted out of shape without a single red run. Checking is cheap; the
+      # alternative is that the next person's `prettier --write .` rewrites files
+      # they never touched and buries their own change inside the diff.
+      - name: Check formatting (Bun)
+        if: matrix.runtime == 'bun'
+        run: bun run format:check
+
+      - name: Check formatting (npm)
+        if: matrix.runtime == 'npm'
+        run: npm run format:check
+
       - name: Build (Bun)
         if: matrix.runtime == 'bun'
         run: bun run build
