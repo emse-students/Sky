@@ -34,6 +34,7 @@ disagree, the code wins and the page is a bug.
 | [frontend.md](frontend.md)                       | Stores, canvas rendering, focus mode, the profile panel, i18n                |
 | [integrations.md](integrations.md)               | MiGallery avatars, Canari profile, the outbound entourage API                |
 | [api-reference.md](api-reference.md)             | Every HTTP endpoint, its auth and its shape                                  |
+| [seo.md](seo.md)                                 | The head of the one public page, robots.txt, and why there is no sitemap     |
 | [deployment.md](deployment.md)                   | Docker, CD, secrets, migrations, backups                                     |
 
 ## Conventions used in Sky code

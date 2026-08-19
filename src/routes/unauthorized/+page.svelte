@@ -1,11 +1,22 @@
 <script lang="ts">
   import { ShieldAlert } from "lucide-svelte";
   import { m } from "$lib/paraglide/messages";
+  import Seo from "$components/Seo.svelte";
 </script>
 
-<svelte:head>
-  <title>{m.unauthorized_page_title()}</title>
-</svelte:head>
+<!--
+  The only page besides the landing that a signed-out visitor can reach, and the only one that has
+  to say `noindex` rather than rely on being unreachable: everything else in Sky redirects to the
+  login flow, so a crawler never gets a page to index. This one answers 200 to anyone, and it is a
+  refusal, not a destination.
+-->
+<Seo
+  meta={{
+    title: m.unauthorized_page_title(),
+    description: m.seo_site_description(),
+    noindex: true,
+  }}
+/>
 
 <div class="unauthorized">
   <ShieldAlert size={64} class="icon" />

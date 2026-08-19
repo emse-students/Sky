@@ -1,3 +1,24 @@
-# allow crawling everything by default
+# Sky - https://sky.mitv.fr
+#
+# Sky is not a public site. `src/hooks.server.ts` reserves everything except `/`
+# and `/unauthorized` to a signed-in ICM student and redirects the rest to the
+# login flow, so a crawler cannot reach any of it. These rules say the same thing
+# up front instead of through a redirect chain, and they exist so that a change
+# to the gate cannot quietly open the graph: the godparent tree is personal data
+# about named students.
+#
+# There is deliberately NO sitemap. A sitemap states a link graph, and Sky's has
+# a single indexable page - `/`. Advertising one that lists one URL tells a
+# crawler nothing it does not already have, and a `Sitemap:` line pointing at a
+# path that does not answer is worse than none (portail-etu shipped exactly that
+# and lost its whole detail half to it).
+
 User-agent: *
-Disallow:
+Disallow: /tree
+Disallow: /account
+Disallow: /admin
+Disallow: /link
+Disallow: /unauthorized
+Disallow: /auth/
+Disallow: /api/
+Allow: /
