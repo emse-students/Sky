@@ -57,8 +57,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Optional identity resolution: the admin chose which fiche's data to keep
     // when they differ. Validate the chosen promo like any other creation/edit.
     let survivorIdentity:
-      | { prenom: string; nom: string; level: number | null }
-      | undefined;
+      { prenom: string; nom: string; level: number | null } | undefined;
     if (resolution?.prenom && resolution?.nom) {
       const level =
         typeof resolution.level === "number" ? resolution.level : null;

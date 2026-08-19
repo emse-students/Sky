@@ -23,15 +23,15 @@ graph** where:
 
 Stores all information about each person.
 
-| Column       | Type      | Nullable | Description                            |
-| ------------ | --------- | -------- | -------------------------------------- |
-| `id`         | TEXT      | ❌       | Unique identifier (ex: `first.last`)   |
-| `first_name` | TEXT      | ❌       | First name                             |
-| `last_name`  | TEXT      | ❌       | Last name                              |
-| `level`      | INTEGER   | ✅       | Promotion year (ex: 2024)              |
-| `image_url`  | TEXT      | ✅       | Avatar URL (MiGallery or local)        |
-| `created_at` | TIMESTAMP | ✅       | Creation date                          |
-| `updated_at` | TIMESTAMP | ✅       | Last modification date                 |
+| Column       | Type      | Nullable | Description                          |
+| ------------ | --------- | -------- | ------------------------------------ |
+| `id`         | TEXT      | ❌       | Unique identifier (ex: `first.last`) |
+| `first_name` | TEXT      | ❌       | First name                           |
+| `last_name`  | TEXT      | ❌       | Last name                            |
+| `level`      | INTEGER   | ✅       | Promotion year (ex: 2024)            |
+| `image_url`  | TEXT      | ✅       | Avatar URL (MiGallery or local)      |
+| `created_at` | TIMESTAMP | ✅       | Creation date                        |
+| `updated_at` | TIMESTAMP | ✅       | Last modification date               |
 
 **Primary key:** `id`
 
@@ -48,13 +48,13 @@ Stores all information about each person.
 Represents godparent/adoption links between two people.  
 **Directed structure:** `source_id` → `target_id`
 
-| Column     | Type    | Nullable | Description                                            |
-| ---------- | ------- | -------- | ------------------------------------------------------ |
-| `id`       | INTEGER | ❌       | Auto-incremented ID                                    |
-| `source_id` | TEXT   | ❌       | Godparent ID (source node)                             |
-| `target_id` | TEXT   | ❌       | Godchild ID (target node)                              |
-| `type`     | TEXT    | ❌       | Relationship type (see below)                          |
-| `year`     | INTEGER | ✅       | Year the relationship was established                  |
+| Column      | Type    | Nullable | Description                           |
+| ----------- | ------- | -------- | ------------------------------------- |
+| `id`        | INTEGER | ❌       | Auto-incremented ID                   |
+| `source_id` | TEXT    | ❌       | Godparent ID (source node)            |
+| `target_id` | TEXT    | ❌       | Godchild ID (target node)             |
+| `type`      | TEXT    | ❌       | Relationship type (see below)         |
+| `year`      | INTEGER | ✅       | Year the relationship was established |
 
 **Primary key:** `id`
 
@@ -72,10 +72,10 @@ Represents godparent/adoption links between two people.
 
 #### 📌 Relationship Types (`type`)
 
-| Value        | Meaning               | Status    | Color     |
-| ------------ | --------------------- | --------- | --------- |
-| `parrainage` | Official godparent    | ✅ Active | `#3b82f6` |
-| `adoption`   | Adoption              | ✅ Active | `#8b5cf6` |
+| Value        | Meaning            | Status    | Color     |
+| ------------ | ------------------ | --------- | --------- |
+| `parrainage` | Official godparent | ✅ Active | `#3b82f6` |
+| `adoption`   | Adoption           | ✅ Active | `#8b5cf6` |
 
 ```
 Godparent (source_id) ──[type]──> Godchild (target_id)
@@ -100,15 +100,15 @@ To retrieve:
 
 Stores social media and other external links associated with a person.
 
-| Column         | Type      | Nullable | Description                       |
-| -------------- | --------- | -------- | --------------------------------- |
-| `id`           | INTEGER   | ❌       | Auto-incremented ID               |
-| `person_id`    | TEXT      | ❌       | Reference to `people(id)`         |
-| `type`         | TEXT      | ❌       | Link type (see below)             |
-| `url`          | TEXT      | ❌       | Link URL                          |
-| `label`        | TEXT      | ✅       | Custom label (optional)           |
-| `display_order` | INTEGER  | ✅       | Display order (default: 0)        |
-| `created_at`   | TIMESTAMP | ✅       | Creation date                     |
+| Column          | Type      | Nullable | Description                |
+| --------------- | --------- | -------- | -------------------------- |
+| `id`            | INTEGER   | ❌       | Auto-incremented ID        |
+| `person_id`     | TEXT      | ❌       | Reference to `people(id)`  |
+| `type`          | TEXT      | ❌       | Link type (see below)      |
+| `url`           | TEXT      | ❌       | Link URL                   |
+| `label`         | TEXT      | ✅       | Custom label (optional)    |
+| `display_order` | INTEGER   | ✅       | Display order (default: 0) |
+| `created_at`    | TIMESTAMP | ✅       | Creation date              |
 
 **Primary key:** `id`
 
@@ -122,14 +122,14 @@ Stores social media and other external links associated with a person.
 
 #### 📌 Link Types (`type`)
 
-| Value      | Description       |
-| ---------- | ----------------- |
-| `LinkedIn` | LinkedIn profile  |
-| `Email`    | Email address     |
-| `GitHub`   | GitHub profile    |
+| Value       | Description       |
+| ----------- | ----------------- |
+| `LinkedIn`  | LinkedIn profile  |
+| `Email`     | Email address     |
+| `GitHub`    | GitHub profile    |
 | `Instagram` | Instagram profile |
-| `Phone`    | Phone number      |
-| `Website`  | Personal website  |
+| `Phone`     | Phone number      |
+| `Website`   | Personal website  |
 
 ---
 
@@ -198,10 +198,10 @@ Enriched view of relationships with full names.
 
 All secondary tables use `ON DELETE CASCADE`:
 
-| Table            | Action                                             |
-| ---------------- | -------------------------------------------------- |
-| `relationships`  | Auto-delete when a person is deleted               |
-| `external_links` | Auto-delete when a person is deleted               |
+| Table            | Action                               |
+| ---------------- | ------------------------------------ |
+| `relationships`  | Auto-delete when a person is deleted |
+| `external_links` | Auto-delete when a person is deleted |
 
 **Example:**
 
@@ -336,15 +336,15 @@ WHERE p1.id IS NULL OR p2.id IS NULL;
 
 ## 📦 Related Files
 
-| File                          | Description                              |
-| ----------------------------- | ---------------------------------------- |
-| `database/schema.sql`         | Reference SQL definition                 |
-| `database/sky.db`             | Active SQLite3 database                  |
-| `database/sky.db.backup`      | Safety backup                            |
-| `src/lib/server/database.ts`  | TypeScript data access layer (Backend)   |
-| `src/lib/types/graph.ts`      | TypeScript type definitions              |
-| `src/routes/admin/`           | Web administration interface (Svelte 5)  |
-| `src/lib/server/positions.ts` | Position computation for visualization   |
+| File                          | Description                             |
+| ----------------------------- | --------------------------------------- |
+| `database/schema.sql`         | Reference SQL definition                |
+| `database/sky.db`             | Active SQLite3 database                 |
+| `database/sky.db.backup`      | Safety backup                           |
+| `src/lib/server/database.ts`  | TypeScript data access layer (Backend)  |
+| `src/lib/types/graph.ts`      | TypeScript type definitions             |
+| `src/routes/admin/`           | Web administration interface (Svelte 5) |
+| `src/lib/server/positions.ts` | Position computation for visualization  |
 
 ---
 
