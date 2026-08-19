@@ -6,3 +6,12 @@ bun.lock
 src/lib/paraglide
 database/*.db
 database/positions.json
+
+# Written by `paraglide-js compile`, which every `check` run invokes. Only
+# `project.inlang/settings.json` is ours and tracked; the rest appears after a
+# compile, in whatever shape inlang emits. Checking generated files means the
+# formatting gate fails on a machine that has built and passes on one that has
+# not.
+project.inlang/cache
+project.inlang/.meta.json
+project.inlang/README.md
