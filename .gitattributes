@@ -1,0 +1,20 @@
+# Line endings are LF everywhere, in the repository AND in the working tree.
+#
+# Without this, a checkout on a machine with `core.autocrlf=true` (the Windows
+# default) materialises every text file with CRLF, while Prettier - which has no
+# config here, so `endOfLine: "lf"` - insists on LF. The result is a repository
+# whose own `format:check` cannot pass on Windows and passes on Linux: a gate
+# that reports the platform rather than the code. `eol=lf` removes the
+# conversion instead of teaching the formatter to tolerate both.
+*           text=auto eol=lf
+
+# Binary, never converted.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.db        binary
+*.tgz       binary
