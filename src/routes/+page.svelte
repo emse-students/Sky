@@ -33,6 +33,8 @@
   import Github from "$components/icons/Github.svelte";
   import Instagram from "$components/icons/Instagram.svelte";
   import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
+  import Seo from "$components/Seo.svelte";
+  import { institutionNode, siteNode } from "$lib/seo";
   import { m } from "$lib/paraglide/messages";
   import type { CanariProfileResponse } from "$types/graph";
 
@@ -216,9 +218,14 @@
   }
 </script>
 
-<svelte:head>
-  <title>{m.home_page_title()}</title>
-</svelte:head>
+<Seo
+  meta={{
+    title: m.home_page_title(),
+    description: m.seo_site_description(),
+    imageAlt: m.seo_image_alt(),
+    jsonLd: [siteNode($page.url.origin), institutionNode()],
+  }}
+/>
 
 <svelte:window bind:innerWidth />
 

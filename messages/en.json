@@ -228,5 +228,7 @@
   "api_auth_failed": "Authentication failed",
   "account_no_fiche_selected": "No record selected.",
   "account_fiche_unavailable": "This record is no longer available (already linked or not found).",
-  "api_login_failed": "Sign-in failed"
+  "api_login_failed": "Sign-in failed",
+  "seo_site_description": "The star map of the ICM students of Ecole des Mines de Saint-Etienne: the godparent tree, reserved for ICM students via MiConnect.",
+  "seo_image_alt": "The Sky logo: a star against the night sky."
 }
