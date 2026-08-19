@@ -75,6 +75,14 @@ export function hashString(value: string): number {
  * Levenshtein edit distance between two strings: the minimum number of
  * single-character insertions, deletions or substitutions to turn `a` into `b`.
  * Iterative two-row implementation (O(a*b) time, O(min) space).
+ *
+ * This one is for IDENTITY, not for search: `nameDistance` and the duplicate
+ * scan in `src/lib/server/database.ts` are the callers. It stays strict on
+ * purpose - a transposition costs two edits here - because merging two people
+ * who are not the same person is destructive and cannot be undone, whereas a
+ * search row that should not be in the list costs a glance. Search uses
+ * `editDistance` below; see the ecosystem search contract (canari,
+ * `docs/wiki/search-contract.md`).
  */
 export function levenshtein(a: string, b: string): number {
   if (a === b) {
@@ -103,6 +111,69 @@ export function levenshtein(a: string, b: string): number {
     [prev, curr] = [curr, prev];
   }
   return prev[b.length];
+}
+
+/**
+ * Optimal string alignment distance: Levenshtein with the swap of two ADJACENT
+ * characters charged as one edit rather than two.
+ *
+ * That single difference is what makes "jaen" find "jean", and a transposition
+ * is the commonest typo there is. Measured against a real roster it is free:
+ * the same recall as spending a tolerance of 2, for a twentieth of the wrong
+ * names offered. Used by `personMatchScore` only.
+ */
+export function editDistance(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  if (a.length === 0) {
+    return b.length;
+  }
+  if (b.length === 0) {
+    return a.length;
+  }
+
+  // Three rows, because a transposition looks two rows and two columns back.
+  let two = new Array<number>(b.length + 1).fill(0);
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  let curr = new Array<number>(b.length + 1);
+
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(
+        curr[j - 1] + 1, // insertion
+        prev[j] + 1, // suppression
+        prev[j - 1] + cost, // substitution
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, two[j - 2] + 1); // adjacent transposition
+      }
+      curr[j] = best;
+    }
+    [two, prev, curr] = [prev, curr, two];
+  }
+  return prev[b.length];
+}
+
+/**
+ * How many edits a token may be wrong by, taken from the SHORTER of the two
+ * tokens compared.
+ *
+ * The ecosystem's ladder, measured rather than chosen (canari,
+ * `docs/wiki/search-contract.md`): a single wrong keystroke is one edit by
+ * construction, so a tolerance of 2 below eight characters recovers nothing a
+ * tolerance of 1 does not - it only puts a wrong person in the list, on roughly
+ * half of all queries. Three characters carry no information at all, so they
+ * tolerate none; a three-letter query is almost always a prefix, and prefixes
+ * are matched by the substring branch before this one is reached.
+ */
+export function tokenTolerance(shorter: number): number {
+  if (shorter <= 3) {
+    return 0;
+  }
+  return shorter <= 7 ? 1 : 2;
 }
 
 /**
@@ -142,8 +213,8 @@ export const NAME_MATCH_MAX_DISTANCE = 2;
  *   - a normalized substring of "nom prenom" (and the reversed order, so word
  *     inversion still hits),
  *   - the promotion year,
- *   - a per-token edit-distance fallback (typos: distance <= 1 for short tokens,
- *     <= 2 for longer ones).
+ *   - a per-token edit-distance fallback, on the ecosystem's tolerance ladder
+ *     (`tokenTolerance` + `editDistance`, so a transposition costs one edit).
  * Returns a rank score where LOWER is a better match, or null when it does not
  * match at all. An empty query returns 0 (matches everything, neutral rank).
  */
@@ -184,8 +255,14 @@ export function personMatchScore(
         best = 0;
         break;
       }
-      const tolerance = qt.length <= 4 ? 1 : 2;
-      const d = levenshtein(qt, nt);
+      // Tolerance from the SHORTER token: a three-letter query must not buy
+      // itself two edits against a nine-letter surname, which at that ratio
+      // matches most of a roster and is the same as not filtering.
+      const tolerance = tokenTolerance(Math.min(qt.length, nt.length));
+      if (tolerance === 0) {
+        continue;
+      }
+      const d = editDistance(qt, nt);
       if (d <= tolerance && d < best) {
         best = d;
       }
