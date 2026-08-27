@@ -1,11 +1,6 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import {
-    canonicalUrl,
-    defaultImage,
-    jsonLdScript,
-    type SeoMeta,
-  } from "$lib/seo";
+  import { page } from '$app/stores';
+  import { canonicalUrl, defaultImage, jsonLdScript, type SeoMeta } from '$lib/seo';
 
   let { meta }: { meta: SeoMeta } = $props();
 

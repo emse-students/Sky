@@ -1,5 +1,5 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import {
   getDatabase,
   recalculatePositions,
@@ -15,19 +15,19 @@ import {
   isSameFamily,
   RelationError,
   type RelationKind,
-} from "$lib/server/database";
-import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
-import { m } from "$lib/paraglide/messages";
+} from '$lib/server/database';
+import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
+import { m } from '$lib/paraglide/messages';
 
 /** Raw list of links (read). */
 export const GET: RequestHandler = () => {
   try {
     const db = getDatabase();
-    const relationships = db.prepare("SELECT * FROM relationships").all();
+    const relationships = db.prepare('SELECT * FROM relationships').all();
     return json(relationships);
   } catch (error) {
-    console.error("Error fetching relationships:", error);
-    return json({ error: "Failed to fetch relationships" }, { status: 500 });
+    console.error('Error fetching relationships:', error);
+    return json({ error: 'Failed to fetch relationships' }, { status: 500 });
   }
 };
 
@@ -41,7 +41,7 @@ interface NewPersonInput {
 /** Expected body for adding an entourage link. */
 interface AddRelationBody {
   type?: string;
-  role?: "parrain" | "fillot";
+  role?: 'parrain' | 'fillot';
   targetId?: string;
   newPerson?: NewPersonInput;
   confirmCreate?: boolean;
@@ -51,10 +51,10 @@ interface AddRelationBody {
 
 /** Coerce a promo (number | string) to an integer, or null. */
 function parseLevel(value: number | string | null | undefined): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === "string" && value.trim().length > 0) {
+  if (typeof value === 'string' && value.trim().length > 0) {
     const n = parseInt(value, 10);
     return Number.isNaN(n) ? null : n;
   }
@@ -77,14 +77,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const body = (await request.json()) as AddRelationBody;
-  const {
-    type,
-    role = "fillot",
-    targetId,
-    newPerson,
-    confirmCreate,
-    centerId,
-  } = body;
+  const { type, role = 'fillot', targetId, newPerson, confirmCreate, centerId } = body;
 
   if (!isRelationKind(type)) {
     return json({ error: m.api_invalid_relation_type() }, { status: 400 });
@@ -96,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const center = centerId ?? user.profile_id;
   if (
     center !== user.profile_id &&
-    user.role !== "admin" &&
+    user.role !== 'admin' &&
     !isSameFamily(user.profile_id, center)
   ) {
     return json({ error: m.api_unauthorized() }, { status: 403 });
@@ -105,8 +98,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   // Validate the new-star input BEFORE any write (promo present & valid, dedup
   // confirmation). These early-return without touching the DB, so a rejected
   // creation never leaves a record behind.
-  let creation: { firstName: string; lastName: string; level: number } | null =
-    null;
+  let creation: { firstName: string; lastName: string; level: number } | null = null;
   if (!targetId) {
     if (!newPerson?.firstName || !newPerson?.lastName) {
       return json({ error: m.api_target_or_new_required() }, { status: 400 });
@@ -118,16 +110,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
     // Reject typos: no promotion predates the school's founding year.
     if (!isValidPromo(level)) {
-      return json(
-        { error: m.api_promo_invalid({ min: MIN_PROMO }) },
-        { status: 400 },
-      );
+      return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
     }
     if (!confirmCreate) {
-      const candidates = findPeopleByName(
-        newPerson.lastName,
-        newPerson.firstName,
-      );
+      const candidates = findPeopleByName(newPerson.lastName, newPerson.firstName);
       if (candidates.length > 0) {
         return json({ needsConfirmation: true, candidates }, { status: 409 });
       }
@@ -152,28 +138,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         user.profile_id,
         center,
         role,
-        kind,
+        kind
       );
     } else {
       // Existing target (creation is null implies targetId is set).
       otherId = targetId as string;
       // parrain = source, fillot = target (relative to the central person).
-      const sourceId = role === "parrain" ? otherId : center;
-      const targetUser = role === "parrain" ? center : otherId;
+      const sourceId = role === 'parrain' ? otherId : center;
+      const targetUser = role === 'parrain' ? center : otherId;
       addParrainage(sourceId, targetUser, kind);
     }
   } catch (error) {
     if (error instanceof RelationError) {
       return json({ error: error.message, code: error.code }, { status: 409 });
     }
-    console.error("Error creating relationship:", error);
+    console.error('Error creating relationship:', error);
     return json({ error: m.api_relation_create_failed() }, { status: 500 });
   }
 
   // Recompute positions in the background (best effort).
-  recalculatePositions().catch((err) =>
-    console.error("Failed to recalculate positions:", err),
-  );
+  recalculatePositions().catch((err) => console.error('Failed to recalculate positions:', err));
 
   return json({ success: true, personId: otherId });
 };
@@ -200,17 +184,14 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
   }
 
   const touchesMyFamily =
-    isSameFamily(user.profile_id, rel.source_id) ||
-    isSameFamily(user.profile_id, rel.target_id);
-  if (!touchesMyFamily && user.role !== "admin") {
+    isSameFamily(user.profile_id, rel.source_id) || isSameFamily(user.profile_id, rel.target_id);
+  if (!touchesMyFamily && user.role !== 'admin') {
     return json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
   removeRelationshipById(relationshipId);
 
-  recalculatePositions().catch((err) =>
-    console.error("Failed to recalculate positions:", err),
-  );
+  recalculatePositions().catch((err) => console.error('Failed to recalculate positions:', err));
 
   // If removing this link left a placeholder star with no relations at all, it
   // is likely a mistake (e.g. a mistyped name recreated elsewhere): offer to

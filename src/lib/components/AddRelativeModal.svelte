@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { fade, scale } from "svelte/transition";
-  import { Search, UserPlus, X, LoaderCircle } from "@lucide/svelte";
-  import type { RelationRole, RelationKind } from "$types/graph";
-  import { m } from "$lib/paraglide/messages";
-  import { formatPromoShort } from "$lib/utils/format";
+  import { fade, scale } from 'svelte/transition';
+  import { Search, UserPlus, X, LoaderCircle } from '@lucide/svelte';
+  import type { RelationRole, RelationKind } from '$types/graph';
+  import { m } from '$lib/paraglide/messages';
+  import { formatPromoShort } from '$lib/utils/format';
 
   /**
    * Modal to add a network member for a given slot (role + kind fixed by the
@@ -28,7 +28,7 @@
     onAdded: () => void;
   } = $props();
 
-  let searchTerm = $state("");
+  let searchTerm = $state('');
   let searchResults: {
     id: string;
     prenom: string;
@@ -37,9 +37,9 @@
   }[] = $state([]);
   let isSearching = $state(false);
   let showCreate = $state(false);
-  let newPerson = $state({ firstName: "", lastName: "", level: "" });
+  let newPerson = $state({ firstName: '', lastName: '', level: '' });
   let busy = $state(false);
-  let errorMessage = $state("");
+  let errorMessage = $state('');
   let candidates: {
     id: string;
     firstName: string;
@@ -50,7 +50,7 @@
 
   function showError(msg: string) {
     errorMessage = msg;
-    setTimeout(() => (errorMessage = ""), 4000);
+    setTimeout(() => (errorMessage = ''), 4000);
   }
 
   async function handleSearch() {
@@ -60,9 +60,7 @@
     }
     isSearching = true;
     try {
-      const res = await fetch(
-        `/api/search?q=${encodeURIComponent(searchTerm)}`,
-      );
+      const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}`);
       if (res.ok) {
         const data = await res.json();
         searchResults = data.results ?? [];
@@ -89,9 +87,9 @@
   async function linkExisting(targetId: string) {
     busy = true;
     try {
-      const res = await fetch("/api/relationships", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/relationships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetId, type: kind, role, centerId }),
       });
       await handleResponse(res);
@@ -109,11 +107,11 @@
       return;
     }
     busy = true;
-    errorMessage = "";
+    errorMessage = '';
     try {
-      const res = await fetch("/api/relationships", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/relationships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: kind,
           role,
@@ -139,7 +137,7 @@
   class="backdrop"
   transition:fade={{ duration: 150 }}
   onclick={(e) => e.target === e.currentTarget && onClose()}
-  onkeydown={(e) => e.key === "Escape" && onClose()}
+  onkeydown={(e) => e.key === 'Escape' && onClose()}
   role="presentation"
 >
   <div
@@ -168,18 +166,15 @@
 
     {#if isSearching}
       <div class="hint">
-        <LoaderCircle size={16} class="spin" /> {m.modal_searching()}
+        <LoaderCircle size={16} class="spin" />
+        {m.modal_searching()}
       </div>
     {/if}
 
     {#if searchResults.length > 0}
       <div class="results">
         {#each searchResults as person (person.id)}
-          <button
-            class="result"
-            disabled={busy}
-            onclick={() => linkExisting(person.id)}
-          >
+          <button class="result" disabled={busy} onclick={() => linkExisting(person.id)}>
             <UserPlus size={16} />
             <span>{person.prenom} {person.nom}</span>
             <small>{formatPromoShort(person.level)}</small>
@@ -204,16 +199,8 @@
     {#if showCreate}
       <div class="create">
         <div class="row">
-          <input
-            type="text"
-            placeholder={m.common_firstname()}
-            bind:value={newPerson.firstName}
-          />
-          <input
-            type="text"
-            placeholder={m.common_lastname()}
-            bind:value={newPerson.lastName}
-          />
+          <input type="text" placeholder={m.common_firstname()} bind:value={newPerson.firstName} />
+          <input type="text" placeholder={m.common_lastname()} bind:value={newPerson.lastName} />
         </div>
         <input
           type="number"
@@ -222,10 +209,7 @@
         />
         <button
           class="primary"
-          disabled={busy ||
-            !newPerson.firstName ||
-            !newPerson.lastName ||
-            !newPerson.level}
+          disabled={busy || !newPerson.firstName || !newPerson.lastName || !newPerson.level}
           onclick={() => createAndLink()}
         >
           {#if busy}<LoaderCircle size={16} class="spin" />{/if}
@@ -238,25 +222,13 @@
       <div class="create">
         <p class="dedup">{m.modal_dedup()}</p>
         {#each candidates as c (c.id)}
-          <button
-            class="result"
-            disabled={busy}
-            onclick={() => linkExisting(c.id)}
-          >
+          <button class="result" disabled={busy} onclick={() => linkExisting(c.id)}>
             <UserPlus size={16} />
             <span>{c.firstName} {c.lastName}</span>
-            <small
-              >{formatPromoShort(c.level)}{c.linked
-                ? ` · ${m.modal_account()}`
-                : ""}</small
-            >
+            <small>{formatPromoShort(c.level)}{c.linked ? ` · ${m.modal_account()}` : ''}</small>
           </button>
         {/each}
-        <button
-          class="ghost"
-          disabled={busy}
-          onclick={() => createAndLink(true)}
-        >
+        <button class="ghost" disabled={busy} onclick={() => createAndLink(true)}>
           {m.modal_create_anyway()}
         </button>
       </div>

@@ -30,17 +30,17 @@
  * gardee par une lecture du schema reel, jamais par un try/catch qui avalerait
  * une vraie erreur.
  */
-import { Database } from "bun:sqlite";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { Database } from 'bun:sqlite';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, "../database/sky.db");
+const dbPath = path.join(__dirname, '../database/sky.db');
 
 if (!fs.existsSync(dbPath)) {
-  console.error("[migrate-drop-dead-schema] Base introuvable:", dbPath);
+  console.error('[migrate-drop-dead-schema] Base introuvable:', dbPath);
   process.exit(1);
 }
 
@@ -60,62 +60,56 @@ function columnsOf(table) {
  */
 function schemaObjectExists(type, name) {
   return (
-    db
-      .prepare("SELECT name FROM sqlite_master WHERE type = ? AND name = ?")
-      .get(type, name) != null
+    db.prepare('SELECT name FROM sqlite_master WHERE type = ? AND name = ?').get(type, name) != null
   );
 }
 
 let changed = 0;
 
 // --- 1. L'index de recherche que personne ne lit ---------------------------
-for (const trigger of [
-  "people_fts_insert",
-  "people_fts_delete",
-  "people_fts_update",
-]) {
-  if (schemaObjectExists("trigger", trigger)) {
+for (const trigger of ['people_fts_insert', 'people_fts_delete', 'people_fts_update']) {
+  if (schemaObjectExists('trigger', trigger)) {
     db.exec(`DROP TRIGGER ${trigger}`);
     console.log(`[migrate-drop-dead-schema] trigger ${trigger} supprime`);
     changed += 1;
   }
 }
 
-if (schemaObjectExists("table", "people_fts")) {
-  db.exec("DROP TABLE people_fts");
-  console.log("[migrate-drop-dead-schema] table people_fts supprimee");
+if (schemaObjectExists('table', 'people_fts')) {
+  db.exec('DROP TABLE people_fts');
+  console.log('[migrate-drop-dead-schema] table people_fts supprimee');
   changed += 1;
 }
 
 // --- 2. Les vestiges du profil ---------------------------------------------
-for (const column of ["bio", "image_url"]) {
-  if (columnsOf("people").includes(column)) {
+for (const column of ['bio', 'image_url']) {
+  if (columnsOf('people').includes(column)) {
     db.exec(`ALTER TABLE people DROP COLUMN ${column}`);
     console.log(`[migrate-drop-dead-schema] people.${column} supprimee`);
     changed += 1;
   }
 }
 
-if (schemaObjectExists("table", "external_links")) {
+if (schemaObjectExists('table', 'external_links')) {
   // Compte avant destruction : si la table s'est repeuplee depuis la mesure, la
   // migration doit le DIRE plutot que d'emporter des donnees en silence.
-  const { c } = db.prepare("SELECT count(*) c FROM external_links").get();
+  const { c } = db.prepare('SELECT count(*) c FROM external_links').get();
   if (c > 0) {
     console.error(
-      `[migrate-drop-dead-schema] external_links contient ${c} ligne(s) alors que la mesure du 2026-08-26 en donnait 0 - suppression annulee, quelque chose ecrit encore dedans`,
+      `[migrate-drop-dead-schema] external_links contient ${c} ligne(s) alors que la mesure du 2026-08-26 en donnait 0 - suppression annulee, quelque chose ecrit encore dedans`
     );
     process.exit(1);
   }
-  db.exec("DROP INDEX IF EXISTS idx_external_links_person");
-  db.exec("DROP TABLE external_links");
-  console.log("[migrate-drop-dead-schema] table external_links supprimee");
+  db.exec('DROP INDEX IF EXISTS idx_external_links_person');
+  db.exec('DROP TABLE external_links');
+  console.log('[migrate-drop-dead-schema] table external_links supprimee');
   changed += 1;
 }
 
 console.log(
   changed === 0
-    ? "[migrate-drop-dead-schema] rien a faire, schema deja a jour"
-    : `[migrate-drop-dead-schema] ${changed} operation(s) appliquee(s)`,
+    ? '[migrate-drop-dead-schema] rien a faire, schema deja a jour'
+    : `[migrate-drop-dead-schema] ${changed} operation(s) appliquee(s)`
 );
 
 db.close();

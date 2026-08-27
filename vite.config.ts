@@ -1,7 +1,7 @@
-import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
-import tailwindcss from "@tailwindcss/vite";
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [
@@ -12,9 +12,9 @@ export default defineConfig({
     // base locale (fr). The paraglide server middleware in hooks.server.ts binds
     // the resolved locale to the request during SSR.
     paraglideVitePlugin({
-      project: "./project.inlang",
-      outdir: "./src/lib/paraglide",
-      strategy: ["cookie", "preferredLanguage", "baseLocale"],
+      project: './project.inlang',
+      outdir: './src/lib/paraglide',
+      strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
     }),
     // Tailwind v4 runs as a Vite plugin: there is no PostCSS chain in this
     // repo any more, and no `tailwind.config.js` - the theme lives in the

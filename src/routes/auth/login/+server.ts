@@ -1,15 +1,15 @@
-import { error, redirect } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import { generateAuthorizationUrl } from "$server/oidc";
-import { randomBytes } from "crypto";
-import { m } from "$lib/paraglide/messages";
+import { error, redirect } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { generateAuthorizationUrl } from '$server/oidc';
+import { randomBytes } from 'crypto';
+import { m } from '$lib/paraglide/messages';
 
-const STATE_COOKIE_NAME = "__oidc_state";
-const NONCE_COOKIE_NAME = "__oidc_nonce";
+const STATE_COOKIE_NAME = '__oidc_state';
+const NONCE_COOKIE_NAME = '__oidc_nonce';
 
 /** Generates a random base64url string (anti-CSRF state / nonce). */
 function generateRandomString(length: number): string {
-  return randomBytes(length).toString("base64url");
+  return randomBytes(length).toString('base64url');
 }
 
 /**
@@ -24,19 +24,19 @@ export const GET: RequestHandler = ({ cookies, url }) => {
     const nonce = generateRandomString(32);
 
     const cookieOpts = {
-      path: "/",
+      path: '/',
       maxAge: 600, // 10 minutes
-      sameSite: "lax" as const,
+      sameSite: 'lax' as const,
       secure: true,
       httpOnly: true,
     };
     cookies.set(STATE_COOKIE_NAME, state, cookieOpts);
     cookies.set(NONCE_COOKIE_NAME, nonce, cookieOpts);
 
-    const callbackUrl = new URL("/auth/callback", url.origin).toString();
+    const callbackUrl = new URL('/auth/callback', url.origin).toString();
     authUrl = generateAuthorizationUrl(callbackUrl, state, nonce);
   } catch (e) {
-    console.error("[LOGIN] Error:", e);
+    console.error('[LOGIN] Error:', e);
     throw error(500, m.api_login_failed());
   }
 

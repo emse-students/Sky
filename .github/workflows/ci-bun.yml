@@ -21,7 +21,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: ".bun-version"
+          bun-version-file: '.bun-version'
 
       # `--frozen-lockfile`: CI must fail on a lockfile the manifest no longer justifies, not
       # silently resolve a new one.
@@ -34,7 +34,7 @@ jobs:
 
       - name: Lint code
         env:
-          NODE_OPTIONS: "--max-old-space-size=16384"
+          NODE_OPTIONS: '--max-old-space-size=16384'
         run: bun run lint
 
       # `format` is in package.json and was in nobody's pipeline, so three files drifted out of
@@ -73,5 +73,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sky-package
-          path: "build/artifacts/*.tgz"
+          path: 'build/artifacts/*.tgz'
           retention-days: 30

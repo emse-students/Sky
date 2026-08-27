@@ -1,4 +1,4 @@
-import { m } from "$lib/paraglide/messages";
+import { m } from '$lib/paraglide/messages';
 
 /**
  * What a crawler and a link unfurler are given, and how it is built.
@@ -60,9 +60,9 @@ export function canonicalUrl(origin: string, pathname: string): string {
  * JSON identical to a parser and inert to the HTML tokenizer.
  */
 export function serializeJsonLd(nodes: unknown[]): string {
-  return JSON.stringify({ "@context": "https://schema.org", "@graph": nodes })
-    .replace(/</g, "\\u003c")
-    .replace(/&/g, "\\u0026");
+  return JSON.stringify({ '@context': 'https://schema.org', '@graph': nodes })
+    .replace(/</g, '\\u003c')
+    .replace(/&/g, '\\u0026');
 }
 
 /**
@@ -80,9 +80,7 @@ export function jsonLdScript(nodes: unknown[]): string {
 /** Drops undefined, null and empty members: a declared-but-empty property is reported as malformed. */
 export function prune<T extends Record<string, unknown>>(node: T): T {
   return Object.fromEntries(
-    Object.entries(node).filter(
-      ([, v]) => v !== undefined && v !== null && v !== "",
-    ),
+    Object.entries(node).filter(([, v]) => v !== undefined && v !== null && v !== '')
   ) as T;
 }
 
@@ -92,21 +90,21 @@ export function prune<T extends Record<string, unknown>>(node: T): T {
  * "Sky" is a word nothing can be won on. What makes this findable at all is being attached to an
  * institution a search engine already knows, by name, URL and postal address.
  */
-export const INSTITUTION_ID = "https://www.mines-stetienne.fr/#organization";
+export const INSTITUTION_ID = 'https://www.mines-stetienne.fr/#organization';
 
 export function institutionNode(): Record<string, unknown> {
   return {
-    "@type": "CollegeOrUniversity",
-    "@id": INSTITUTION_ID,
-    name: "Ecole des Mines de Saint-Etienne",
-    alternateName: "Mines Saint-Etienne",
-    url: "https://www.mines-stetienne.fr/",
+    '@type': 'CollegeOrUniversity',
+    '@id': INSTITUTION_ID,
+    name: 'Ecole des Mines de Saint-Etienne',
+    alternateName: 'Mines Saint-Etienne',
+    url: 'https://www.mines-stetienne.fr/',
     address: {
-      "@type": "PostalAddress",
-      streetAddress: "158 cours Fauriel",
-      postalCode: "42023",
-      addressLocality: "Saint-Etienne",
-      addressCountry: "FR",
+      '@type': 'PostalAddress',
+      streetAddress: '158 cours Fauriel',
+      postalCode: '42023',
+      addressLocality: 'Saint-Etienne',
+      addressCountry: 'FR',
     },
   };
 }
@@ -114,11 +112,11 @@ export function institutionNode(): Record<string, unknown> {
 /** The site itself. Referenced by `@id` rather than repeated, so one name means one thing. */
 export function siteNode(origin: string): Record<string, unknown> {
   return {
-    "@type": "WebSite",
-    "@id": `${origin}/#website`,
-    name: "Sky",
+    '@type': 'WebSite',
+    '@id': `${origin}/#website`,
+    name: 'Sky',
     description: m.seo_site_description(),
     url: `${origin}/`,
-    publisher: { "@id": INSTITUTION_ID },
+    publisher: { '@id': INSTITUTION_ID },
   };
 }

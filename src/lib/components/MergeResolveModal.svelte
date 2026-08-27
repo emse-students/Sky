@@ -1,13 +1,9 @@
 <script lang="ts">
-  import { fade, scale } from "svelte/transition";
-  import { GitMerge, X } from "@lucide/svelte";
-  import { m } from "$lib/paraglide/messages";
-  import { formatPromoShort } from "$lib/utils/format";
-  import {
-    diffIdentity,
-    type MergeIdentity,
-    type IdentityField,
-  } from "$lib/utils/mergeIdentity";
+  import { fade, scale } from 'svelte/transition';
+  import { GitMerge, X } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages';
+  import { formatPromoShort } from '$lib/utils/format';
+  import { diffIdentity, type MergeIdentity, type IdentityField } from '$lib/utils/mergeIdentity';
 
   /**
    * Conflict resolver shown when two fiches about to be merged carry different
@@ -25,7 +21,7 @@
   }: {
     a: MergeIdentity;
     b: MergeIdentity;
-    survivor: "a" | "b";
+    survivor: 'a' | 'b';
     onResolve: (identity: MergeIdentity) => void;
     onCancel: () => void;
   } = $props();
@@ -34,24 +30,24 @@
 
   // Per differing field, an explicit override of the default side. A field left
   // out falls back to the survivor's side (see `selected`).
-  let overrides = $state<Partial<Record<IdentityField, "a" | "b">>>({});
+  let overrides = $state<Partial<Record<IdentityField, 'a' | 'b'>>>({});
 
   /** The side currently selected for a field (override, else the survivor). */
-  function selected(field: IdentityField): "a" | "b" {
+  function selected(field: IdentityField): 'a' | 'b' {
     return overrides[field] ?? survivor;
   }
 
   /** Human label for a field. */
   function fieldLabel(field: IdentityField): string {
-    if (field === "nom") return m.common_lastname();
-    if (field === "prenom") return m.common_firstname();
+    if (field === 'nom') return m.common_lastname();
+    if (field === 'prenom') return m.common_firstname();
     return m.admin_people_promo_label();
   }
 
   /** Display a field's value for a given side. */
-  function fieldValue(field: IdentityField, side: "a" | "b"): string {
-    const person = side === "a" ? a : b;
-    if (field === "level") return formatPromoShort(person.level);
+  function fieldValue(field: IdentityField, side: 'a' | 'b'): string {
+    const person = side === 'a' ? a : b;
+    if (field === 'level') return formatPromoShort(person.level);
     return person[field];
   }
 
@@ -59,11 +55,11 @@
   function resolve() {
     const diffFields = new Set(diffs.map((d) => d.field));
     const pick = (field: IdentityField) =>
-      diffFields.has(field) ? (selected(field) === "a" ? a : b) : a;
+      diffFields.has(field) ? (selected(field) === 'a' ? a : b) : a;
     onResolve({
-      nom: pick("nom").nom,
-      prenom: pick("prenom").prenom,
-      level: pick("level").level,
+      nom: pick('nom').nom,
+      prenom: pick('prenom').prenom,
+      level: pick('level').level,
     });
   }
 </script>
@@ -72,7 +68,7 @@
   class="backdrop"
   transition:fade={{ duration: 150 }}
   onclick={(e) => e.target === e.currentTarget && onCancel()}
-  onkeydown={(e) => e.key === "Escape" && onCancel()}
+  onkeydown={(e) => e.key === 'Escape' && onCancel()}
   role="presentation"
 >
   <div
@@ -96,7 +92,7 @@
         <fieldset class="field">
           <legend>{fieldLabel(d.field)}</legend>
           <div class="opts">
-            {#each ["a", "b"] as const as side (side)}
+            {#each ['a', 'b'] as const as side (side)}
               <button
                 type="button"
                 class="opt"

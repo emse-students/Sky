@@ -1,12 +1,9 @@
 {
   "name": "sky-sveltekit",
-  "private": true,
   "version": "0.0.1",
-  "type": "module",
+  "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "engines": {
-    "bun": ">=1.4.0"
-  },
+  "type": "module",
   "scripts": {
     "dev": "bun --bun vite dev",
     "build": "bun --bun vite build",
@@ -25,6 +22,14 @@
     "db:check": "bun scripts/check-db-integrity.js",
     "package": "bun run build && bun ./scripts/pack-bun.js",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@humanspeak/svelte-markdown": "^1.8.7",
+    "@lucide/svelte": "^1.34.0",
+    "graphology": "^0.26.0",
+    "graphology-components": "^1.5.4",
+    "graphology-layout": "^0.6.1",
+    "graphology-layout-forceatlas2": "^0.10.1"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.24.1",
@@ -46,17 +51,12 @@
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },
-  "dependencies": {
-    "@humanspeak/svelte-markdown": "^1.8.7",
-    "@lucide/svelte": "^1.34.0",
-    "graphology": "^0.26.0",
-    "graphology-components": "^1.5.4",
-    "graphology-layout": "^0.6.1",
-    "graphology-layout-forceatlas2": "^0.10.1"
-  },
   "overrides": {
     "nanoid": "^3.3.18",
     "picomatch": "^4.0.4",
     "postcss": "^8.5.26"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
   }
 }

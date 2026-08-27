@@ -1,9 +1,9 @@
-import { redirect, json, type Handle } from "@sveltejs/kit";
-import { sequence } from "@sveltejs/kit/hooks";
-import { getSessionPerson } from "$server/database";
-import { SESSION_COOKIE_NAME } from "$server/session";
-import { paraglideMiddleware } from "$lib/paraglide/server";
-import { m } from "$lib/paraglide/messages";
+import { redirect, json, type Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
+import { getSessionPerson } from '$server/database';
+import { SESSION_COOKIE_NAME } from '$server/session';
+import { paraglideMiddleware } from '$lib/paraglide/server';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Binds the request locale (resolved from the cookie / Accept-Language header,
@@ -14,8 +14,7 @@ const paraglideHandler: Handle = ({ event, resolve }) =>
   paraglideMiddleware(event.request, ({ request, locale }) => {
     event.request = request;
     return resolve(event, {
-      transformPageChunk: ({ html }) =>
-        html.replace("%paraglide.lang%", locale),
+      transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale),
     });
   });
 
@@ -27,21 +26,13 @@ const paraglideHandler: Handle = ({ event, resolve }) =>
  * re-login loop after logout (the Authentik SSO session is not killed: one-click
  * reconnect).
  */
-const PUBLIC_EXACT = new Set(["/", "/unauthorized"]);
+const PUBLIC_EXACT = new Set(['/', '/unauthorized']);
 // `/api/external/` is protected by its own key (SKY_API_KEY), not the ICM
 // session: it is consumed by Canari (server to server).
-const PUBLIC_PREFIXES = [
-  "/auth/",
-  "/api/health",
-  "/api/avatar/",
-  "/api/external/",
-];
+const PUBLIC_PREFIXES = ['/auth/', '/api/health', '/api/avatar/', '/api/external/'];
 
 function isPublic(pathname: string): boolean {
-  return (
-    PUBLIC_EXACT.has(pathname) ||
-    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
-  );
+  return PUBLIC_EXACT.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 /**
@@ -59,7 +50,7 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
       auth_sub: person.auth_sub,
       name: `${person.nom.toUpperCase()} ${person.prenom}`.trim(),
       email: person.email,
-      role: person.role === "admin" ? "admin" : "user",
+      role: person.role === 'admin' ? 'admin' : 'user',
       formation: person.formation,
       promo: person.level,
     };
@@ -82,17 +73,17 @@ const gateHandler: Handle = async ({ event, resolve }) => {
 
   const user = event.locals.user;
   if (!user) {
-    if (pathname.startsWith("/api/")) {
+    if (pathname.startsWith('/api/')) {
       return json({ error: m.api_unauthenticated() }, { status: 401 });
     }
-    throw redirect(302, "/auth/login");
+    throw redirect(302, '/auth/login');
   }
 
-  if (user.formation !== "ICM" && user.role !== "admin") {
-    if (pathname.startsWith("/api/")) {
+  if (user.formation !== 'ICM' && user.role !== 'admin') {
+    if (pathname.startsWith('/api/')) {
       return json({ error: m.api_icm_only() }, { status: 403 });
     }
-    throw redirect(302, "/unauthorized");
+    throw redirect(302, '/unauthorized');
   }
 
   return resolve(event);

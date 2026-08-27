@@ -1,20 +1,20 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import {
   getDatabase,
   recalculatePositions,
   setPersonRole,
   unlinkPersonAuth,
-} from "$lib/server/database";
-import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
-import { formatFirstName, formatLastName } from "$lib/utils/format";
-import { requireAdmin } from "$lib/server/guards";
-import { m } from "$lib/paraglide/messages";
+} from '$lib/server/database';
+import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
+import { formatFirstName, formatLastName } from '$lib/utils/format';
+import { requireAdmin } from '$lib/server/guards';
+import { m } from '$lib/paraglide/messages';
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const user = locals.user;
-  if (!user || user.role !== "admin") {
-    return json({ error: "Unauthorized" }, { status: 403 });
+  if (!user || user.role !== 'admin') {
+    return json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const { id } = params;
@@ -26,10 +26,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
   // Reject typos: no promotion predates the school's founding year (null clears it).
   if (!isValidPromo(data.level)) {
-    return json(
-      { error: m.api_promo_invalid({ min: MIN_PROMO }) },
-      { status: 400 },
-    );
+    return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
   }
 
   try {
@@ -43,17 +40,12 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			WHERE id = ?
 		`);
 
-    updateStmt.run(
-      formatFirstName(data.prenom),
-      formatLastName(data.nom),
-      data.level,
-      id,
-    );
+    updateStmt.run(formatFirstName(data.prenom), formatLastName(data.nom), data.level, id);
 
     return json({ success: true });
   } catch (error) {
-    console.error("Update person error:", error);
-    return json({ error: "Failed to update person" }, { status: 500 });
+    console.error('Update person error:', error);
+    return json({ error: 'Failed to update person' }, { status: 500 });
   }
 };
 
@@ -67,11 +59,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   const { id } = params;
   const body = (await request.json()) as {
     action?: string;
-    role?: "user" | "admin";
+    role?: 'user' | 'admin';
   };
 
-  if (body.action === "set-role") {
-    if (body.role !== "user" && body.role !== "admin") {
+  if (body.action === 'set-role') {
+    if (body.role !== 'user' && body.role !== 'admin') {
       return json({ error: m.api_invalid_role() }, { status: 400 });
     }
     return setPersonRole(id, body.role)
@@ -79,7 +71,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
       : json({ error: m.api_fiche_not_found() }, { status: 404 });
   }
 
-  if (body.action === "unlink") {
+  if (body.action === 'unlink') {
     return unlinkPersonAuth(id)
       ? json({ success: true })
       : json({ error: m.api_fiche_not_found() }, { status: 404 });
@@ -90,8 +82,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
   const user = locals.user;
-  if (!user || user.role !== "admin") {
-    return json({ error: "Unauthorized" }, { status: 403 });
+  if (!user || user.role !== 'admin') {
+    return json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const { id } = params;
@@ -100,18 +92,16 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
     const db = getDatabase();
 
     // Delete relationships first (foreign key constraint)
-    db.prepare(
-      "DELETE FROM relationships WHERE source_id = ? OR target_id = ?",
-    ).run(id, id);
+    db.prepare('DELETE FROM relationships WHERE source_id = ? OR target_id = ?').run(id, id);
 
     // Delete person
-    db.prepare("DELETE FROM people WHERE id = ?").run(id);
+    db.prepare('DELETE FROM people WHERE id = ?').run(id);
 
     recalculatePositions().catch(console.error);
 
     return json({ success: true });
   } catch (error) {
-    console.error("Delete person error:", error);
-    return json({ error: "Failed to delete person" }, { status: 500 });
+    console.error('Delete person error:', error);
+    return json({ error: 'Failed to delete person' }, { status: 500 });
   }
 };

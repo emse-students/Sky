@@ -1,14 +1,10 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import {
-  getDatabase,
-  recalculatePositions,
-  getAllPeopleAdmin,
-} from "$lib/server/database";
-import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
-import { formatFirstName, formatLastName } from "$lib/utils/format";
-import { requireAdmin } from "$lib/server/guards";
-import { m } from "$lib/paraglide/messages";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { getDatabase, recalculatePositions, getAllPeopleAdmin } from '$lib/server/database';
+import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
+import { formatFirstName, formatLastName } from '$lib/utils/format';
+import { requireAdmin } from '$lib/server/guards';
+import { m } from '$lib/paraglide/messages';
 
 /** Enriched list (role, account link status) for administration. */
 export const GET: RequestHandler = ({ locals }) => {
@@ -18,8 +14,8 @@ export const GET: RequestHandler = ({ locals }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || user.role !== "admin") {
-    return json({ error: "Unauthorized" }, { status: 403 });
+  if (!user || user.role !== 'admin') {
+    return json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const data = (await request.json()) as {
@@ -33,11 +29,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const db = getDatabase();
 
     // Check if ID already exists
-    const existing = db
-      .prepare("SELECT id FROM people WHERE id = ?")
-      .get(data.id);
+    const existing = db.prepare('SELECT id FROM people WHERE id = ?').get(data.id);
     if (existing) {
-      return json({ error: "ID already exists" }, { status: 400 });
+      return json({ error: 'ID already exists' }, { status: 400 });
     }
 
     // Enforce the display convention: "NOM" uppercase, "Prenom" capitalized.
@@ -50,10 +44,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
     // Reject typos: no promotion predates the school's founding year.
     if (!isValidPromo(data.level)) {
-      return json(
-        { error: m.api_promo_invalid({ min: MIN_PROMO }) },
-        { status: 400 },
-      );
+      return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
     }
 
     // Insert person
@@ -68,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     return json({ success: true, id: data.id });
   } catch (error) {
-    console.error("Create person error:", error);
-    return json({ error: "Failed to create person" }, { status: 500 });
+    console.error('Create person error:', error);
+    return json({ error: 'Failed to create person' }, { status: 500 });
   }
 };

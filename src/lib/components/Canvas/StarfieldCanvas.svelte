@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { get } from "svelte/store";
-  import { cameraStore } from "$stores/cameraStore";
+  import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import { cameraStore } from '$stores/cameraStore';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
-  let stars: Array<{ x: number; y: number; size: number; opacity: number }> =
-    [];
+  let stars: Array<{ x: number; y: number; size: number; opacity: number }> = [];
   let gradient: CanvasGradient | null = null;
 
   // On-demand rendering: the background only moves via camera parallax, so we
@@ -38,13 +37,13 @@
   });
 
   onMount(() => {
-    ctx = canvas.getContext("2d")!;
+    ctx = canvas.getContext('2d')!;
     resize();
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
     scheduleDraw(); // initial paint
 
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
       unsubscribe();
     };
   });
@@ -61,8 +60,8 @@
   /** Cache the background gradient; only rebuilt on resize, not every frame. */
   function buildGradient() {
     gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#000814");
-    gradient.addColorStop(1, "#001d3d");
+    gradient.addColorStop(0, '#000814');
+    gradient.addColorStop(1, '#001d3d');
   }
 
   /**
@@ -74,8 +73,8 @@
     const area = canvas.width * canvas.height;
     let count = Math.min(200, Math.round(area / 12000));
     const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {
       count = Math.round(count / 2);
     }
@@ -104,7 +103,7 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // All stars are white: set fillStyle once, only vary alpha per star.
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = '#fff';
     const w = canvas.width;
     const h = canvas.height;
     for (const star of stars) {

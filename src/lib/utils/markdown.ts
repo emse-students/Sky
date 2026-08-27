@@ -5,6 +5,6 @@
  * Canari's bio rendering so a bio reads the same on Sky.
  */
 export function normalizeBioLineBreaks(md: string): string {
-  const normalized = md.replace(/\r\n/g, "\n");
-  return normalized.replace(/(?<!\n)\n(?!\n)/g, "  \n");
+  const normalized = md.replace(/\r\n/g, '\n');
+  return normalized.replace(/(?<!\n)\n(?!\n)/g, '  \n');
 }

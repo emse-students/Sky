@@ -1,12 +1,11 @@
 <script lang="ts">
-  import SvelteMarkdown from "@humanspeak/svelte-markdown";
-  import { normalizeBioLineBreaks } from "$lib/utils/markdown";
+  import SvelteMarkdown from '@humanspeak/svelte-markdown';
+  import { normalizeBioLineBreaks } from '$lib/utils/markdown';
 
   // Canari bios are authored in Markdown; render them the same way here (GFM +
   // hard line breaks). SvelteMarkdown renders through Svelte components and
   // escapes raw HTML, so external bio text cannot inject markup.
-  let { source, class: className = "" }: { source: string; class?: string } =
-    $props();
+  let { source, class: className = '' }: { source: string; class?: string } = $props();
 
   const rendered = $derived(normalizeBioLineBreaks(source.trim()));
 </script>

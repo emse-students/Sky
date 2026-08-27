@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { fade } from "svelte/transition";
-  import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
-  import { browser } from "$app/environment";
+  import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
   import {
     ArrowLeft,
     Plus,
@@ -14,27 +14,26 @@
     House,
     ExternalLink,
     Pencil,
-  } from "@lucide/svelte";
-  import AddRelativeModal from "$components/AddRelativeModal.svelte";
-  import BioMarkdown from "$components/BioMarkdown.svelte";
-  import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
-  import { m } from "$lib/paraglide/messages";
-  import { formatPromoShort } from "$lib/utils/format";
+  } from '@lucide/svelte';
+  import AddRelativeModal from '$components/AddRelativeModal.svelte';
+  import BioMarkdown from '$components/BioMarkdown.svelte';
+  import { confirmDialog, alertDialog } from '$lib/stores/dialogStore';
+  import { m } from '$lib/paraglide/messages';
+  import { formatPromoShort } from '$lib/utils/format';
   import type {
     EntourageResponse,
     EntourageMember,
     RelationKind,
     RelationRole,
     CanariProfileResponse,
-  } from "$types/graph";
+  } from '$types/graph';
 
   let user = $derived($page.data.user);
 
   let data = $state<EntourageResponse | null>(null);
   let canari = $state<CanariProfileResponse | null>(null);
   let loading = $state(true);
-  let modal: { role: RelationRole; kind: RelationKind; title: string } | null =
-    $state(null);
+  let modal: { role: RelationRole; kind: RelationKind; title: string } | null = $state(null);
   // Edit form for a placeholder relative (name/promo), null when closed.
   let editing = $state<{
     id: string;
@@ -49,12 +48,12 @@
   let canEdit = $derived(!!data?.canEdit);
 
   $effect(() => {
-    if (browser && !user) goto("/");
+    if (browser && !user) goto('/');
   });
 
   onMount(() => {
     // ?id lets an admin open another person's tree directly.
-    const requested = $page.url.searchParams.get("id");
+    const requested = $page.url.searchParams.get('id');
     const start = requested || user?.profile_id;
     if (start) {
       load(start);
@@ -73,7 +72,7 @@
         data = (await res.json()) as EntourageResponse;
       }
     } catch (e) {
-      console.error("[Tree] load error", e);
+      console.error('[Tree] load error', e);
     } finally {
       loading = false;
     }
@@ -88,7 +87,7 @@
         canari = (await res.json()) as CanariProfileResponse;
       }
     } catch (e) {
-      console.error("[Tree] canari load error", e);
+      console.error('[Tree] canari load error', e);
     }
   }
 
@@ -103,7 +102,7 @@
   }
 
   function initials(m: { prenom: string; nom: string }): string {
-    return `${m.prenom?.[0] ?? ""}${m.nom?.[0] ?? ""}`.toUpperCase() || "?";
+    return `${m.prenom?.[0] ?? ''}${m.nom?.[0] ?? ''}`.toUpperCase() || '?';
   }
 
   let KIND_LABEL: Record<RelationKind, string> = $derived({
@@ -118,7 +117,7 @@
   function slots(
     members: EntourageMember[],
     kind: RelationKind,
-    max: number,
+    max: number
   ): { member: EntourageMember | null }[] {
     const filled = members.filter((m) => m.kind === kind);
     const result: { member: EntourageMember | null }[] = filled.map((m) => ({
@@ -133,8 +132,7 @@
   }
 
   function openAdd(role: RelationRole, kind: RelationKind) {
-    const who =
-      role === "parrain" ? m.tree_role_godparent() : m.tree_role_godchild();
+    const who = role === 'parrain' ? m.tree_role_godparent() : m.tree_role_godchild();
     modal = { role, kind, title: m.tree_add_title({ who, kind: KIND_LABEL[kind] }) };
   }
 
@@ -149,9 +147,9 @@
     if (!data) return;
     const centerId = data.person.id;
     try {
-      const res = await fetch("/api/relationships", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/relationships', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ relationshipId: relId }),
       });
       if (!res.ok) return;
@@ -164,19 +162,19 @@
       if (result.orphan) {
         const o = result.orphan;
         if (
-          await confirmDialog(
-            m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }),
-            { danger: true, confirmLabel: m.common_delete() },
-          )
+          await confirmDialog(m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }), {
+            danger: true,
+            confirmLabel: m.common_delete(),
+          })
         ) {
           await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
-            method: "DELETE",
+            method: 'DELETE',
           });
           await load(centerId);
         }
       }
     } catch (e) {
-      console.error("[Tree] remove error", e);
+      console.error('[Tree] remove error', e);
     }
   }
 
@@ -186,7 +184,7 @@
       id: member.id,
       prenom: member.prenom,
       nom: member.nom,
-      level: member.level != null ? String(member.level) : "",
+      level: member.level != null ? String(member.level) : '',
     };
   }
 
@@ -198,8 +196,8 @@
     }
     const centerId = data.person.id;
     const res = await fetch(`/api/relatives/${encodeURIComponent(editing.id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prenom: editing.prenom,
         nom: editing.nom,
@@ -219,16 +217,16 @@
   async function deleteStar() {
     if (!editing || !data) return;
     if (
-      !(await confirmDialog(
-        m.tree_delete_confirm({ name: `${editing.prenom} ${editing.nom}` }),
-        { danger: true, confirmLabel: m.common_delete() },
-      ))
+      !(await confirmDialog(m.tree_delete_confirm({ name: `${editing.prenom} ${editing.nom}` }), {
+        danger: true,
+        confirmLabel: m.common_delete(),
+      }))
     ) {
       return;
     }
     const centerId = data.person.id;
     const res = await fetch(`/api/relatives/${encodeURIComponent(editing.id)}`, {
-      method: "DELETE",
+      method: 'DELETE',
     });
     if (res.ok) {
       editing = null;
@@ -246,13 +244,15 @@
 
 <div class="tree-page">
   <header class="bar">
-    <button class="back" onclick={() => goto("/")}>
-      <ArrowLeft size={18} /> {m.tree_map()}
+    <button class="back" onclick={() => goto('/')}>
+      <ArrowLeft size={18} />
+      {m.tree_map()}
     </button>
     <h1>{m.tree_heading()}</h1>
     {#if data && !isMe}
       <button class="back" onclick={backToMe}>
-        <House size={18} /> {m.nav_my_tree()}
+        <House size={18} />
+        {m.nav_my_tree()}
       </button>
     {:else}
       <span class="spacer"></span>
@@ -267,11 +267,11 @@
     <div class="tree" in:fade>
       <!-- Ascendants (godparents) -->
       <div class="row ascendants">
-        {#each slots(data.parrains, "parrainage", data.maxParrains.parrainage) as s}
-          {@render slotCard(s.member, "parrain", "parrainage")}
+        {#each slots(data.parrains, 'parrainage', data.maxParrains.parrainage) as s}
+          {@render slotCard(s.member, 'parrain', 'parrainage')}
         {/each}
-        {#each slots(data.parrains, "adoption", data.maxParrains.adoption) as s}
-          {@render slotCard(s.member, "parrain", "adoption")}
+        {#each slots(data.parrains, 'adoption', data.maxParrains.adoption) as s}
+          {@render slotCard(s.member, 'parrain', 'adoption')}
         {/each}
       </div>
 
@@ -284,21 +284,15 @@
             <img
               src={avatarUrl(data.person.id)}
               alt=""
-              onerror={(e) =>
-                ((e.currentTarget as HTMLImageElement).style.visibility =
-                  "hidden")}
+              onerror={(e) => ((e.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
             />
             <span class="ini">{initials(data.person)}</span>
           </div>
           <div class="meta">
             <span class="name">{data.person.prenom} {data.person.nom}</span>
-            <span class="promo"
-              >{m.common_promo({ level: data.person.level || "?" })}</span
-            >
+            <span class="promo">{m.common_promo({ level: data.person.level || '?' })}</span>
           </div>
-          {#if isMe}<span class="me-badge"
-              ><Crown size={12} /> {m.tree_me()}</span
-            >{/if}
+          {#if isMe}<span class="me-badge"><Crown size={12} /> {m.tree_me()}</span>{/if}
         </div>
       </div>
 
@@ -306,11 +300,11 @@
 
       <!-- Descendants (godchildren) -->
       <div class="row descendants">
-        {#each slots(data.fillots, "parrainage", data.maxFillots.parrainage) as s}
-          {@render slotCard(s.member, "fillot", "parrainage")}
+        {#each slots(data.fillots, 'parrainage', data.maxFillots.parrainage) as s}
+          {@render slotCard(s.member, 'fillot', 'parrainage')}
         {/each}
-        {#each slots(data.fillots, "adoption", data.maxFillots.adoption) as s}
-          {@render slotCard(s.member, "fillot", "adoption")}
+        {#each slots(data.fillots, 'adoption', data.maxFillots.adoption) as s}
+          {@render slotCard(s.member, 'fillot', 'adoption')}
         {/each}
       </div>
 
@@ -324,7 +318,8 @@
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ExternalLink size={14} /> {m.tree_view_on_canari()}
+              <ExternalLink size={14} />
+              {m.tree_view_on_canari()}
             </a>
           </div>
           {#if canari.profile.bio}
@@ -353,8 +348,8 @@
                   {/if}
                   {a.name}<small
                     >{a.role}{a.startYear
-                      ? ` (${a.startYear}${a.endYear ? `-${a.endYear}` : ""})`
-                      : ""}</small
+                      ? ` (${a.startYear}${a.endYear ? `-${a.endYear}` : ''})`
+                      : ''}</small
                   ></span
                 >
               {/each}
@@ -366,33 +361,21 @@
   {/if}
 </div>
 
-{#snippet slotCard(
-  member: EntourageMember | null,
-  role: RelationRole,
-  kind: RelationKind,
-)}
+{#snippet slotCard(member: EntourageMember | null, role: RelationRole, kind: RelationKind)}
   {#if member}
-    <div class="card filled" class:adoption={kind === "adoption"}>
-      <button
-        class="nav"
-        onclick={() => load(member.id)}
-        title={m.tree_see_tree()}
-      >
+    <div class="card filled" class:adoption={kind === 'adoption'}>
+      <button class="nav" onclick={() => load(member.id)} title={m.tree_see_tree()}>
         <div class="avatar">
           <img
             src={avatarUrl(member.id)}
             alt=""
-            onerror={(e) =>
-              ((e.currentTarget as HTMLImageElement).style.visibility =
-                "hidden")}
+            onerror={(e) => ((e.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
           />
           <span class="ini">{initials(member)}</span>
         </div>
         <div class="meta">
           <span class="name">{member.prenom} {member.nom}</span>
-          <span class="promo"
-            >{formatPromoShort(member.level)} · {KIND_LABEL[kind]}</span
-          >
+          <span class="promo">{formatPromoShort(member.level)} · {KIND_LABEL[kind]}</span>
         </div>
       </button>
       {#if canEdit}
@@ -419,7 +402,7 @@
   {:else}
     <button
       class="card empty"
-      class:adoption={kind === "adoption"}
+      class:adoption={kind === 'adoption'}
       onclick={() => openAdd(role, kind)}
     >
       <Plus size={20} />
@@ -455,25 +438,18 @@
         <input placeholder={m.common_firstname()} bind:value={editing.prenom} />
         <input placeholder={m.common_lastname()} bind:value={editing.nom} />
       </div>
-      <input
-        type="number"
-        placeholder={m.tree_promo_placeholder()}
-        bind:value={editing.level}
-      />
+      <input type="number" placeholder={m.tree_promo_placeholder()} bind:value={editing.level} />
       <div class="edit-actions">
         <button class="edit-danger" onclick={deleteStar}>
-          <Trash2 size={14} /> {m.common_delete()}
+          <Trash2 size={14} />
+          {m.common_delete()}
         </button>
         <span class="spacer"></span>
-        <button class="edit-ghost" onclick={() => (editing = null)}
-          >{m.common_cancel()}</button
-        >
+        <button class="edit-ghost" onclick={() => (editing = null)}>{m.common_cancel()}</button>
         <button
           class="edit-primary"
           onclick={saveEdit}
-          disabled={!editing.prenom.trim() ||
-            !editing.nom.trim() ||
-            !editing.level}
+          disabled={!editing.prenom.trim() || !editing.nom.trim() || !editing.level}
         >
           {m.common_save()}
         </button>
@@ -547,10 +523,7 @@
   .connector {
     width: 2px;
     height: 28px;
-    background: linear-gradient(
-      rgba(59, 130, 246, 0.6),
-      rgba(59, 130, 246, 0.1)
-    );
+    background: linear-gradient(rgba(59, 130, 246, 0.6), rgba(59, 130, 246, 0.1));
     color: #3b82f6;
     display: flex;
     align-items: center;

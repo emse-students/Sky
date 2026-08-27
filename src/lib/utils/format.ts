@@ -2,20 +2,20 @@
  * Utility functions for formatting and displaying data
  */
 
-import type { Person } from "$types/graph";
+import type { Person } from '$types/graph';
 
 /**
  * Generate full name from first_name and last_name
  * Format: "LAST_NAME First_name"
  */
 export function getPersonName(person: Person): string {
-  const nom = (person.nom ?? "").trim();
-  const prenom = (person.prenom ?? "").trim();
+  const nom = (person.nom ?? '').trim();
+  const prenom = (person.prenom ?? '').trim();
   if (nom && prenom) {
     return `${nom.toUpperCase()} ${prenom}`;
   }
   // Never a raw id on screen: show whatever we have, else a neutral label.
-  return nom.toUpperCase() || prenom || "Sans nom";
+  return nom.toUpperCase() || prenom || 'Sans nom';
 }
 
 /**
@@ -25,12 +25,12 @@ export function getPersonName(person: Person): string {
  */
 export function formatPromoShort(level: number | null | undefined): string {
   if (level === null || level === undefined) {
-    return "E?";
+    return 'E?';
   }
   if (level >= 2000) {
     return `E${level}`;
   }
-  return `E${String(level % 100).padStart(2, "0")}`;
+  return `E${String(level % 100).padStart(2, '0')}`;
 }
 
 /**
@@ -38,7 +38,7 @@ export function formatPromoShort(level: number | null | undefined): string {
  */
 export function getPersonInitials(person: Person): string {
   if (!person.nom || !person.prenom) {
-    return "?";
+    return '?';
   }
   return `${person.prenom.charAt(0)}${person.nom.charAt(0)}`.toUpperCase();
 }
@@ -52,12 +52,12 @@ export function getPersonInitials(person: Person): string {
  * variations between the SSO and the database.
  */
 export function normalizeName(value: string | null | undefined): string {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[-_]/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[-_]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -105,7 +105,7 @@ export function levenshtein(a: string, b: string): number {
       curr[j] = Math.min(
         curr[j - 1] + 1, // insertion
         prev[j] + 1, // suppression
-        prev[j - 1] + cost, // substitution
+        prev[j - 1] + cost // substitution
       );
     }
     [prev, curr] = [curr, prev];
@@ -145,7 +145,7 @@ export function editDistance(a: string, b: string): number {
       let best = Math.min(
         curr[j - 1] + 1, // insertion
         prev[j] + 1, // suppression
-        prev[j - 1] + cost, // substitution
+        prev[j - 1] + cost // substitution
       );
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
         best = Math.min(best, two[j - 2] + 1); // adjacent transposition
@@ -186,16 +186,16 @@ export function nameDistance(
   lastA: string | null | undefined,
   firstA: string | null | undefined,
   lastB: string | null | undefined,
-  firstB: string | null | undefined,
+  firstB: string | null | undefined
 ): number {
   const a = [normalizeName(lastA), normalizeName(firstA)]
     .filter((t) => t.length > 0)
     .sort()
-    .join(" ");
+    .join(' ');
   const b = [normalizeName(lastB), normalizeName(firstB)]
     .filter((t) => t.length > 0)
     .sort()
-    .join(" ");
+    .join(' ');
   return levenshtein(a, b);
 }
 
@@ -222,14 +222,14 @@ export function personMatchScore(
   nom: string | null | undefined,
   prenom: string | null | undefined,
   level: number | null | undefined,
-  query: string,
+  query: string
 ): number | null {
   const q = normalizeName(query);
   if (!q) {
     return 0;
   }
-  const name = normalizeName(`${nom ?? ""} ${prenom ?? ""}`);
-  const nameReversed = normalizeName(`${prenom ?? ""} ${nom ?? ""}`);
+  const name = normalizeName(`${nom ?? ''} ${prenom ?? ''}`);
+  const nameReversed = normalizeName(`${prenom ?? ''} ${nom ?? ''}`);
 
   const idx = name.indexOf(q);
   if (idx >= 0) {
@@ -238,15 +238,15 @@ export function personMatchScore(
   if (nameReversed.includes(q)) {
     return 2;
   }
-  const lvl = level !== null && level !== undefined ? String(level) : "";
+  const lvl = level !== null && level !== undefined ? String(level) : '';
   if (lvl && lvl.includes(q)) {
     return 5;
   }
 
   // Token fuzzy: every query token must match some name token (substring or a
   // small edit distance), which tolerates typos and word inversion.
-  const nameTokens = name.split(" ").filter((t) => t.length > 0);
-  const queryTokens = q.split(" ").filter((t) => t.length > 0);
+  const nameTokens = name.split(' ').filter((t) => t.length > 0);
+  const queryTokens = q.split(' ').filter((t) => t.length > 0);
   let total = 0;
   for (const qt of queryTokens) {
     let best = Infinity;
@@ -280,7 +280,7 @@ export function personMatchScore(
  * collapsed).
  */
 export function formatLastName(value: string | null | undefined): string {
-  return (value ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+  return (value ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
 /**
@@ -288,12 +288,12 @@ export function formatLastName(value: string | null | undefined): string {
  * hyphen gets an initial capital, the rest lowercased.
  */
 export function formatFirstName(value: string | null | undefined): string {
-  return (value ?? "")
-    .replace(/\s+/g, " ")
+  return (value ?? '')
+    .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
     .replace(
       /(^|[\s-])([\p{L}])/gu,
-      (_m: string, sep: string, ch: string) => sep + ch.toUpperCase(),
+      (_m: string, sep: string, ch: string) => sep + ch.toUpperCase()
     );
 }

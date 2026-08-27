@@ -16,7 +16,7 @@ One row per person, whether or not they have an account (see
 | -------------------------- | --------------------------------------------------------------------- |
 | `id` TEXT PK               | account: the Authentik `sub`; placeholder: `prenom.nom[.promo][.idx]` |
 | `first_name`, `last_name`  | display form "Prenom" / "NOM"                                         |
-| `level` INTEGER            | promotion = year of entry (SSO `promo` claim); nullable                |
+| `level` INTEGER            | promotion = year of entry (SSO `promo` claim); nullable               |
 | `auth_sub` TEXT            | Authentik sub; `NULL` for placeholders                                |
 | `email`, `formation`       | from the SSO; `formation` drives the ICM gate                         |
 | `role` TEXT                | `'user'` \| `'admin'`, default `'user'`                               |
