@@ -12,82 +12,40 @@ jobs:
   build:
     name: Build / Test / Lint / Package
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        runtime: [bun, npm]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # `bun-version-file`, not `bun-version: latest`: a toolchain nobody DECLARES is whatever the
+      # runner happened to have that morning, and a lockfile is written by a version.
       - name: Setup Bun
-        if: matrix.runtime == 'bun'
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: ".bun-version"
 
-      - name: Setup Node.js
-        if: matrix.runtime == 'npm'
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24.x"
+      # `--frozen-lockfile`: CI must fail on a lockfile the manifest no longer justifies, not
+      # silently resolve a new one.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-      - name: Install dependencies (Bun)
-        if: matrix.runtime == 'bun'
-        run: bun install
-
-      - name: Install dependencies (npm)
-        if: matrix.runtime == 'npm'
-        run: npm install
-
-      - name: Type check (Bun)
-        if: matrix.runtime == 'bun'
+      # `check` runs paraglide:compile and svelte-kit sync itself, so nothing needs to precede it.
+      - name: Type check
         run: bun run check
 
-      - name: Type check (npm)
-        if: matrix.runtime == 'npm'
-        run: npm run check
-
-      - name: Generate SvelteKit config (Bun)
-        if: matrix.runtime == 'bun'
-        run: bunx svelte-kit sync
-
-      - name: Generate SvelteKit config (npm)
-        if: matrix.runtime == 'npm'
-        run: npx svelte-kit sync
-
-      - name: Lint code (Bun)
-        if: matrix.runtime == 'bun'
+      - name: Lint code
         env:
           NODE_OPTIONS: "--max-old-space-size=16384"
         run: bun run lint
 
-      - name: Lint code (npm)
-        if: matrix.runtime == 'npm'
-        env:
-          NODE_OPTIONS: "--max-old-space-size=16384"
-        run: npm run lint
-
-      # `format` is in package.json and was in nobody's pipeline, so three files
-      # drifted out of shape without a single red run. Checking is cheap; the
-      # alternative is that the next person's `prettier --write .` rewrites files
-      # they never touched and buries their own change inside the diff.
-      - name: Check formatting (Bun)
-        if: matrix.runtime == 'bun'
+      # `format` is in package.json and was in nobody's pipeline, so three files drifted out of
+      # shape without a single red run. Checking is cheap; the alternative is that the next
+      # person's formatter rewrites files they never touched and buries their own change inside
+      # the diff.
+      - name: Check formatting
         run: bun run format:check
 
-      - name: Check formatting (npm)
-        if: matrix.runtime == 'npm'
-        run: npm run format:check
-
-      - name: Build (Bun)
-        if: matrix.runtime == 'bun'
+      - name: Build
         run: bun run build
-
-      - name: Build (npm)
-        if: matrix.runtime == 'npm'
-        env:
-          ADAPTER: node
-        run: npm run build
 
       - name: Create .env file for tests
         run: |
@@ -99,35 +57,21 @@ jobs:
           AUTH_TRUSTED_HOST=true
           EOF
 
-      - name: Run tests (Bun)
-        if: matrix.runtime == 'bun'
+      # `test` is `vitest run` under Node deliberately: the suite is green there and has not been
+      # re-measured under the Bun runtime. Do not collapse it without re-running it.
+      - name: Run tests
         run: bun run test
         env:
           API_BASE_URL: http://localhost:3000
-        continue-on-error: false
 
-      - name: Run tests (npm)
-        if: matrix.runtime == 'npm'
-        run: npm run test
-        env:
-          API_BASE_URL: http://localhost:3000
-          ADAPTER: node
-        continue-on-error: false
-
-      - name: Package application (Bun)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'bun'
+      - name: Package application
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: bun run package
-
-      - name: Package application (npm)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'npm'
-        env:
-          ADAPTER: node
-        run: npm run package:legacy
 
       - name: Upload artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
-          name: "sky-package-${{ matrix.runtime }}"
+          name: sky-package
           path: "build/artifacts/*.tgz"
           retention-days: 30
