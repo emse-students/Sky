@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Languages } from "lucide-svelte";
+  import { Languages } from "@lucide/svelte";
   import { getLocale, setLocale, type Locale } from "$lib/paraglide/runtime";
   import { m } from "$lib/paraglide/messages";
 

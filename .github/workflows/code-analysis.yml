@@ -23,17 +23,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # `javascript-typescript`, one name for the pair. `javascript, typescript` named the same
+      # analysis twice - `typescript` is an ALIAS of `javascript` in CodeQL, never a second target.
+      # The action tag follows the major (`@v4`) like the sibling repos rather than freezing on a
+      # patch: it is a first-party GitHub action, and a frozen CodeQL is a CodeQL that stops
+      # learning about new query packs.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.37.8
+        uses: github/codeql-action/init@v4
         with:
-          languages: javascript, typescript
+          languages: javascript-typescript
           queries: security-extended, security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4.37.8
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4.37.8
+        uses: github/codeql-action/analyze@v4
 
   secret-scan:
     name: Scan for Secrets
@@ -45,7 +50,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog Secret Scan
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.97.1
         with:
           path: ./
           extra_args: --debug --only-verified
@@ -78,10 +83,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      # SONAR_TOKEN est optionnel - configure dans GitHub secrets si SonarCloud est utilisé
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      # SONAR_TOKEN est optionnel - configure dans GitHub secrets si SonarCloud est utilisé.
+      # sonarcloud-github-action est DÉPRÉCIÉE et archivée ; sonarqube-scan-action la remplace pour
+      # Cloud comme Server. Seule différence : SONAR_HOST_URL, que l'ancienne action codait en dur.
+      - name: SonarQube Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
         continue-on-error: true

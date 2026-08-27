@@ -25,39 +25,31 @@ vi.hoisted(() => {
   process.env.MIGALLERY_API_KEY = "mock-key";
 });
 
+/**
+ * Installs a `fetch` double and hands back the handle to assert on.
+ *
+ * `global.fetch` is typed as bun's `fetch`, which carries a `preconnect` property no `vi.fn()` has,
+ * so a bare assignment does not typecheck - and reading `global.fetch` back to inspect its calls
+ * needs a second cast in the other direction. Both casts live here, once, and returning the handle
+ * means no test performs either.
+ */
+function stubFetch(mock: Mock): Mock {
+  global.fetch = mock as unknown as typeof fetch;
+  return mock;
+}
+
 describe("Avatar API Endpoints", () => {
-  it("returns redirect to database image if present", async () => {
-    // Arrange
-    const mockPerson = {
-      id: "test.user",
-      image: "https://example.com/avatar.jpg",
-    };
-    (getPersonById as Mock).mockReturnValue(mockPerson);
-
-    const requestEvent = {
-      params: { id: "test.user" },
-    } as unknown as RequestEvent<{ id: string }, "/api/avatar/[id]">;
-
-    // Act
-    const response: Response = await getAvatar(requestEvent);
-
-    // Assert
-    expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe(
-      "https://example.com/avatar.jpg",
-    );
-  });
-
-  it("falls back to fetch if no database image", async () => {
+  it("serves the MiGallery photo for a person who has one", async () => {
     // Arrange
     (getPersonById as Mock).mockReturnValue(null);
 
-    // Mock global fetch
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)),
-      headers: { get: () => "image/jpeg" },
-    });
+    const fetchMock = stubFetch(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)),
+        headers: { get: () => "image/jpeg" },
+      }),
+    );
 
     const requestEvent = {
       params: { id: "remote.user" },
@@ -68,7 +60,7 @@ describe("Avatar API Endpoints", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("gallery.mitv.fr"),
       expect.any(Object),
     );
@@ -98,23 +90,25 @@ describe("Avatar API degrades on an upstream it cannot use", () => {
   });
 
   it("gives MiGallery a stated deadline instead of waiting forever", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
-      headers: { get: () => "image/jpeg" },
-    });
+    const fetchMock = stubFetch(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
+        headers: { get: () => "image/jpeg" },
+      }),
+    );
 
     await getAvatar(eventFor("remote.user"));
 
-    const init = (global.fetch as Mock).mock.calls[0][1];
+    const init = fetchMock.mock.calls[0][1];
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("draws initials, not a 500, when the fetch never lands - and says so", async () => {
     const timedOut = new Error("The operation was aborted due to timeout");
     timedOut.name = "TimeoutError";
-    global.fetch = vi.fn().mockRejectedValue(timedOut);
+    stubFetch(vi.fn().mockRejectedValue(timedOut));
 
     const response = await getAvatar(eventFor("remote.user"));
 
@@ -126,20 +120,24 @@ describe("Avatar API degrades on an upstream it cannot use", () => {
   });
 
   it("accuses on a refused key, and stays silent on a genuine 404", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      headers: { get: () => null },
-    });
+    stubFetch(
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        headers: { get: () => null },
+      }),
+    );
     await getAvatar(eventFor("remote.user"));
     expect(String((console.error as Mock).mock.calls[0][0])).toContain("403");
 
     (console.error as Mock).mockClear();
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      headers: { get: () => null },
-    });
+    stubFetch(
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        headers: { get: () => null },
+      }),
+    );
     await getAvatar(eventFor("remote.user"));
     expect(console.error).not.toHaveBeenCalled();
   });

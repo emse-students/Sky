@@ -13,9 +13,6 @@
     personMatchScore,
   } from "$lib/utils/format";
   import {
-    Mail,
-    Globe,
-    Phone,
     Link,
     User,
     LogOut,
@@ -23,15 +20,12 @@
     Target,
     X,
     ChevronDown,
-    Loader2,
+    LoaderCircle,
     Database,
     Network,
     ExternalLink,
-  } from "lucide-svelte";
+  } from "@lucide/svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
-  import Linkedin from "$components/icons/Linkedin.svelte";
-  import Github from "$components/icons/Github.svelte";
-  import Instagram from "$components/icons/Instagram.svelte";
   import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
   import Seo from "$components/Seo.svelte";
   import { institutionNode, siteNode } from "$lib/seo";
@@ -135,20 +129,6 @@
   function handleImageError(id: string) {
     imageErrors[id] = true;
     imageErrors = imageErrors; // Reassign to trigger Svelte reactivity
-  }
-
-  function getLinkIcon(type: string) {
-    const normalizedType = type.toLowerCase();
-    if (normalizedType.includes("linkedin")) return Linkedin;
-    if (normalizedType.includes("email") || normalizedType.includes("mail"))
-      return Mail;
-    if (normalizedType.includes("github")) return Github;
-    if (normalizedType.includes("instagram")) return Instagram;
-    if (normalizedType.includes("phone") || normalizedType.includes("tél"))
-      return Phone;
-    if (normalizedType.includes("website") || normalizedType.includes("site"))
-      return Globe;
-    return Link;
   }
 
   function handleSearch() {
@@ -372,7 +352,7 @@
 {#if isLoading}
   <div class="loader-overlay" transition:fade>
     <div class="loader-content">
-      <Loader2 class="spin" size={40} />
+      <LoaderCircle class="spin" size={40} />
       <span>{currentLoadingMessage}</span>
     </div>
   </div>
@@ -464,25 +444,6 @@
           <div class="info-block">
             <h3>{m.profile_bio()}</h3>
             <BioMarkdown source={canariProfile.profile.bio} />
-          </div>
-        {/if}
-
-        {#if currentProfile.links && Object.keys(currentProfile.links).length > 0}
-          <div class="info-block">
-            <h3>{m.profile_contact()}</h3>
-            <div class="link-grid">
-              {#each Object.entries(currentProfile.links) as [type, url]}
-                <a
-                  href={String(url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="social-link"
-                >
-                  <svelte:component this={getLinkIcon(type)} size={16} />
-                  <span>{type}</span>
-                </a>
-              {/each}
-            </div>
           </div>
         {/if}
 

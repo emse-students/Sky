@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import fs from "fs";
 import path from "path";
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 
 const DB_PATH = path.join(process.cwd(), "database", "sky.db");
 const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
@@ -19,7 +19,7 @@ if (fs.existsSync(DB_PATH)) {
 }
 
 const db = new Database(DB_PATH);
-db.pragma("foreign_keys = ON");
+db.exec("PRAGMA foreign_keys = ON");
 
 if (fs.existsSync(SCHEMA_PATH)) {
   console.log("📄 Application du schéma...");

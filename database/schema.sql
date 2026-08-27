@@ -18,12 +18,8 @@ CREATE TABLE IF NOT EXISTS people (
     last_name TEXT NOT NULL,
     
     -- Academic Information
-    level INTEGER,  -- Year of graduation (promotion)
+    level INTEGER,  -- Promotion: the year of ENTRY, as the SSO 'promo' claim gives it
     
-    -- Profile
-    bio TEXT,
-    image_url TEXT,  -- Can be from MiGallery API or local
-
     -- Auth / SSO identity (Authentik). NULL for graph records that never signed
     -- in. auth_sub = the Authentik `sub` claim, also the key for the MiGallery
     -- photo (/api/avatar/{auth_sub}).
@@ -38,7 +34,6 @@ CREATE TABLE IF NOT EXISTS people (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    -- Full-text search optimization
     UNIQUE(id)
 );
 
@@ -49,31 +44,14 @@ CREATE INDEX IF NOT EXISTS idx_people_first_name ON people(first_name);
 -- One Authentik account per record (NULLs are not constrained by UNIQUE).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_people_auth_sub ON people(auth_sub) WHERE auth_sub IS NOT NULL;
 
--- Full-text search virtual table
-CREATE VIRTUAL TABLE IF NOT EXISTS people_fts USING fts5(
-    id UNINDEXED,
-    first_name,
-    last_name,
-    content=people,
-    content_rowid=rowid
-);
-
--- Triggers to keep FTS in sync
-CREATE TRIGGER IF NOT EXISTS people_fts_insert AFTER INSERT ON people BEGIN
-    INSERT INTO people_fts(rowid, id, first_name, last_name)
-    VALUES (NEW.rowid, NEW.id, NEW.first_name, NEW.last_name);
-END;
-
-CREATE TRIGGER IF NOT EXISTS people_fts_delete AFTER DELETE ON people BEGIN
-    DELETE FROM people_fts WHERE rowid = OLD.rowid;
-END;
-
-CREATE TRIGGER IF NOT EXISTS people_fts_update AFTER UPDATE ON people BEGIN
-    UPDATE people_fts SET 
-        first_name = NEW.first_name,
-        last_name = NEW.last_name
-    WHERE rowid = NEW.rowid;
-END;
+-- No full-text search table here on purpose. `people_fts` (FTS5) and its three
+-- sync triggers lived here until 2026-08-26, maintained on every insert, update
+-- and delete on `people` - and read by NOTHING. The user-facing search moved to
+-- the `personMatchScore` scorer (src/lib/utils/format.ts) precisely because the
+-- FTS MATCH returned nothing whenever the index had drifted; the reader was
+-- deleted then, the write path and two repair scripts were not. Write
+-- amplification and a repair job for an index no query touches is all that
+-- remained. See docs/wiki/matching-and-search.md.
 
 -- ============================================
 -- RELATIONSHIPS TABLE
@@ -104,32 +82,6 @@ CREATE TABLE IF NOT EXISTS relationships (
 CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
 CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
 CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(type);
-
--- ============================================
--- EXTERNAL_LINKS TABLE
--- Stores external links for people (LinkedIn, alumni site, etc.)
--- ============================================
-CREATE TABLE IF NOT EXISTS external_links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    person_id TEXT NOT NULL,
-    
-    -- Link information
-    type TEXT NOT NULL,  -- 'linkedin', 'alumni', 'github', 'personal', etc.
-    url TEXT NOT NULL,
-    label TEXT,  -- Optional custom label
-    
-    -- Display order
-    display_order INTEGER DEFAULT 0,
-    
-    -- Metadata
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Constraints
-    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE,
-    UNIQUE(person_id, url)
-);
-
-CREATE INDEX IF NOT EXISTS idx_external_links_person ON external_links(person_id);
 
 -- ============================================
 -- ASSOCIATIONS TABLE

@@ -78,8 +78,11 @@ canari repository at `docs/wiki/search-contract.md`. Change them there, not here
 Pinned in Sky by `src/lib/utils/format.test.ts`.
 
 This scorer powers `GET /api/search` and the client-side filtering on the map.
-The FTS5 table (`people_fts`) exists in the schema but the user-facing search
-path uses this scorer, not FTS.
+It replaced an FTS5 `MATCH`, which returned nothing whenever the index had
+drifted. The `people_fts` table and its three sync triggers survived that change
+for a while, written on every mutation and read by nothing; they were dropped on
+2026-08-26 along with `rebuild-fts.js` and the FTS branch of
+`check-db-integrity.js`.
 
 > Cross-repo note: this tolerant behavior (typos + word inversion + ranking) is
 > the same standard applied across the EMSE apps, and since 2026-08-19 it is

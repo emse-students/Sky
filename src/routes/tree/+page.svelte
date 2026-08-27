@@ -8,13 +8,13 @@
     ArrowLeft,
     Plus,
     Trash2,
-    Loader2,
+    LoaderCircle,
     ChevronUp,
     Crown,
-    Home,
+    House,
     ExternalLink,
     Pencil,
-  } from "lucide-svelte";
+  } from "@lucide/svelte";
   import AddRelativeModal from "$components/AddRelativeModal.svelte";
   import BioMarkdown from "$components/BioMarkdown.svelte";
   import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
@@ -252,7 +252,7 @@
     <h1>{m.tree_heading()}</h1>
     {#if data && !isMe}
       <button class="back" onclick={backToMe}>
-        <Home size={18} /> {m.nav_my_tree()}
+        <House size={18} /> {m.nav_my_tree()}
       </button>
     {:else}
       <span class="spacer"></span>
@@ -260,7 +260,7 @@
   </header>
 
   {#if loading}
-    <div class="state"><Loader2 size={40} class="spin" /></div>
+    <div class="state"><LoaderCircle size={40} class="spin" /></div>
   {:else if !data}
     <div class="state">{m.tree_no_fiche()}</div>
   {:else}

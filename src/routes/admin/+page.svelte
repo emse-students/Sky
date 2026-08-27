@@ -8,11 +8,11 @@
     Download,
     Upload,
     Archive,
-    AlertCircle,
+    CircleAlert,
     ChevronRight,
     RefreshCw,
     GitMerge,
-  } from "lucide-svelte";
+  } from "@lucide/svelte";
   import { confirmDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
@@ -281,7 +281,7 @@
 
 {#if !isAdmin}
   <div class="denied">
-    <AlertCircle size={48} />
+    <CircleAlert size={48} />
     <h1>{m.admin_denied_title()}</h1>
     <p>{m.admin_denied_body()}</p>
   </div>

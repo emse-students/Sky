@@ -88,7 +88,8 @@ account. Three operations rearrange links:
 
 Sky is the source of truth **only** for the godparent links (`relationships`).
 The rest of a profile (bio, current and former clubs) comes from **Canari** via
-its public API, keyed by `sub` (see [integrations.md](integrations.md)). The
-historical `bio`, `external_links` and `associations` columns/tables are no
-longer written by Sky; that data survives in the read-only `sky-legacy.db`
-snapshot (see [data-model.md](data-model.md)).
+its public API, keyed by `sub` (see [integrations.md](integrations.md)), and the
+photo from MiGallery. The historical `bio`, `image_url` and `external_links`
+columns/tables were dropped once measured empty; `associations` is dormant. The
+pre-rebuild values survive in the read-only `sky-legacy.db` snapshot (see
+[data-model.md](data-model.md)).

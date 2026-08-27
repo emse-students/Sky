@@ -10,7 +10,11 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    // `bun:sqlite` is a runtime-provided module with no package on disk, so it resolves only
+    // once bun's own types are loaded. Safe to narrow `types` to this one entry: `@types/bun`
+    // depends on `bun-types`, which depends on `@types/node`, so node globals still resolve.
+    "types": ["bun"]
   },
   // Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
   // except $lib which is handled by https://svelte.dev/docs/kit/configuration#files

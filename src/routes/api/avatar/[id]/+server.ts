@@ -25,21 +25,11 @@ export const GET: RequestHandler = async ({ params }) => {
   }
 
   try {
-    // 1. Check if user has a custom image in database
-    const person = getPersonById(id);
-    if (person && person.image) {
-      // If it's a full URL, redirect or fetch it? Redirect is faster/easier for external URLs
-      // but if we want to hide origin or handle CORS, we might proxy.
-      // For simplicity and speed, let's redirect if it looks like a URL.
-      if (person.image.startsWith("http")) {
-        return new Response(null, {
-          status: 302,
-          headers: { Location: person.image },
-        });
-      }
-    }
-
-    // 2. Try MiGallery via the Authentik sub (photo key). A placeholder record
+    // MiGallery via the Authentik sub (photo key) is the ONLY source of a real photo. A
+    // per-person image column used to be read first and redirected to; the column was deleted with
+    // the SSO migration and `getPersonById` has not selected it since, so the branch could only
+    // ever test `undefined` - it is gone rather than resurrected, because reinstating it would mean
+    // a second, unmanaged avatar origin alongside MiGallery. A placeholder record
     // (no linked account) has no MiGallery photo -> initials directly.
     const sub = getPersonAuthSub(id);
 

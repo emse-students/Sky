@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, scale } from "svelte/transition";
-  import { Search, UserPlus, X, Loader2 } from "lucide-svelte";
+  import { Search, UserPlus, X, LoaderCircle } from "@lucide/svelte";
   import type { RelationRole, RelationKind } from "$types/graph";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
@@ -168,7 +168,7 @@
 
     {#if isSearching}
       <div class="hint">
-        <Loader2 size={16} class="spin" /> {m.modal_searching()}
+        <LoaderCircle size={16} class="spin" /> {m.modal_searching()}
       </div>
     {/if}
 
@@ -228,7 +228,7 @@
             !newPerson.level}
           onclick={() => createAndLink()}
         >
-          {#if busy}<Loader2 size={16} class="spin" />{/if}
+          {#if busy}<LoaderCircle size={16} class="spin" />{/if}
           {m.modal_create_and_link()}
         </button>
       </div>

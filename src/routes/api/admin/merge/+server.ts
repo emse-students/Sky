@@ -3,9 +3,8 @@ import {
   mergePeople,
   recalculatePositions,
   getPersonAuthSub,
-  isValidPromo,
-  MIN_PROMO,
 } from "$lib/server/database";
+import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
 import type { RequestHandler } from "@sveltejs/kit";
 import { m } from "$lib/paraglide/messages";
 

@@ -2,13 +2,12 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import {
   isSameFamily,
-  isValidPromo,
-  MIN_PROMO,
   updatePlaceholderIdentity,
   deletePlaceholderPerson,
   countPersonRelations,
   recalculatePositions,
 } from "$lib/server/database";
+import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
 import { m } from "$lib/paraglide/messages";
 
 /**

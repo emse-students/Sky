@@ -11,15 +11,21 @@ procedure changes.
 
 | Element | Detail                                                                                |
 | ------- | ------------------------------------------------------------------------------------- |
-| Runtime | Docker container `sky`, Node, port 3001                                               |
+| Runtime | Docker container `sky`, Bun, port 3001                                                |
 | Data    | `database/` mounted as a volume: `sky.db` + `schema.sql` + generated `positions.json` |
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
 | CD      | `.github/workflows/deploy.yml` (runs after "CI (Bun)"): build-image -> deploy         |
 | Backups | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron)                    |
 
-Node, not Bun, is the runtime because `better-sqlite3` is loaded by unbundled
-maintenance scripts that Bun cannot run. The graph layout is TypeScript
-in-process (`positions.ts`), so there is no Python dependency at runtime.
+Bun, not Node, is the runtime, and the reason INVERTED on 2026-08-27. It used to be
+Node because `better-sqlite3` was a native module the unbundled maintenance scripts
+loaded and Bun could not (oven-sh/bun#4290). The driver is now `bun:sqlite` - a Bun
+builtin - so those same scripts can no longer run under Node at all. The graph layout
+is TypeScript in-process (`positions.ts`), so there is no Python dependency at runtime.
+
+`bun run build` is `bun --bun vite build`, and the `--bun` is load-bearing: Bun honours
+a bin's node shebang, so a plain `vite build` runs Vite under Node and SSR then fails to
+resolve `bun:sqlite` with `ERR_UNSUPPORTED_ESM_URL_SCHEME`.
 
 ## Startup sequence
 
@@ -27,15 +33,18 @@ in-process (`positions.ts`), so there is no Python dependency at runtime.
 launching the server:
 
 ```
-node scripts/init-db.js        # apply schema if the DB is empty
-node scripts/migrate-add-bio.js
-node scripts/migrate-auth.js   # auth_sub/email/formation/role/last_login + sessions/pending_links
-node scripts/rebuild-db.js
-node --env-file=.env build/index.js
+bun scripts/init-db.js                    # apply schema if the DB is empty
+bun scripts/migrate-auth.js               # auth_sub/email/formation/role/last_login + sessions/pending_links
+bun scripts/rebuild-db.js
+bun scripts/migrate-drop-dead-schema.js   # drop bio/image_url/external_links
+bun build/index.js
 ```
 
 The migrations use `PRAGMA table_info` guards and `CREATE TABLE IF NOT EXISTS`, so
-re-running them is safe.
+re-running them is safe. The chain runs under `set -e`: it used to be joined by
+`|| true`, which made a FAILED migration indistinguishable from a successful one
+and started the server against a half-migrated database. A migration that fails
+now stops the container, and the deploy's health check reports it.
 
 ## Configuration
 

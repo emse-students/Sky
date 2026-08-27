@@ -4,7 +4,7 @@ import {
   checkPromoPair,
   MIN_PROMO,
   MAX_PROMO_GAP,
-} from "./database";
+} from "./promo";
 
 // These validators are pure (no DB access), so they import safely without a
 // database connection. They back the parrainage promo rules enforced server-side

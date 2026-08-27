@@ -13,11 +13,10 @@ import {
   countPersonRelations,
   isRelationKind,
   isSameFamily,
-  isValidPromo,
-  MIN_PROMO,
   RelationError,
   type RelationKind,
 } from "$lib/server/database";
+import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
 import { m } from "$lib/paraglide/messages";
 
 /** Raw list of links (read). */

@@ -4,9 +4,8 @@ import {
   getDatabase,
   recalculatePositions,
   getAllPeopleAdmin,
-  isValidPromo,
-  MIN_PROMO,
 } from "$lib/server/database";
+import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
 import { m } from "$lib/paraglide/messages";
@@ -59,11 +58,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Insert person
     const insertStmt = db.prepare(`
-			INSERT INTO people (id, first_name, last_name, level, image_url)
-			VALUES (?, ?, ?, ?, ?)
+			INSERT INTO people (id, first_name, last_name, level)
+			VALUES (?, ?, ?, ?)
 		`);
 
-    insertStmt.run(data.id, prenom, nom, data.level, "default.jpg");
+    insertStmt.run(data.id, prenom, nom, data.level);
 
     recalculatePositions().catch(console.error);
 

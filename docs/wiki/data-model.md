@@ -16,8 +16,7 @@ One row per person, whether or not they have an account (see
 | -------------------------- | --------------------------------------------------------------------- |
 | `id` TEXT PK               | account: the Authentik `sub`; placeholder: `prenom.nom[.promo][.idx]` |
 | `first_name`, `last_name`  | display form "Prenom" / "NOM"                                         |
-| `level` INTEGER            | graduation year (promo); nullable                                     |
-| `bio`, `image_url`         | legacy/optional; profile now comes from Canari                        |
+| `level` INTEGER            | promotion = year of entry (SSO `promo` claim); nullable                |
 | `auth_sub` TEXT            | Authentik sub; `NULL` for placeholders                                |
 | `email`, `formation`       | from the SSO; `formation` drives the ICM gate                         |
 | `role` TEXT                | `'user'` \| `'admin'`, default `'user'`                               |
@@ -58,8 +57,10 @@ Both are swept of expired rows on each login.
 
 ### Full-text search
 
-`people_fts` is an FTS5 virtual table (`content=people`) over `first_name` and
-`last_name`, kept in sync by three triggers (`people_fts_insert/delete/update`).
+There is deliberately no full-text search table. `people_fts` (FTS5) and its
+three sync triggers were dropped on 2026-08-26: the reader had already moved to
+the `personMatchScore` scorer, so the index was written on every mutation and
+queried by nothing. See [matching-and-search.md](matching-and-search.md).
 Note that the primary user-facing search does not rely on FTS; it uses the
 tolerant scorer in `format.ts` (see [matching-and-search.md](matching-and-search.md)).
 
@@ -75,9 +76,17 @@ Key/value store holding `schema_version` and `last_migration`.
 
 ## Dormant tables
 
-`external_links` and `associations` remain in the schema for history but are no
-longer written by Sky. Bio, current clubs and former clubs now come from Canari
-at read time (see [integrations.md](integrations.md)).
+`associations` remains in the schema for history but is no longer written by
+Sky. Current clubs and former clubs come from Canari at read time (see
+[integrations.md](integrations.md)).
+
+`people.bio`, `people.image_url` and the whole `external_links` table were
+DROPPED on 2026-08-26 by `scripts/migrate-drop-profile-columns.js`, after
+measuring the production base: 0 non-empty `bio` out of 725, 0 row in
+`external_links`, and 725/725 `image_url` holding the same literal
+`"default.jpg"` that no read path could ever use (the only reader required
+`startsWith("http")`). The pre-rebuild values survive in the read-only
+`sky-legacy.db` snapshot.
 
 ## `positions.json`
 

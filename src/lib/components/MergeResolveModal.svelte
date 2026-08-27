@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, scale } from "svelte/transition";
-  import { GitMerge, X } from "lucide-svelte";
+  import { GitMerge, X } from "@lucide/svelte";
   import { m } from "$lib/paraglide/messages";
   import { formatPromoShort } from "$lib/utils/format";
   import {
