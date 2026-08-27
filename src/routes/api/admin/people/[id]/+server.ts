@@ -5,9 +5,8 @@ import {
   recalculatePositions,
   setPersonRole,
   unlinkPersonAuth,
-  isValidPromo,
-  MIN_PROMO,
 } from "$lib/server/database";
+import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
 import { formatFirstName, formatLastName } from "$lib/utils/format";
 import { requireAdmin } from "$lib/server/guards";
 import { m } from "$lib/paraglide/messages";
@@ -104,9 +103,6 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
     db.prepare(
       "DELETE FROM relationships WHERE source_id = ? OR target_id = ?",
     ).run(id, id);
-
-    // Delete external links
-    db.prepare("DELETE FROM external_links WHERE person_id = ?").run(id);
 
     // Delete person
     db.prepare("DELETE FROM people WHERE id = ?").run(id);

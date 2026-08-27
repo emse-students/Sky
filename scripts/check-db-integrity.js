@@ -1,137 +1,170 @@
-import Database from "better-sqlite3";
+/**
+ * Verification d'integrite de la base : elle CONSTATE, elle ne repare pas.
+ *
+ * Appelee apres un import de base par l'admin (POST /api/admin/import), sur un
+ * fichier qui vient de l'exterieur et dont personne ne garantit le schema. Sa
+ * seule mission est de dire si le fichier importe est utilisable par le code, et
+ * d'echouer bruyamment sinon.
+ *
+ * Ce qu'elle ne fait PLUS, et pourquoi :
+ *
+ *   - Elle rejouait `ALTER TABLE people ADD COLUMN bio TEXT` des que la colonne
+ *     manquait. `bio` a ete supprimee du schema le 2026-08-26 : la "reparation"
+ *     ressuscitait donc a chaque import une colonne que la migration venait
+ *     d'enlever, et les deux se seraient battues indefiniment.
+ *   - Elle portait une copie inline de la table `associations`, deuxieme source
+ *     de verite a cote de schema.sql - exactement la divergence qui avait deja
+ *     coute une base sans la colonne `bio` du cote de database.ts.
+ *   - Elle reconstruisait l'index FTS `people_fts`, supprime le 2026-08-26 parce
+ *     qu'aucune requete ne le lisait.
+ *   - Elle avait une branche qui comparait `image_url` et `image` pour ne rien
+ *     faire d'autre qu'ecrire une ligne de log.
+ *
+ * Une reparation destructive doit etre conditionnee au fait de SAVOIR que l'etat
+ * est casse. Ici rien ne le savait : le seul declencheur etait "la colonne n'est
+ * pas la", ce qui est aussi ce que produit une suppression volontaire.
+ */
+import { Database } from "bun:sqlite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const dbPath = path.join(__dirname, "../database/sky.db");
-const schemaPath = path.join(__dirname, "../database/schema.sql");
 
-// Ensure database directory exists
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+/**
+ * Ce que le code interroge reellement. Toute divergence avec schema.sql est un
+ * defaut de CE fichier : les deux se lisent cote a cote.
+ */
+const EXPECTED = {
+  people: [
+    "id",
+    "first_name",
+    "last_name",
+    "level",
+    "auth_sub",
+    "email",
+    "formation",
+    "role",
+    "last_login",
+    "created_by",
+    "created_at",
+    "updated_at",
+  ],
+  relationships: ["id", "source_id", "target_id", "type", "created_at"],
+  associations: [
+    "id",
+    "person_id",
+    "name",
+    "role",
+    "logo_url",
+    "display_order",
+    "created_at",
+  ],
+  sessions: ["token", "person_id", "expires_at", "created_at"],
+  pending_links: [
+    "token",
+    "sub",
+    "first_name",
+    "last_name",
+    "level",
+    "email",
+    "formation",
+    "role",
+    "expires_at",
+    "created_at",
+  ],
+  metadata: ["key", "value", "updated_at"],
+};
 
-let db;
+/** Objets que le schema courant ne doit PLUS porter (voir migrate-drop-dead-schema.js). */
+const FORBIDDEN_TABLES = ["people_fts", "external_links"];
+const FORBIDDEN_COLUMNS = { people: ["bio", "image_url"] };
 
-try {
-  console.log("🔍 Vérification de l'intégrité de la base de données...");
-
-  // Open database (creates it if it doesn't exist)
-  db = new Database(dbPath);
-
-  // 1. Check if tables exist
-  const tables = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-    .all()
-    .map((row) => row.name);
-
-  if (!tables.includes("people")) {
-    console.log("⚠️ Table 'people' manquante. Application du schéma...");
-    applySchema();
-  } else {
-    // 2. Check columns in people
-    const columns = db
-      .prepare("PRAGMA table_info(people)")
-      .all()
-      .map((row) => row.name);
-
-    if (!columns.includes("bio")) {
-      console.log("⚠️ Colonne 'bio' manquante dans 'people'. Correction...");
-      db.prepare("ALTER TABLE people ADD COLUMN bio TEXT").run();
-      console.log("✅ Colonne 'bio' ajoutée.");
-    }
-
-    if (!columns.includes("image_url") && !columns.includes("image")) {
-      // Note: schema uses image_url, code might fallback
-      console.log("ℹ️ Vérification des colonnes d'image standard...");
-    }
-  }
-
-  // 3. Check associations table
-  if (!tables.includes("associations")) {
-    console.log("⚠️ Table 'associations' manquante. Création...");
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS associations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            person_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            role TEXT,
-            logo_url TEXT,
-            display_order INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_associations_person ON associations(person_id);
-      `);
-    console.log("✅ Table 'associations' créée.");
-  }
-
-  // 4. Rebuild FTS index if corrupted or missing
-  try {
-    const ftsTest = db
-      .prepare("SELECT COUNT(*) as count FROM people_fts")
-      .get();
-    const peopleCount = db
-      .prepare("SELECT COUNT(*) as count FROM people")
-      .get();
-
-    if (!ftsTest || ftsTest.count !== peopleCount.count) {
-      console.log("⚠️ Index FTS désynchronisé. Reconstruction...");
-      rebuildFTS();
-    }
-  } catch (error) {
-    console.log("⚠️ Index FTS manquant ou corrompu. Reconstruction...");
-    rebuildFTS();
-  }
-
-  console.log("✅ Intégrité de la base de données vérifiée.");
-} catch (error) {
-  console.error(
-    "❌ Erreur critique lors de la vérification de la base de données:",
-    error,
-  );
+if (!fs.existsSync(dbPath)) {
+  console.error("[check-db-integrity] Base introuvable:", dbPath);
   process.exit(1);
 }
 
-function applySchema() {
-  if (fs.existsSync(schemaPath)) {
-    const schema = fs.readFileSync(schemaPath, "utf8");
-    // Execute schema in parts to avoid errors if some tables exist
-    // Simpler: just exec. SQLite IF NOT EXISTS handles it.
-    db.exec(schema);
-    console.log("✅ Schéma appliqué avec succès.");
-  } else {
-    console.error("❌ Fichier de schéma introuvable:", schemaPath);
-    process.exit(1);
+const db = new Database(dbPath, { readonly: true });
+const problems = [];
+
+const tables = new Set(
+  db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+    .all()
+    .map((r) => r.name),
+);
+
+for (const [table, expectedColumns] of Object.entries(EXPECTED)) {
+  if (!tables.has(table)) {
+    problems.push(`table manquante: ${table}`);
+    continue;
+  }
+  const actual = new Set(
+    db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .map((r) => r.name),
+  );
+  for (const column of expectedColumns) {
+    if (!actual.has(column)) {
+      problems.push(`colonne manquante: ${table}.${column}`);
+    }
   }
 }
 
-function rebuildFTS() {
-  try {
-    db.prepare("DROP TABLE IF EXISTS people_fts").run();
-    db.prepare(
-      `
-      CREATE VIRTUAL TABLE people_fts USING fts5(
-        id,
-        first_name,
-        last_name,
-        content='people',
-        content_rowid='rowid'
-      )
-    `,
-    ).run();
-    db.prepare(
-      `
-      INSERT INTO people_fts(rowid, id, first_name, last_name)
-      SELECT rowid, id, first_name, last_name FROM people
-    `,
-    ).run();
-    console.log("✅ Index FTS reconstruit.");
-  } catch (error) {
-    console.error("❌ Erreur lors de la reconstruction FTS:", error);
+// Un residu n'empeche pas de lire, mais il signale une base plus vieille que le
+// code : la migration doit passer dessus avant qu'on la declare saine.
+for (const table of FORBIDDEN_TABLES) {
+  if (tables.has(table)) {
+    problems.push(
+      `table obsolete encore presente: ${table} (lancer migrate-drop-dead-schema.js)`,
+    );
   }
 }
+for (const [table, columns] of Object.entries(FORBIDDEN_COLUMNS)) {
+  if (!tables.has(table)) {
+    continue;
+  }
+  const actual = new Set(
+    db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .map((r) => r.name),
+  );
+  for (const column of columns) {
+    if (actual.has(column)) {
+      problems.push(
+        `colonne obsolete encore presente: ${table}.${column} (lancer migrate-drop-dead-schema.js)`,
+      );
+    }
+  }
+}
+
+const integrity = db.prepare("PRAGMA integrity_check").get();
+const integrityResult = integrity ? Object.values(integrity)[0] : "inconnu";
+if (integrityResult !== "ok") {
+  problems.push(`PRAGMA integrity_check: ${integrityResult}`);
+}
+
+const peopleRow = tables.has("people")
+  ? db.prepare("SELECT count(*) c FROM people").get()
+  : null;
+
+db.close();
+
+if (problems.length > 0) {
+  console.error(
+    `[check-db-integrity] ${problems.length} probleme(s) sur ${dbPath}:`,
+  );
+  for (const problem of problems) {
+    console.error(`  - ${problem}`);
+  }
+  process.exit(1);
+}
+
+console.log(
+  `[check-db-integrity] Base saine: ${Object.keys(EXPECTED).length} tables attendues presentes, ${peopleRow ? peopleRow.c : 0} fiche(s).`,
+);

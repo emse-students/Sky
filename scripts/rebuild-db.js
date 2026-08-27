@@ -3,15 +3,16 @@
  * en lecture seule.
  *
  * 1. Snapshot : copie `sky.db` -> `sky-legacy.db` (une seule fois, si absent),
- *    via l API de sauvegarde SQLite (coherente, WAL-safe). Cette base figee
- *    alimente la fenetre de consultation `/admin/legacy`.
+ *    via `VACUUM INTO`, qui ecrit une copie coherente et compactee sans passer
+ *    par le systeme de fichiers (WAL compris). Cette base figee alimente la
+ *    fenetre de consultation `/admin/legacy`.
  * 2. Wipe : vide les tables de donnees vivantes (people, relationships,
- *    external_links, associations) une seule fois, garde par le flag metadata
+ *    associations) une seule fois, garde par le flag metadata
  *    `rebuild_v1_done`. Conserve sessions/metadata.
  *
  * Idempotent : rejouable a chaque demarrage (apres init-db / migrate-auth).
  */
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -28,13 +29,16 @@ if (!fs.existsSync(dbPath)) {
 
 const db = new Database(dbPath);
 
-async function main() {
+function main() {
   // 1. Snapshot legacy (une seule fois).
   if (!fs.existsSync(legacyPath)) {
     console.log(
       "[rebuild-db] Snapshot de la base actuelle -> sky-legacy.db ...",
     );
-    await db.backup(legacyPath);
+    // `VACUUM INTO` remplace l API `.backup()` de better-sqlite3, absente de
+    // bun:sqlite. C est du SQL pur, synchrone, et il ecrit une copie coherente
+    // meme avec un WAL actif.
+    db.prepare("VACUUM INTO ?").run(legacyPath);
     console.log("[rebuild-db] Snapshot legacy cree.");
   } else {
     console.log("[rebuild-db] sky-legacy.db deja present, snapshot ignore.");
@@ -49,10 +53,12 @@ async function main() {
     return;
   }
 
+  // `bun:sqlite` renvoie `null` quand `.get()` ne trouve rien, la ou
+  // better-sqlite3 renvoyait `undefined` : le test doit couvrir les deux.
   const tableExists = (name) =>
     db
       .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?")
-      .get(name) !== undefined;
+      .get(name) != null;
   const clear = (name) => {
     if (tableExists(name)) {
       db.prepare(`DELETE FROM ${name}`).run();
@@ -62,7 +68,6 @@ async function main() {
   const wipe = db.transaction(() => {
     // Ordre : enfants avant people (FK). Tables absentes de l ancien schema ignorees.
     clear("relationships");
-    clear("external_links");
     clear("associations");
     clear("people");
     db.prepare(
@@ -75,9 +80,10 @@ async function main() {
   );
 }
 
-main()
-  .then(() => console.log("[rebuild-db] Termine."))
-  .catch((error) => {
-    console.error("[rebuild-db] Echec:", error);
-    process.exit(1);
-  });
+try {
+  main();
+  console.log("[rebuild-db] Termine.");
+} catch (error) {
+  console.error("[rebuild-db] Echec:", error);
+  process.exit(1);
+}

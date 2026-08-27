@@ -1,11 +1,11 @@
 /**
  * Migration BDD : identite SSO Authentik dans `people` + table `sessions`.
  *
- * Idempotente (rejouable a chaque demarrage du conteneur, apres init-db et
- * migrate-add-bio). Ajoute les colonnes d identite a `people`, l index unique sur
- * auth_sub, et cree la table `sessions`. Remplace l ancienne base auth.db.
+ * Idempotente (rejouable a chaque demarrage du conteneur, apres init-db).
+ * Ajoute les colonnes d identite a `people`, l index unique sur auth_sub, et cree
+ * la table `sessions`. Remplace l ancienne base auth.db.
  */
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -21,19 +21,27 @@ if (!fs.existsSync(dbPath)) {
 
 const db = new Database(dbPath);
 
-/** Ajoute une colonne si absente (ALTER TABLE ... ADD COLUMN idempotent). */
+/**
+ * Ajoute une colonne si absente.
+ *
+ * L idempotence se lit dans le schema (`PRAGMA table_info`), pas dans le TEXTE du
+ * message d erreur. La version precedente attrapait l echec et cherchait
+ * "duplicate column name" dedans : une distinction portee par de la prose, que le
+ * changement de pilote (better-sqlite3 -> bun:sqlite) suffisait a faire tomber en
+ * silence, transformant une migration rejouable en echec fatal au demarrage.
+ */
 function addColumn(table, definition) {
   const name = definition.split(/\s+/)[0];
-  try {
-    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${definition}`).run();
-    console.log(`[migrate-auth] Colonne ${table}.${name} ajoutee.`);
-  } catch (error) {
-    if (String(error.message).includes(`duplicate column name: ${name}`)) {
-      console.log(`[migrate-auth] Colonne ${table}.${name} deja presente.`);
-    } else {
-      throw error;
-    }
+  const present = db
+    .prepare(`PRAGMA table_info(${table})`)
+    .all()
+    .some((column) => column.name === name);
+  if (present) {
+    console.log(`[migrate-auth] Colonne ${table}.${name} deja presente.`);
+    return;
   }
+  db.prepare(`ALTER TABLE ${table} ADD COLUMN ${definition}`).run();
+  console.log(`[migrate-auth] Colonne ${table}.${name} ajoutee.`);
 }
 
 try {

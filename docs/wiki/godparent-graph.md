@@ -45,8 +45,8 @@ A godchild is always a strictly more recent promotion than their godparent, and
 at most `MAX_PROMO_GAP` (3) years younger. `checkPromoPair(parrainLevel,
 fillotLevel)` is the pure validator (returns the violated code or `null`); both
 promotions must be known, so a `null` level blocks the link (`PROMO_UNKNOWN`).
-The rule applies to both link kinds. `level` is the graduation year; comparing
-it is equivalent to comparing entry years (both offset by 3).
+The rule applies to both link kinds. `level` is the promotion, i.e. the year of
+ENTRY (the SSO `promo` claim).
 
 Separately, promotions entered by users are range-checked at creation:
 `isValidPromo(level)` accepts `null` (unknown) or an integer `>= MIN_PROMO`
@@ -107,8 +107,8 @@ dashboard:
 
 - Skips pairs where **both** sides are real accounts (not mergeable).
 - Prunes on sorted-token name length, then on promo compatibility (equal, unknown
-  on one side, or within 3 years - a data-entry slip plus the entry/graduation
-  offset).
+  on one side, or within 3 years - a data-entry slip, or a legacy record carrying
+  the graduation year instead of the entry year).
 - Keeps pairs whose `nameDistance` (tolerant to typos and last/first inversion,
   see [matching-and-search.md](matching-and-search.md)) is within
   `NAME_MATCH_MAX_DISTANCE` (2).

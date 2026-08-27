@@ -1,8 +1,29 @@
+/* Tailwind v4 is wired here WITHOUT its preflight.
+   The layer order is declared first so the cascade is fixed no matter what the
+   imports below emit; then only `theme.css` (the design tokens Tailwind exposes
+   as CSS variables) and `utilities.css` (the on-demand utility classes) are
+   pulled in. `preflight.css` is deliberately left out: the 500-odd lines below
+   were written against a bare document and a global reset would restyle every
+   one of them. Sky uses no Tailwind utility today, so this emits nothing - the
+   day someone actually styles Sky with Tailwind, adding
+   `@import "tailwindcss/preflight.css" layer(base);` is the whole switch. */
+@layer theme, base, components, utilities;
+
 @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;600&display=swap");
 @import "./lib/styles/utilities.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The theme that used to live in `tailwind.config.js`. Tailwind v4 no longer
+   reads that file, so the two accent colours and the two font families are
+   declared here - the only source of truth now. */
+@theme {
+  --color-accent: #87cefa;
+  --color-accent-hover: #69b4d8;
+
+  --font-orbitron: "Orbitron", monospace;
+  --font-space: "Space Grotesk", sans-serif;
+}
 
 /* ==================== ORIGINAL STYLES IMPORTED ==================== */
 

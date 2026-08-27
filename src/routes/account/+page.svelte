@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import { ArrowLeft, Search, Link2, Check } from "lucide-svelte";
+  import { ArrowLeft, Search, Link2, Check } from "@lucide/svelte";
   import { goto } from "$app/navigation";
   import { personMatchScore } from "$lib/utils/format";
   import { confirmDialog } from "$lib/stores/dialogStore";

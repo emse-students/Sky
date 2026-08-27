@@ -110,11 +110,6 @@ jobs:
       - name: Pull image
         run: $COMPOSE pull
 
-      - name: Stop legacy pm2 process (cutover idempotent)
-        run: |
-          /home/mitv/.bun/bin/pm2 delete sky 2>/dev/null || true
-          /home/mitv/.bun/bin/pm2 save --force 2>/dev/null || true
-
       - name: Deploy
         run: $COMPOSE up -d --remove-orphans
 

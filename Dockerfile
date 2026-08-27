@@ -1,36 +1,34 @@
 # syntax=docker/dockerfile:1
 #
-# Sky production image (SvelteKit adapter-node, Node runtime).
-# Node (not Bun) because better-sqlite3 is used by non-bundled scripts
-# (init-db.js, migrate-add-bio.js) that Bun cannot load (bare specifier
-# interception, cf oven-sh/bun#4290). Graph positions are now computed
-# in-process in TypeScript (src/lib/server/positions.ts): no more Python
-# dependency at runtime.
+# Sky production image (SvelteKit adapter-node, Bun runtime).
+#
+# It ran on Node until 2026-08-27, for a reason that no longer exists: better-sqlite3 was a native
+# module the non-bundled scripts loaded, and Bun could not (oven-sh/bun#4290). The driver is now
+# `bun:sqlite`, which INVERTS the constraint - `bun:` is a Bun builtin, so those same scripts can no
+# longer run under Node at all. Graph positions are computed in-process in TypeScript
+# (src/lib/server/positions.ts): no Python at runtime either.
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-FROM node:24-bookworm AS build
+# -- Build ---------------------------------------------------------------------
+FROM oven/bun:1.4.0-alpine AS build
 WORKDIR /app
 ENV HUSKY=0
-# Build toolchain for the better-sqlite3 native module (node-gyp -> python3).
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json ./
-# --ignore-scripts skips prepare(husky)/prebuild; better-sqlite3 is built right after.
-RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
+# No node-gyp, no python3, no make: nothing native is compiled any more.
+COPY package.json bun.lock ./
+# --ignore-scripts skips prepare(husky); there is nothing else to run.
+RUN bun install --frozen-lockfile --ignore-scripts
 COPY . .
-# Call vite directly to bypass the npm "prebuild" hook (which tries bun/pnpm).
-RUN node_modules/.bin/vite build
+# `bun run build` is `bun --bun vite build`. The `--bun` is load-bearing: Bun honours a bin's node
+# shebang, so a plain `vite build` runs Vite under Node, and SSR then fails resolving `bun:sqlite`
+# with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+RUN bun run build
 
-# ── Runtime ───────────────────────────────────────────────────────────────────
-FROM node:24-bookworm-slim AS runtime
+# -- Runtime -------------------------------------------------------------------
+FROM oven/bun:1.4.0-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 # TLS roots for outbound HTTPS (Authentik OIDC, MiGallery avatars).
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
@@ -45,7 +43,16 @@ VOLUME ["/app/database"]
 
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Seed the schema into the volume if absent, run idempotent migrations, then start.
-CMD ["sh", "-c", "mkdir -p database; [ -f database/schema.sql ] || cp db-seed/schema.sql database/schema.sql; node scripts/init-db.js; node scripts/migrate-add-bio.js || true; node scripts/migrate-auth.js || true; node scripts/rebuild-db.js || true; node build/index.js"]
+# Every migration here is documented idempotent and re-runs on each container start.
+# They used to be chained with `|| true`, which meant a FAILED migration was indistinguishable
+# from a successful one and the server started anyway - against a half-migrated database, with
+# nothing in the logs accusing anything. A migration that fails must stop the container; the
+# deploy's health check then reports it instead of the site answering wrongly.
+#
+# This chain is the one `start:prod` declares; the two must not drift. It named
+# migrate-drop-profile-columns.js until 2026-08-27, a file renamed to migrate-drop-dead-schema.js,
+# so every container start died on the fourth migration.
+CMD ["sh", "-c", "set -e; mkdir -p database; [ -f database/schema.sql ] || cp db-seed/schema.sql database/schema.sql; bun scripts/init-db.js; bun scripts/migrate-auth.js; bun scripts/rebuild-db.js; bun scripts/migrate-drop-dead-schema.js; bun build/index.js"]

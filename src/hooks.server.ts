@@ -62,7 +62,6 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
       role: person.role === "admin" ? "admin" : "user",
       formation: person.formation,
       promo: person.level,
-      image: person.image,
     };
   } else {
     event.locals.user = null;

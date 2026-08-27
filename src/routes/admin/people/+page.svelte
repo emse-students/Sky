@@ -3,7 +3,7 @@
   import { fade } from "svelte/transition";
   import {
     Search,
-    Edit,
+    SquarePen,
     Trash2,
     UserPlus,
     Save,
@@ -13,7 +13,7 @@
     Shield,
     Unlink,
     GitMerge,
-  } from "lucide-svelte";
+  } from "@lucide/svelte";
   import { goto } from "$app/navigation";
   import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
   import { m } from "$lib/paraglide/messages";
@@ -433,7 +433,7 @@
                       </button>
                     {/if}
                     <button class="btn-icon" onclick={() => startEdit(person)}>
-                      <Edit size={16} />
+                      <SquarePen size={16} />
                     </button>
                     <button
                       class="btn-icon danger"

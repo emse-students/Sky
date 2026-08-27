@@ -1,6 +1,7 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [
@@ -15,6 +16,10 @@ export default defineConfig({
       outdir: "./src/lib/paraglide",
       strategy: ["cookie", "preferredLanguage", "baseLocale"],
     }),
+    // Tailwind v4 runs as a Vite plugin: there is no PostCSS chain in this
+    // repo any more, and no `tailwind.config.js` - the theme lives in the
+    // `@theme` block of `src/app.css`.
+    tailwindcss(),
     sveltekit(),
   ],
 });

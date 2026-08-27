@@ -1,9 +1,6 @@
 export interface Person {
   id: string;
   level: number | null;
-  bio?: string;
-  image?: string;
-  links?: Record<string, string>;
   prenom: string;
   nom: string;
 }

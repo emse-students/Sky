@@ -11,5 +11,4 @@ export interface SessionUser {
   role: "admin" | "user";
   formation: string | null; // 'ICM', 'ISMIN'...
   promo: number | null; // = people.level
-  image: string | null;
 }

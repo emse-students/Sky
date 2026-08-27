@@ -45,5 +45,6 @@ disagree, the code wins and the page is a bug.
   `…` is the one intentional non-ASCII character.
 - Path aliases: `$lib`, `$components`, `$stores`, `$types`, `$utils`, `$server`.
 - Domain vocabulary kept as identifiers: `nom`/`prenom` (DB columns and the
-  `Person` shape), `parrain`/`fillot` (godparent/godchild), `promo` (graduation
-  year, stored as `people.level`), `fiche` (a `people` record).
+  `Person` shape), `parrain`/`fillot` (godparent/godchild), `promo` (the
+  promotion = year of entry, stored as `people.level`), `fiche` (a `people`
+  record).

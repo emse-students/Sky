@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ShieldAlert } from "lucide-svelte";
+  import { ShieldAlert } from "@lucide/svelte";
   import { m } from "$lib/paraglide/messages";
   import Seo from "$components/Seo.svelte";
 </script>

@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import { checkPromoPair, MAX_PROMO_GAP } from "./promo";
+import { Database } from "bun:sqlite";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -19,9 +20,9 @@ const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
 
 export { DB_PATH };
 
-let db: Database.Database | null = null;
+let db: Database | null = null;
 
-function initializeSchema(database: Database.Database): void {
+function initializeSchema(database: Database): void {
   try {
     // Check if schema exists
     const tableCheck = database
@@ -33,57 +34,18 @@ function initializeSchema(database: Database.Database): void {
     if (!tableCheck) {
       console.debug("[Database] Initializing schema...");
 
-      // Try to read schema file
-      if (fs.existsSync(SCHEMA_PATH)) {
-        const schema = fs.readFileSync(SCHEMA_PATH, "utf-8");
-        database.exec(schema);
-        console.debug("[Database] Schema initialized from schema.sql");
-      } else {
-        // Fallback to inline schema if file not found
-        console.debug("[Database] schema.sql not found, using inline schema");
-        database.exec(`
-					PRAGMA foreign_keys = ON;
-					
-					CREATE TABLE IF NOT EXISTS people (
-						id TEXT PRIMARY KEY,
-						first_name TEXT NOT NULL,
-						last_name TEXT NOT NULL,
-						level INTEGER,
-						image_url TEXT,
-						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-						updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-						UNIQUE(id)
-					);
-					
-					CREATE INDEX IF NOT EXISTS idx_people_level ON people(level);
-					CREATE INDEX IF NOT EXISTS idx_people_last_name ON people(last_name);
-					CREATE INDEX IF NOT EXISTS idx_people_first_name ON people(first_name);
-					
-					CREATE TABLE IF NOT EXISTS relationships (
-						id INTEGER PRIMARY KEY AUTOINCREMENT,
-						source_id TEXT NOT NULL,
-						target_id TEXT NOT NULL,
-						type TEXT NOT NULL DEFAULT 'parrainage',
-						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-						FOREIGN KEY (source_id) REFERENCES people(id) ON DELETE CASCADE,
-						FOREIGN KEY (target_id) REFERENCES people(id) ON DELETE CASCADE,
-						UNIQUE(source_id, target_id, type)
-					);
-					
-					CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
-					CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
-					CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(type);
-					
-					CREATE TABLE IF NOT EXISTS metadata (
-						key TEXT PRIMARY KEY,
-						value TEXT,
-						updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-					);
-					
-					INSERT OR REPLACE INTO metadata (key, value) VALUES ('schema_version', '3.0');
-				`);
-        console.debug("[Database] Schema initialized with inline fallback");
+      // schema.sql is the ONE schema. An inline copy lived here as a fallback and had
+      // silently DIVERGED - it never carried the `bio` column schema.sql declared - so a
+      // broken image produced a database missing columns the code queries, announced by
+      // nothing louder than a debug line. A missing schema is a broken build, not a case
+      // to recover from.
+      if (!fs.existsSync(SCHEMA_PATH)) {
+        throw new Error(
+          `[Database] schema.sql not found at ${SCHEMA_PATH}; refusing to create a database from an unknown schema`,
+        );
       }
+      database.exec(fs.readFileSync(SCHEMA_PATH, "utf-8"));
+      console.debug("[Database] Schema initialized from schema.sql");
     }
   } catch (error) {
     console.error("[Database] Failed to initialize schema:", error);
@@ -91,7 +53,26 @@ function initializeSchema(database: Database.Database): void {
   }
 }
 
-export function getDatabase(): Database.Database {
+/**
+ * Drop the process-wide handle so the next `getDatabase()` reopens the file.
+ *
+ * Needed by the admin import, which REPLACES `sky.db` on disk: an open handle
+ * keeps pointing at the old inode, so every later query would answer from the
+ * database the admin just replaced, with nothing to show for it.
+ */
+export function closeDatabase(): void {
+  if (db) {
+    console.debug("[Database] Closing the handle on", DB_PATH);
+    db.close();
+    db = null;
+  }
+  if (legacyDb) {
+    legacyDb.close();
+    legacyDb = null;
+  }
+}
+
+export function getDatabase(): Database {
   if (!db) {
     // Ensure database directory exists
     const dbDir = path.dirname(DB_PATH);
@@ -100,7 +81,7 @@ export function getDatabase(): Database.Database {
     }
 
     db = new Database(DB_PATH);
-    db.pragma("foreign_keys = ON");
+    db.exec("PRAGMA foreign_keys = ON");
 
     // Initialize schema if needed
     initializeSchema(db);
@@ -127,55 +108,37 @@ export interface PersonRow {
   first_name: string;
   last_name: string;
   level: number | null;
-  image_url: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export function getAllPeople(): Person[] {
   const database = getDatabase();
-  // Use SELECT * from people to avoid crashing if 'bio' column is missing (migration failed)
   const stmt = database.prepare(`
-		SELECT *
+		SELECT id, first_name, last_name, level
 		FROM people
 		ORDER BY last_name, first_name
 	`);
 
-  const rows = stmt.all() as (PersonRow & { bio?: string })[];
+  const rows = stmt.all() as PersonRow[];
 
-  return rows.map((row) => {
-    const person: Person = {
-      id: row.id,
-      level: row.level,
-      bio: row.bio || undefined,
-      image: row.image_url || undefined,
-      prenom: row.first_name,
-      nom: row.last_name,
-    };
-
-    // Get external links
-    const linksStmt = database.prepare(
-      "SELECT type, url FROM external_links WHERE person_id = ? ORDER BY display_order",
-    );
-    const links = linksStmt.all(row.id) as { type: string; url: string }[];
-    if (links.length > 0) {
-      person.links = Object.fromEntries(links.map((l) => [l.type, l.url]));
-    }
-
-    return person;
-  });
+  return rows.map((row) => ({
+    id: row.id,
+    level: row.level,
+    prenom: row.first_name,
+    nom: row.last_name,
+  }));
 }
 
 export function getPersonById(id: string): Person | null {
   const database = getDatabase();
-  // Use SELECT * to avoid crash if bio column missing
   const stmt = database.prepare(`
-		SELECT *
+		SELECT id, first_name, last_name, level
 		FROM people
 		WHERE id = ?
 	`);
 
-  const row = stmt.get(id) as (PersonRow & { bio?: string }) | undefined;
+  const row = stmt.get(id) as PersonRow | null;
   if (!row) {
     return null;
   }
@@ -183,20 +146,9 @@ export function getPersonById(id: string): Person | null {
   const person: Person = {
     id: row.id,
     level: row.level,
-    bio: row.bio || undefined,
-    image: row.image_url || undefined,
     prenom: row.first_name,
     nom: row.last_name,
   };
-
-  // Get external links
-  const linksStmt = database.prepare(
-    "SELECT type, url FROM external_links WHERE person_id = ? ORDER BY display_order",
-  );
-  const links = linksStmt.all(row.id) as { type: string; url: string }[];
-  if (links.length > 0) {
-    person.links = Object.fromEntries(links.map((l) => [l.type, l.url]));
-  }
 
   return person;
 }
@@ -258,29 +210,11 @@ export function createPerson(
       .replace(/[^a-z0-9.]/g, "");
 
   const stmt = database.prepare(`
-		INSERT INTO people (id, first_name, last_name, level, bio, image_url)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO people (id, first_name, last_name, level)
+		VALUES (?, ?, ?, ?)
 	`);
 
-  stmt.run(
-    id,
-    person.prenom,
-    person.nom,
-    person.level || null,
-    person.bio || null,
-    person.image || "default.jpg",
-  );
-
-  // Insert links
-  if (person.links) {
-    const linkStmt = database.prepare(`
-			INSERT INTO external_links (person_id, type, url)
-			VALUES (?, ?, ?)
-		`);
-    for (const [type, url] of Object.entries(person.links)) {
-      linkStmt.run(id, type, url);
-    }
-  }
+  stmt.run(id, person.prenom, person.nom, person.level || null);
 
   return id;
 }
@@ -294,8 +228,6 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
 			first_name = COALESCE(?, first_name),
 			last_name = COALESCE(?, last_name),
 			level = COALESCE(?, level),
-			bio = COALESCE(?, bio),
-			image_url = COALESCE(?, image_url),
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`);
@@ -304,31 +236,8 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
     updates.prenom || null,
     updates.nom || null,
     updates.level || null,
-    updates.bio || null,
-    updates.image || null,
     id,
   );
-
-  // Update links if provided
-  if (updates.links !== undefined) {
-    database.prepare("DELETE FROM external_links WHERE person_id = ?").run(id);
-    if (Object.keys(updates.links).length > 0) {
-      const linkStmt = database.prepare(`
-				INSERT INTO external_links (person_id, type, url)
-				VALUES (?, ?, ?)
-			`);
-      for (const [type, url] of Object.entries(updates.links)) {
-        try {
-          linkStmt.run(id, type, url);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.warn(
-            `[Database] Failed to insert link '${type}': ${url} for user ${id}. Error: ${message}`,
-          );
-        }
-      }
-    }
-  }
 
   return result.changes > 0;
 }
@@ -400,28 +309,10 @@ export function mergePeople(
       }
     }
 
-    // 3. Move external links
-    const links = database
-      .prepare("SELECT id, url FROM external_links WHERE person_id = ?")
-      .all(sourceId) as { id: number; url: string }[];
-
-    for (const link of links) {
-      try {
-        database
-          .prepare("UPDATE external_links SET person_id = ? WHERE id = ?")
-          .run(targetId, link.id);
-      } catch {
-        // Duplicate url for target
-        database
-          .prepare("DELETE FROM external_links WHERE id = ?")
-          .run(link.id);
-      }
-    }
-
-    // 4. Delete the source person
+    // 3. Delete the source person
     database.prepare("DELETE FROM people WHERE id = ?").run(sourceId);
 
-    // 5. Apply the chosen identity to the survivor (only when resolving a
+    // 4. Apply the chosen identity to the survivor (only when resolving a
     // conflict). Re-format to keep the "NOM"/"Prenom" display convention.
     if (survivorIdentity) {
       database
@@ -465,7 +356,6 @@ export interface SessionPerson {
   prenom: string;
   nom: string;
   level: number | null;
-  image: string | null;
   auth_sub: string | null;
   email: string | null;
   formation: string | null;
@@ -477,7 +367,7 @@ export function getPersonIdByAuthSub(authSub: string): string | null {
   const database = getDatabase();
   const row = database
     .prepare("SELECT id FROM people WHERE auth_sub = ?")
-    .get(authSub) as { id: string } | undefined;
+    .get(authSub) as { id: string } | null;
   return row?.id ?? null;
 }
 
@@ -583,9 +473,11 @@ export function getLinkCandidates(
 }
 
 /**
- * True if the SSO promo (entry year) matches the record. The stored `level` is
- * the GRADUATION year; an ICM entering in `promo` graduates in `promo + 3`.
- * Strict equality is also tolerated (data entered as the entry year).
+ * True if the SSO promo matches the record. `level` IS the promotion, i.e. the
+ * year of ENTRY: every SSO login overwrites it with the `promo` claim, so on a
+ * linked record the two are the same number. The `promo + 3` tolerance exists
+ * only for legacy hand-entered records that carry the graduation year instead
+ * (an ICM entering in `promo` graduates in `promo + 3`).
  */
 function promoMatches(level: number | null, promo: number | null): boolean {
   if (level === null || promo === null) {
@@ -666,15 +558,14 @@ export function createAuthedPerson(identity: OidcIdentity): string {
   database
     .prepare(
       `INSERT INTO people
-        (id, first_name, last_name, level, image_url, auth_sub, email, formation, role, last_login)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, first_name, last_name, level, auth_sub, email, formation, role, last_login)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       identity.sub,
       identity.firstName,
       identity.lastName,
       identity.level,
-      "default.jpg",
       identity.sub,
       identity.email,
       identity.formation,
@@ -746,7 +637,7 @@ export function getPersonAuthSub(id: string): string | null {
   const database = getDatabase();
   const row = database
     .prepare("SELECT auth_sub FROM people WHERE id = ?")
-    .get(id) as { auth_sub: string | null } | undefined;
+    .get(id) as { auth_sub: string | null } | null;
   return row?.auth_sub ?? null;
 }
 
@@ -758,7 +649,7 @@ export function getPersonAuthSub(id: string): string | null {
 export function getPersonRoleByAuthSub(authSub: string): string | null {
   const row = getDatabase()
     .prepare("SELECT role FROM people WHERE auth_sub = ?")
-    .get(authSub) as { role: string } | undefined;
+    .get(authSub) as { role: string } | null;
   return row?.role ?? null;
 }
 
@@ -829,13 +720,13 @@ export function relinkSelf(
           formation: string | null;
           role: string;
         }
-      | undefined;
+      | null;
     if (!current || current.auth_sub === null) {
       return false;
     }
     const target = database
       .prepare("SELECT auth_sub FROM people WHERE id = ?")
-      .get(targetId) as { auth_sub: string | null } | undefined;
+      .get(targetId) as { auth_sub: string | null } | null;
     if (!target || target.auth_sub !== null) {
       return false;
     }
@@ -972,7 +863,7 @@ export function getSessionPerson(token: string): SessionPerson | null {
   const database = getDatabase();
   const row = database
     .prepare(
-      `SELECT p.id, p.first_name, p.last_name, p.level, p.image_url,
+      `SELECT p.id, p.first_name, p.last_name, p.level,
               p.auth_sub, p.email, p.formation, p.role
        FROM sessions s
        JOIN people p ON p.id = s.person_id
@@ -984,13 +875,12 @@ export function getSessionPerson(token: string): SessionPerson | null {
         first_name: string;
         last_name: string;
         level: number | null;
-        image_url: string | null;
         auth_sub: string | null;
         email: string | null;
         formation: string | null;
         role: string;
       }
-    | undefined;
+    | null;
   if (!row) {
     return null;
   }
@@ -999,7 +889,6 @@ export function getSessionPerson(token: string): SessionPerson | null {
     prenom: row.first_name,
     nom: row.last_name,
     level: row.level,
-    image: row.image_url,
     auth_sub: row.auth_sub,
     email: row.email,
     formation: row.formation,
@@ -1071,7 +960,7 @@ export function getPendingLink(token: string): OidcIdentity | null {
         formation: string | null;
         role: string;
       }
-    | undefined;
+    | null;
   if (!row) {
     return null;
   }
@@ -1123,7 +1012,7 @@ export function generatePersonId(
 ): string {
   const database = getDatabase();
   const exists = (id: string): boolean =>
-    database.prepare("SELECT 1 FROM people WHERE id = ?").get(id) !== undefined;
+    database.prepare("SELECT 1 FROM people WHERE id = ?").get(id) != null;
 
   const base =
     `${slugPart(firstName)}.${slugPart(lastName)}`.replace(/^\.|\.$/g, "") ||
@@ -1147,7 +1036,7 @@ export function generatePersonId(
 // ============================================
 
 const LEGACY_DB_PATH = path.join(process.cwd(), "database", "sky-legacy.db");
-let legacyDb: Database.Database | null = null;
+let legacyDb: Database | null = null;
 
 /** True if the legacy snapshot (frozen old database) exists. */
 export function legacyExists(): boolean {
@@ -1155,7 +1044,7 @@ export function legacyExists(): boolean {
 }
 
 /** Lazily open the legacy database read-only, else null. */
-function getLegacyDatabase(): Database.Database | null {
+function getLegacyDatabase(): Database | null {
   if (!legacyExists()) {
     return null;
   }
@@ -1340,51 +1229,6 @@ export const MAX_FILLOTS: Record<RelationKind, number> = {
   adoption: 2,
 };
 
-/**
- * Earliest valid promotion year: the school (Ecole des Mines de Saint-Etienne)
- * was founded in 1816, so no promotion can predate it. Used to reject typos at
- * creation time.
- */
-export const MIN_PROMO = 1816;
-
-/**
- * Maximum promotion-year gap between a godparent and their godchild. A godchild
- * is always a strictly more recent promotion, at most this many years apart.
- */
-export const MAX_PROMO_GAP = 3;
-
-/**
- * True if a promotion year is acceptable as user input: either unknown (null) or
- * an integer not before the school's founding year ({@link MIN_PROMO}). The
- * required-ness of the field is enforced separately by the callers.
- */
-export function isValidPromo(level: number | null): boolean {
-  return level === null || (Number.isInteger(level) && level >= MIN_PROMO);
-}
-
-/**
- * Validate the promotions of a would-be godparent/godchild pair. Returns the
- * violated rule's code, or null when the pair is acceptable: both promos must be
- * known, the godchild ({@link fillotLevel}) must be a strictly more recent
- * promotion than the godparent ({@link parrainLevel}), and they must be at most
- * {@link MAX_PROMO_GAP} years apart. Applies to both link kinds.
- */
-export function checkPromoPair(
-  parrainLevel: number | null,
-  fillotLevel: number | null,
-): "PROMO_UNKNOWN" | "PROMO_ORDER" | "PROMO_GAP" | null {
-  if (parrainLevel === null || fillotLevel === null) {
-    return "PROMO_UNKNOWN";
-  }
-  if (fillotLevel <= parrainLevel) {
-    return "PROMO_ORDER";
-  }
-  if (fillotLevel - parrainLevel > MAX_PROMO_GAP) {
-    return "PROMO_GAP";
-  }
-  return null;
-}
-
 /** Machine code for a godparent-rule violation. */
 export type RelationErrorCode =
   | "INVALID_KIND"
@@ -1438,23 +1282,22 @@ function edgeExists(sourceId: string, targetId: string): boolean {
       .prepare(
         "SELECT 1 FROM relationships WHERE source_id = ? AND target_id = ?",
       )
-      .get(sourceId, targetId) !== undefined
+      .get(sourceId, targetId) != null
   );
 }
 
 /** True if a record exists. */
 function personExists(id: string): boolean {
   return (
-    getDatabase().prepare("SELECT 1 FROM people WHERE id = ?").get(id) !==
-    undefined
+    getDatabase().prepare("SELECT 1 FROM people WHERE id = ?").get(id) != null
   );
 }
 
-/** Promotion (graduation year) of a record, or null if unknown or absent. */
+/** Promotion (year of entry) of a record, or null if unknown or absent. */
 function personLevel(id: string): number | null {
   const row = getDatabase()
     .prepare("SELECT level FROM people WHERE id = ?")
-    .get(id) as { level: number | null } | undefined;
+    .get(id) as { level: number | null } | null;
   return row ? row.level : null;
 }
 
@@ -1569,7 +1412,7 @@ export function getRelationshipById(id: number): {
     )
     .get(id) as
     | { id: number; source_id: string; target_id: string; type: string }
-    | undefined;
+    | null;
   return row ?? null;
 }
 
@@ -1668,7 +1511,7 @@ export function areDirectlyRelated(aId: string, bId: string): boolean {
        LIMIT 1`,
     )
     .get(aId, bId, bId, aId);
-  return row !== undefined;
+  return row != null;
 }
 
 /**
@@ -1747,14 +1590,13 @@ export function deletePlaceholderPerson(id: string): boolean {
   return database.transaction(() => {
     const row = database
       .prepare("SELECT auth_sub FROM people WHERE id = ?")
-      .get(id) as { auth_sub: string | null } | undefined;
+      .get(id) as { auth_sub: string | null } | null;
     if (!row || row.auth_sub !== null) {
       return false;
     }
     database
       .prepare("DELETE FROM relationships WHERE source_id = ? OR target_id = ?")
       .run(id, id);
-    database.prepare("DELETE FROM external_links WHERE person_id = ?").run(id);
     database.prepare("DELETE FROM people WHERE id = ?").run(id);
     return true;
   })();
@@ -1853,7 +1695,8 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
         continue;
       }
       // Promo compatibility: equal, unknown on one side, or within a small year
-      // tolerance (data-entry slip + the 3-year entry/graduation offset).
+      // tolerance (a data-entry slip, or a legacy record carrying the graduation
+      // year instead of the entry year the promotion actually is).
       if (
         A.level !== null &&
         B.level !== null &&
@@ -1938,7 +1781,7 @@ export function getEntourageBySub(sub: string): ExternalEntourage {
   const database = getDatabase();
   const person = database
     .prepare("SELECT id FROM people WHERE auth_sub = ?")
-    .get(sub) as { id: string } | undefined;
+    .get(sub) as { id: string } | null;
   if (!person) {
     return { found: false, parrains: [], fillots: [] };
   }
@@ -2023,10 +1866,10 @@ export function createPlaceholderPerson(
   console.debug(`[Entourage] createPlaceholderPerson id=${id} by=${createdBy}`);
   getDatabase()
     .prepare(
-      `INSERT INTO people (id, first_name, last_name, level, image_url, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO people (id, first_name, last_name, level, created_by)
+       VALUES (?, ?, ?, ?, ?)`,
     )
-    .run(id, prenom, nom, level, "default.jpg", createdBy);
+    .run(id, prenom, nom, level, createdBy);
   return id;
 }
 

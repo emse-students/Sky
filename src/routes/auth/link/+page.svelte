@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { enhance } from "$app/forms";
-  import { Star, UserPlus } from "lucide-svelte";
+  import { Star, UserPlus } from "@lucide/svelte";
   import { m } from "$lib/paraglide/messages";
 
   let { data, form } = $props();
