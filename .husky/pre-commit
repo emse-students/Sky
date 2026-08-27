@@ -1,1 +1,4 @@
-bun run lint && bun run check
+# `format:check`, not just `lint && check`: ci-bun.yml gates the formatter too, and a hook that
+# runs a subset of CI hands you a commit that fails after you push. Checking, never writing - a
+# hook that rewrites staged files hands you a commit you have not read.
+bun run lint && bun run check && bun run format:check
