@@ -108,5 +108,12 @@ meet after pushing. The lockfile is committed and CI installs `--frozen-lockfile
 
 **The lockfile stays at `lockfileVersion: 1`** - Dependabot cannot read v2, and bun 1.4.0 writes v2
 for any lockfile it creates from scratch, with no flag to ask for v1. `bun install` and `bun update`
-preserve the version they find, so never delete this file to "refresh" it. Its `configVersion: 0` is
-the same story and stays for the same reason.
+preserve the version they find, so a plain `bun install` can never break this.
+
+**If it must be regenerated, regenerate it with `bunx --bun bun@1.3.14 install`**, never by deleting
+it and running the local bun. 1.3.14 is the version Dependabot itself bundles
+(`MAX_SUPPORTED_LOCKFILE_VERSION` 1) and it writes `lockfileVersion: 1` with `configVersion: 1`;
+bun 1.4.0 then accepts the result under `--frozen-lockfile` with no changes. That is how
+`configVersion` was moved from 0 to 1 here, after an earlier pass wrongly recorded it as unmovable.
+A regeneration RE-RESOLVES the whole tree - this one shifted 209 lines - so run every gate against
+the result (`check`, `lint`, `format:check`, `test`, `build`) before committing it.
