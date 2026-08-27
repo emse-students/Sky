@@ -32,9 +32,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      # No NODE_OPTIONS heap bump: that existed for eslint, and `lint` is oxlint + oxvelte,
+      # two Rust binaries. The flag would only raise a limit nothing here reaches.
       - name: Lint code
-        env:
-          NODE_OPTIONS: '--max-old-space-size=16384'
         run: bun run lint
 
       # `format` is in package.json and was in nobody's pipeline, so three files drifted out of
