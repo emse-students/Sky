@@ -92,9 +92,21 @@ bun run dev        # http://localhost:5173
 Verification (matches CI and the pre-commit hook):
 
 ```bash
-bun run check      # paraglide:compile + svelte-kit sync + svelte-check (0 errors, 0 warnings)
-bun run lint       # eslint on src/lib and src/routes
+bun run check         # paraglide:compile + svelte-kit sync + svelte-check (0 errors)
+bun run lint          # oxlint over the whole package, then oxvelte over src
+bun run format:check  # oxfmt - there is no prettier here and no prettier config
 ```
 
-The Husky pre-commit hook runs `lint && check` only (no Prettier), so keep both
-green. The lockfile is committed and CI installs `--frozen`.
+There is no eslint and no prettier in this repository: `lint` is oxlint plus oxvelte, two Rust
+binaries, and `format` is oxfmt. oxvelte is built from a PINNED revision by
+`scripts/run-oxvelte.sh`, which every caller goes through, so a workstation and CI lint with the
+same binary or with neither.
+
+The Husky pre-commit hook runs all three. It used to run `lint && check` only, which let a commit
+through that `ci-bun.yml` then rejected on formatting - the gate a hook does not run is a gate you
+meet after pushing. The lockfile is committed and CI installs `--frozen-lockfile`.
+
+**The lockfile stays at `lockfileVersion: 1`** - Dependabot cannot read v2, and bun 1.4.0 writes v2
+for any lockfile it creates from scratch, with no flag to ask for v1. `bun install` and `bun update`
+preserve the version they find, so never delete this file to "refresh" it. Its `configVersion: 0` is
+the same story and stays for the same reason.

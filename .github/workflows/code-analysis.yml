@@ -55,24 +55,12 @@ jobs:
           path: ./
           extra_args: --debug --only-verified
 
-  eslint-security:
-    name: ESLint Security Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run ESLint
-        run: bun run lint
-        continue-on-error: true
+  # There is no lint job here. The one that used to sit at this spot was named "ESLint Security
+  # Check" for a tool this repository no longer has, ran the same `bun run lint` that ci-bun.yml
+  # already runs, and carried `continue-on-error: true` - so it re-linted the same code and threw
+  # the verdict away. It also set `bun-version: latest`, two lines below a comment in ci-bun.yml
+  # explaining why nothing here may do that. Removing it removes a duplicate, a lie in a job name
+  # and the only unpinned toolchain in this repository at once. Lint is gated in ci-bun.yml.
 
   code-quality:
     name: Code Quality Analysis
