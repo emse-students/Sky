@@ -13,9 +13,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${SKY_HOST_PORT:-3001}:3001"
+      - '${SKY_HOST_PORT:-3001}:3001'
     environment:
-      PORT: "3001"
+      PORT: '3001'
       NODE_ENV: production
       # The public URL, exactly as a visitor types it. Without it adapter-node
       # derives the origin from the Host header, which gives the right name but

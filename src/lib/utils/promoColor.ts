@@ -21,15 +21,13 @@ const SATURATION = 85;
 const LIGHT_MIN = 42;
 const LIGHT_MAX = 72;
 // Neutral desaturated tint for nodes whose promo is unknown.
-const UNKNOWN_COLOR = "hsl(217, 12%, 55%)";
+const UNKNOWN_COLOR = 'hsl(217, 12%, 55%)';
 
 /**
  * Compute the inclusive promo bounds over the displayed promo values.
  * Returns null when no value is known (nothing to scale against).
  */
-export function computePromoBounds(
-  promos: readonly (number | null)[],
-): PromoBounds | null {
+export function computePromoBounds(promos: readonly (number | null)[]): PromoBounds | null {
   let min = Infinity;
   let max = -Infinity;
   for (const promo of promos) {
@@ -50,10 +48,7 @@ export function computePromoBounds(
  * Map a promo year to a node color within the current graph bounds.
  * Lighter = more recent. Unknown promo (or missing bounds) -> neutral tint.
  */
-export function promoColor(
-  promo: number | null,
-  bounds: PromoBounds | null,
-): string {
+export function promoColor(promo: number | null, bounds: PromoBounds | null): string {
   if (promo === null || bounds === null) {
     return UNKNOWN_COLOR;
   }

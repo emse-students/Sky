@@ -1,13 +1,13 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import {
   getPersonById,
   getEntourage,
   isSameFamily,
   MAX_PARRAINS,
   MAX_FILLOTS,
-} from "$lib/server/database";
-import { m } from "$lib/paraglide/messages";
+} from '$lib/server/database';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Direct entourage of a person (incoming parrains, outgoing fillots) for the
@@ -16,7 +16,7 @@ import { m } from "$lib/paraglide/messages";
  * whether the requester may edit this tree (admin, or same parrainage family).
  */
 export const GET: RequestHandler = ({ url, locals }) => {
-  const id = url.searchParams.get("id") ?? locals.user?.profile_id ?? null;
+  const id = url.searchParams.get('id') ?? locals.user?.profile_id ?? null;
   if (!id) {
     return json({ error: m.api_no_target_person() }, { status: 400 });
   }
@@ -28,9 +28,7 @@ export const GET: RequestHandler = ({ url, locals }) => {
 
   const user = locals.user;
   const canEdit =
-    !!user &&
-    (user.role === "admin" ||
-      (!!user.profile_id && isSameFamily(user.profile_id, id)));
+    !!user && (user.role === 'admin' || (!!user.profile_id && isSameFamily(user.profile_id, id)));
 
   const { parrains, fillots } = getEntourage(id);
   return json({

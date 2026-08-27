@@ -1,7 +1,7 @@
-import { writable } from "svelte/store";
+import { writable } from 'svelte/store';
 
 /** Whether the dialog asks for a yes/no choice or is acknowledge-only. */
-export type DialogKind = "confirm" | "alert";
+export type DialogKind = 'confirm' | 'alert';
 
 /** Optional labels and styling for a dialog helper. */
 export interface DialogOptions {
@@ -31,13 +31,10 @@ export const activeDialog = writable<DialogRequest | null>(null);
  * replacement for the native `confirm()` so every prompt stays inside the app
  * window instead of a browser dialog.
  */
-export function confirmDialog(
-  message: string,
-  options: DialogOptions = {},
-): Promise<boolean> {
-  console.debug("[Dialog] confirm:", message);
+export function confirmDialog(message: string, options: DialogOptions = {}): Promise<boolean> {
+  console.debug('[Dialog] confirm:', message);
   return new Promise((resolve) => {
-    activeDialog.set({ kind: "confirm", message, ...options, resolve });
+    activeDialog.set({ kind: 'confirm', message, ...options, resolve });
   });
 }
 
@@ -45,14 +42,11 @@ export function confirmDialog(
  * Show an in-app alert modal with a single acknowledge button. Drop-in
  * replacement for the native `alert()`; resolves once dismissed.
  */
-export function alertDialog(
-  message: string,
-  options: DialogOptions = {},
-): Promise<void> {
-  console.debug("[Dialog] alert:", message);
+export function alertDialog(message: string, options: DialogOptions = {}): Promise<void> {
+  console.debug('[Dialog] alert:', message);
   return new Promise((resolve) => {
     activeDialog.set({
-      kind: "alert",
+      kind: 'alert',
       message,
       ...options,
       resolve: () => resolve(),

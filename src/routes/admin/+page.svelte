@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import {
     Users,
     Link2,
@@ -12,15 +12,12 @@
     ChevronRight,
     RefreshCw,
     GitMerge,
-  } from "@lucide/svelte";
-  import { confirmDialog } from "$lib/stores/dialogStore";
-  import { m } from "$lib/paraglide/messages";
-  import { formatPromoShort } from "$lib/utils/format";
-  import {
-    identityMatches,
-    type MergeIdentity,
-  } from "$lib/utils/mergeIdentity";
-  import MergeResolveModal from "$lib/components/MergeResolveModal.svelte";
+  } from '@lucide/svelte';
+  import { confirmDialog } from '$lib/stores/dialogStore';
+  import { m } from '$lib/paraglide/messages';
+  import { formatPromoShort } from '$lib/utils/format';
+  import { identityMatches, type MergeIdentity } from '$lib/utils/mergeIdentity';
+  import MergeResolveModal from '$lib/components/MergeResolveModal.svelte';
 
   type SuggPerson = {
     id: string;
@@ -32,8 +29,8 @@
   type Suggestion = { a: SuggPerson; b: SuggPerson; distance: number };
 
   let stats = $state({ people: 0, relationships: 0 });
-  let message = $state("");
-  let messageType: "success" | "error" | "" = $state("");
+  let message = $state('');
+  let messageType: 'success' | 'error' | '' = $state('');
   let busy = $state(false);
   let suggestions = $state<Suggestion[]>([]);
   let suggBusy = $state(false);
@@ -41,7 +38,7 @@
   let pendingMerge = $state<Suggestion | null>(null);
 
   let user = $derived($page.data.user);
-  let isAdmin = $derived(user?.role === "admin");
+  let isAdmin = $derived(user?.role === 'admin');
 
   onMount(() => {
     if (isAdmin) {
@@ -53,13 +50,13 @@
   /** Load the near-duplicate merge suggestions. */
   async function loadSuggestions() {
     try {
-      const res = await fetch("/api/admin/merge/suggestions");
+      const res = await fetch('/api/admin/merge/suggestions');
       if (res.ok) {
         const d = await res.json();
         suggestions = d.suggestions ?? [];
       }
     } catch (e) {
-      console.error("[Admin] suggestions error", e);
+      console.error('[Admin] suggestions error', e);
     }
   }
 
@@ -80,9 +77,9 @@
   async function submitMerge(s: Suggestion, resolution?: MergeIdentity) {
     suggBusy = true;
     try {
-      const res = await fetch("/api/admin/merge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/admin/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sourceId: s.a.id,
           targetId: s.b.id,
@@ -93,7 +90,7 @@
         await Promise.all([loadSuggestions(), loadStats()]);
       } else {
         const d = await res.json().catch(() => ({}));
-        flash(d.error || m.admin_merge_failed(), "error");
+        flash(d.error || m.admin_merge_failed(), 'error');
       }
     } finally {
       suggBusy = false;
@@ -104,15 +101,13 @@
   async function ignorePair(s: Suggestion) {
     suggBusy = true;
     try {
-      const res = await fetch("/api/admin/merge/suggestions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/admin/merge/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ aId: s.a.id, bId: s.b.id }),
       });
       if (res.ok) {
-        suggestions = suggestions.filter(
-          (x) => !(x.a.id === s.a.id && x.b.id === s.b.id),
-        );
+        suggestions = suggestions.filter((x) => !(x.a.id === s.a.id && x.b.id === s.b.id));
       }
     } finally {
       suggBusy = false;
@@ -121,18 +116,13 @@
 
   /** Ignore every currently listed suggestion. */
   async function ignoreAll() {
-    if (
-      !(await confirmDialog(
-        m.admin_ignore_all_confirm({ count: suggestions.length }),
-      ))
-    )
-      return;
+    if (!(await confirmDialog(m.admin_ignore_all_confirm({ count: suggestions.length })))) return;
     suggBusy = true;
     try {
       for (const s of [...suggestions]) {
-        await fetch("/api/admin/merge/suggestions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        await fetch('/api/admin/merge/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ aId: s.a.id, bId: s.b.id }),
         });
       }
@@ -144,19 +134,15 @@
 
   /** Merge every currently listed pair (skips ones that became invalid). */
   async function mergeAll() {
-    if (
-      !(await confirmDialog(
-        m.admin_merge_all_confirm({ count: suggestions.length }),
-      ))
-    ) {
+    if (!(await confirmDialog(m.admin_merge_all_confirm({ count: suggestions.length })))) {
       return;
     }
     suggBusy = true;
     try {
       for (const s of [...suggestions]) {
-        await fetch("/api/admin/merge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        await fetch('/api/admin/merge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sourceId: s.a.id, targetId: s.b.id }),
         }).catch(() => {});
       }
@@ -170,8 +156,8 @@
   async function loadStats() {
     try {
       const [peopleRes, relRes] = await Promise.all([
-        fetch("/api/admin/people"),
-        fetch("/api/relationships"),
+        fetch('/api/admin/people'),
+        fetch('/api/relationships'),
       ]);
       if (peopleRes.ok) {
         const people = await peopleRes.json();
@@ -182,31 +168,31 @@
         stats.relationships = Array.isArray(rels) ? rels.length : 0;
       }
     } catch (e) {
-      console.error("[Admin] stats error", e);
+      console.error('[Admin] stats error', e);
     }
   }
 
-  function flash(msg: string, type: "success" | "error") {
+  function flash(msg: string, type: 'success' | 'error') {
     message = msg;
     messageType = type;
-    setTimeout(() => (message = ""), 4000);
+    setTimeout(() => (message = ''), 4000);
   }
 
   async function exportDatabase() {
     busy = true;
     try {
-      const res = await fetch("/api/admin/export");
-      if (!res.ok) throw new Error("export");
+      const res = await fetch('/api/admin/export');
+      if (!res.ok) throw new Error('export');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
-      a.download = `sky-backup-${new Date().toISOString().split("T")[0]}.db`;
+      a.download = `sky-backup-${new Date().toISOString().split('T')[0]}.db`;
       a.click();
       URL.revokeObjectURL(url);
-      flash(m.admin_export_done(), "success");
+      flash(m.admin_export_done(), 'success');
     } catch {
-      flash(m.admin_export_failed(), "error");
+      flash(m.admin_export_failed(), 'error');
     } finally {
       busy = false;
     }
@@ -219,8 +205,8 @@
   async function recalcPositions() {
     busy = true;
     try {
-      const res = await fetch("/api/admin/positions/recalc", {
-        method: "POST",
+      const res = await fetch('/api/admin/positions/recalc', {
+        method: 'POST',
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -229,19 +215,19 @@
             positioned: data.positioned,
             total: data.total,
           }),
-          "success",
+          'success'
         );
       } else {
         flash(
           m.admin_positions_failed({
             error: data.error ?? m.admin_recalc_unknown_error(),
           }),
-          "error",
+          'error'
         );
       }
     } catch (e) {
-      flash(m.admin_positions_failed_generic(), "error");
-      console.error("[Admin] recalc positions error", e);
+      flash(m.admin_positions_failed_generic(), 'error');
+      console.error('[Admin] recalc positions error', e);
     } finally {
       busy = false;
     }
@@ -252,25 +238,25 @@
     const file = input.files?.[0];
     if (!file) return;
     if (!(await confirmDialog(m.admin_import_confirm(), { danger: true }))) {
-      input.value = "";
+      input.value = '';
       return;
     }
     busy = true;
     try {
       const formData = new FormData();
-      formData.append("database", file);
-      const res = await fetch("/api/admin/import", {
-        method: "POST",
+      formData.append('database', file);
+      const res = await fetch('/api/admin/import', {
+        method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error("import");
-      flash(m.admin_import_done(), "success");
+      if (!res.ok) throw new Error('import');
+      flash(m.admin_import_done(), 'success');
       setTimeout(() => window.location.reload(), 1200);
     } catch {
-      flash(m.admin_import_failed(), "error");
+      flash(m.admin_import_failed(), 'error');
     } finally {
       busy = false;
-      input.value = "";
+      input.value = '';
     }
   }
 </script>
@@ -304,15 +290,11 @@
             {m.admin_suggestions_title({ count: suggestions.length })}
           </h2>
           <div class="sugg-bulk">
-            <button
-              class="sugg-btn ignore"
-              disabled={suggBusy}
-              onclick={ignoreAll}>{m.admin_ignore_all()}</button
+            <button class="sugg-btn ignore" disabled={suggBusy} onclick={ignoreAll}
+              >{m.admin_ignore_all()}</button
             >
-            <button
-              class="sugg-btn merge"
-              disabled={suggBusy}
-              onclick={mergeAll}>{m.admin_merge_all()}</button
+            <button class="sugg-btn merge" disabled={suggBusy} onclick={mergeAll}
+              >{m.admin_merge_all()}</button
             >
           </div>
         </div>
@@ -320,7 +302,7 @@
           {m.admin_suggestions_sub()}
         </p>
         <ul class="sugg-list">
-          {#each suggestions as s (s.a.id + "|" + s.b.id)}
+          {#each suggestions as s (s.a.id + '|' + s.b.id)}
             <li class="sugg-item">
               <div class="sugg-pair">
                 <span class="sugg-name"
@@ -329,7 +311,7 @@
                   <small
                     >{formatPromoShort(s.a.level)}{s.a.linked
                       ? ` · ${m.admin_sugg_account()}`
-                      : ""}</small
+                      : ''}</small
                   ></span
                 >
                 <span class="sugg-vs">↔</span>
@@ -339,7 +321,7 @@
                   <small
                     >{formatPromoShort(s.b.level)}{s.b.linked
                       ? ` · ${m.admin_sugg_account()}`
-                      : ""}</small
+                      : ''}</small
                   ></span
                 >
                 <span class="sugg-dist"
@@ -349,16 +331,10 @@
                 >
               </div>
               <div class="sugg-actions">
-                <button
-                  class="sugg-btn ignore"
-                  disabled={suggBusy}
-                  onclick={() => ignorePair(s)}>{m.admin_ignore()}</button
+                <button class="sugg-btn ignore" disabled={suggBusy} onclick={() => ignorePair(s)}
+                  >{m.admin_ignore()}</button
                 >
-                <button
-                  class="sugg-btn merge"
-                  disabled={suggBusy}
-                  onclick={() => mergePair(s)}
-                >
+                <button class="sugg-btn merge" disabled={suggBusy} onclick={() => mergePair(s)}>
                   <GitMerge size={14} />
                   {m.admin_merge()}
                 </button>
@@ -373,7 +349,7 @@
       <MergeResolveModal
         a={pendingMerge.a}
         b={pendingMerge.b}
-        survivor={pendingMerge.a.linked ? "a" : "b"}
+        survivor={pendingMerge.a.linked ? 'a' : 'b'}
         onResolve={(identity) => {
           const s = pendingMerge;
           pendingMerge = null;
@@ -401,7 +377,7 @@
     </div>
 
     <!-- Main action -->
-    <button class="primary-card" onclick={() => goto("/admin/people")}>
+    <button class="primary-card" onclick={() => goto('/admin/people')}>
       <Users size={28} />
       <div class="pc-text">
         <span class="pc-title">{m.admin_manage_people()}</span>
@@ -416,9 +392,7 @@
       <div class="tool">
         <h3><Download size={18} /> {m.admin_export()}</h3>
         <p>{m.admin_export_desc()}</p>
-        <button class="btn" disabled={busy} onclick={exportDatabase}
-          >{m.admin_export()}</button
-        >
+        <button class="btn" disabled={busy} onclick={exportDatabase}>{m.admin_export()}</button>
       </div>
       <div class="tool">
         <h3><Upload size={18} /> {m.admin_import()}</h3>
@@ -437,16 +411,12 @@
       <div class="tool">
         <h3><Archive size={18} /> {m.admin_legacy()}</h3>
         <p>{m.admin_legacy_desc()}</p>
-        <button class="btn" onclick={() => goto("/admin/legacy")}
-          >{m.admin_consult()}</button
-        >
+        <button class="btn" onclick={() => goto('/admin/legacy')}>{m.admin_consult()}</button>
       </div>
       <div class="tool">
         <h3><RefreshCw size={18} /> {m.admin_positions()}</h3>
         <p>{m.admin_positions_desc()}</p>
-        <button class="btn" disabled={busy} onclick={recalcPositions}
-          >{m.admin_recalc()}</button
-        >
+        <button class="btn" disabled={busy} onclick={recalcPositions}>{m.admin_recalc()}</button>
       </div>
     </div>
   </div>

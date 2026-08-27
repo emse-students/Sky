@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { fade, fly } from "svelte/transition";
-  import { cubicOut } from "svelte/easing";
-  import { page } from "$app/stores";
-  import { graphStore, selectedPersonId, focusDepth } from "$stores/graphStore";
-  import { cameraStore } from "$stores/cameraStore";
-  import StarfieldCanvas from "$components/Canvas/StarfieldCanvas.svelte";
-  import GraphCanvas from "$components/Canvas/GraphCanvas.svelte";
-  import {
-    getPersonName,
-    getPersonInitials,
-    personMatchScore,
-  } from "$lib/utils/format";
+  import { onMount } from 'svelte';
+  import { fade, fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { page } from '$app/stores';
+  import { graphStore, selectedPersonId, focusDepth } from '$stores/graphStore';
+  import { cameraStore } from '$stores/cameraStore';
+  import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
+  import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
+  import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
     User,
@@ -24,16 +20,16 @@
     Database,
     Network,
     ExternalLink,
-  } from "@lucide/svelte";
-  import BioMarkdown from "$components/BioMarkdown.svelte";
-  import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
-  import Seo from "$components/Seo.svelte";
-  import { institutionNode, siteNode } from "$lib/seo";
-  import { m } from "$lib/paraglide/messages";
-  import type { CanariProfileResponse } from "$types/graph";
+  } from '@lucide/svelte';
+  import BioMarkdown from '$components/BioMarkdown.svelte';
+  import LocaleSwitcher from '$components/LocaleSwitcher.svelte';
+  import Seo from '$components/Seo.svelte';
+  import { institutionNode, siteNode } from '$lib/seo';
+  import { m } from '$lib/paraglide/messages';
+  import type { CanariProfileResponse } from '$types/graph';
 
   // UI State
-  let searchTerm = "";
+  let searchTerm = '';
   let isSearchActive = false;
   let searchResults: any[] = [];
   let isProfileModalOpen = false;
@@ -55,8 +51,7 @@
     m.home_loading_telescope(),
     m.home_loading_galaxy(),
   ];
-  let currentLoadingMessage =
-    loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+  let currentLoadingMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
 
   // Per-id flag set when an avatar fails to load, so we fall back to initials.
   let imageErrors: { [id: string]: boolean } = {};
@@ -99,15 +94,14 @@
       const r = await fetch(`/api/canari/${id}`);
       if (r.ok) canariProfile = await r.json();
     } catch (e) {
-      console.error("[Home] failed to load Canari profile:", e);
+      console.error('[Home] failed to load Canari profile:', e);
     }
   }
 
   onMount(() => {
     // Rotate the loading messages while the initial load runs.
     const messageInterval = setInterval(() => {
-      currentLoadingMessage =
-        loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+      currentLoadingMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
     }, 2000);
 
     // Brief initial-load splash before the graph is ready.
@@ -157,7 +151,7 @@
   function selectResult(person: any) {
     selectedPersonId.set(person.id);
     centerOnPerson(person.id);
-    searchTerm = "";
+    searchTerm = '';
     isSearchActive = false;
   }
 
@@ -170,19 +164,18 @@
 
   function closeProfile() {
     isProfileModalOpen = false;
-    const isMobile =
-      typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+    const isMobile = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     if (!isMobile) {
       selectedPersonId.set(null);
     }
   }
 
   function handleLogin() {
-    window.location.href = "/auth/login";
+    window.location.href = '/auth/login';
   }
 
   function handleLogout() {
-    window.location.href = "/auth/logout";
+    window.location.href = '/auth/logout';
   }
 
   function goToMyProfile() {
@@ -215,282 +208,273 @@
   <GraphCanvas />
 
   <nav class="nav-glass">
-  <div class="nav-content">
-    <a
-      href="/"
-      class="brand"
-      onclick={(e) => {
-        e.preventDefault();
-        resetView();
-      }}
-    >
-      <div class="logo-wrapper">
-        <img
-          src="/sky.png"
-          alt="Sky"
-          class="logo"
-          onerror={(e) => {
-            (e.currentTarget as HTMLElement).style.display = "none";
-          }}
-        />
-      </div>
-      <span class="brand-text">SKY</span>
-    </a>
-
-    <div class="search-container">
-      <div class="search-box" class:has-focus={isSearchActive}>
-        <Search size={18} class="search-icon" />
-        <input
-          type="text"
-          placeholder={m.home_search_placeholder()}
-          bind:value={searchTerm}
-          oninput={handleSearch}
-          onfocus={() => searchTerm && (isSearchActive = true)}
-          onblur={() => setTimeout(() => (isSearchActive = false), 200)}
-        />
-        {#if searchTerm}
-          <button
-            class="clear-search"
-            onclick={() => {
-              searchTerm = "";
-              handleSearch();
+    <div class="nav-content">
+      <a
+        href="/"
+        class="brand"
+        onclick={(e) => {
+          e.preventDefault();
+          resetView();
+        }}
+      >
+        <div class="logo-wrapper">
+          <img
+            src="/sky.png"
+            alt="Sky"
+            class="logo"
+            onerror={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
             }}
-          >
-            <X size={14} />
-          </button>
+          />
+        </div>
+        <span class="brand-text">SKY</span>
+      </a>
+
+      <div class="search-container">
+        <div class="search-box" class:has-focus={isSearchActive}>
+          <Search size={18} class="search-icon" />
+          <input
+            type="text"
+            placeholder={m.home_search_placeholder()}
+            bind:value={searchTerm}
+            oninput={handleSearch}
+            onfocus={() => searchTerm && (isSearchActive = true)}
+            onblur={() => setTimeout(() => (isSearchActive = false), 200)}
+          />
+          {#if searchTerm}
+            <button
+              class="clear-search"
+              onclick={() => {
+                searchTerm = '';
+                handleSearch();
+              }}
+            >
+              <X size={14} />
+            </button>
+          {/if}
+        </div>
+
+        {#if isSearchActive}
+          <div class="search-dropdown" transition:fly={{ y: 10, duration: 200 }}>
+            {#if searchResults.length > 0}
+              {#each searchResults as result}
+                <button class="search-item" onclick={() => selectResult(result)}>
+                  <div class="item-avatar">
+                    {#if imageErrors[result.id]}
+                      {getPersonInitials(result)}
+                    {:else}
+                      <img
+                        src={getAvatarUrl(result.id)}
+                        alt=""
+                        onerror={() => handleImageError(result.id)}
+                      />
+                    {/if}
+                  </div>
+                  <div class="item-meta">
+                    <span class="item-name">{getPersonName(result)}</span>
+                    <span class="item-sub">{m.common_promo({ level: result.level || '-' })}</span>
+                  </div>
+                </button>
+              {/each}
+            {:else}
+              <div class="search-empty">{m.home_search_empty()}</div>
+            {/if}
+          </div>
         {/if}
       </div>
 
-      {#if isSearchActive}
-        <div class="search-dropdown" transition:fly={{ y: 10, duration: 200 }}>
-          {#if searchResults.length > 0}
-            {#each searchResults as result}
-              <button class="search-item" onclick={() => selectResult(result)}>
-                <div class="item-avatar">
-                  {#if imageErrors[result.id]}
-                    {getPersonInitials(result)}
-                  {:else}
-                    <img
-                      src={getAvatarUrl(result.id)}
-                      alt=""
-                      onerror={() => handleImageError(result.id)}
-                    />
-                  {/if}
-                </div>
-                <div class="item-meta">
-                  <span class="item-name">{getPersonName(result)}</span>
-                  <span class="item-sub"
-                    >{m.common_promo({ level: result.level || "-" })}</span
-                  >
-                </div>
-              </button>
-            {/each}
-          {:else}
-            <div class="search-empty">{m.home_search_empty()}</div>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-    <div class="actions">
-      {#if !isAuthenticated}
-        <button class="login-trigger" onclick={handleLogin}>
-          {m.nav_login()}
-        </button>
-      {:else}
-        <div class="user-dropdown-container">
-          <button class="user-trigger">
-            <div class="user-avatar-small">
-              <img
-                src={getAvatarUrl(user?.profile_id || user?.id)}
-                alt=""
-                onerror={(e) => {
-                  (e.currentTarget as HTMLImageElement).src =
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "U")}&background=random`;
-                }}
-              />
-            </div>
-            <span class="user-label">
-              {user?.profile_id
-                ? peopleMap.get(user.profile_id)?.prenom || user.name
-                : user.name}
-            </span>
-            <ChevronDown size={14} class="chevron" />
+      <div class="actions">
+        {#if !isAuthenticated}
+          <button class="login-trigger" onclick={handleLogin}>
+            {m.nav_login()}
           </button>
-
-          <div class="dropdown-menu">
-            <button onclick={goToMyProfile} class="menu-item">
-              <User size={16} /> {m.nav_my_profile()}
+        {:else}
+          <div class="user-dropdown-container">
+            <button class="user-trigger">
+              <div class="user-avatar-small">
+                <img
+                  src={getAvatarUrl(user?.profile_id || user?.id)}
+                  alt=""
+                  onerror={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=random`;
+                  }}
+                />
+              </div>
+              <span class="user-label">
+                {user?.profile_id ? peopleMap.get(user.profile_id)?.prenom || user.name : user.name}
+              </span>
+              <ChevronDown size={14} class="chevron" />
             </button>
-            <a href="/tree" class="menu-item">
-              <Network size={16} /> {m.nav_my_tree()}
-            </a>
-            <a href="/account" class="menu-item">
-              <Link size={16} /> {m.nav_fix_link()}
-            </a>
-            {#if user?.role === "admin"}
+
+            <div class="dropdown-menu">
+              <button onclick={goToMyProfile} class="menu-item">
+                <User size={16} />
+                {m.nav_my_profile()}
+              </button>
+              <a href="/tree" class="menu-item">
+                <Network size={16} />
+                {m.nav_my_tree()}
+              </a>
+              <a href="/account" class="menu-item">
+                <Link size={16} />
+                {m.nav_fix_link()}
+              </a>
+              {#if user?.role === 'admin'}
+                <div class="menu-divider"></div>
+                <a href="/admin" class="menu-item">
+                  <Database size={16} />
+                  {m.nav_admin()}
+                </a>
+              {/if}
               <div class="menu-divider"></div>
-              <a href="/admin" class="menu-item">
-                <Database size={16} /> {m.nav_admin()}
+              <div class="menu-item locale-row">
+                <LocaleSwitcher />
+              </div>
+              <div class="menu-divider"></div>
+              <button onclick={handleLogout} class="menu-item logout">
+                <LogOut size={16} />
+                {m.nav_logout()}
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </nav>
+
+  {#if isLoading}
+    <div class="loader-overlay" transition:fade>
+      <div class="loader-content">
+        <LoaderCircle class="spin" size={40} />
+        <span>{currentLoadingMessage}</span>
+      </div>
+    </div>
+  {/if}
+
+  {#if $selectedPersonId}
+    <div class="focus-hub" transition:fly={{ y: 50, duration: 400, easing: cubicOut }}>
+      <div class="hub-header">
+        <div class="hub-title">
+          <Target size={16} />
+          <span>{m.focus_mode()}</span>
+        </div>
+        <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
+      </div>
+      <div class="hub-body">
+        <div class="range-group">
+          <div class="range-labels">
+            <label for="fdepth">{m.focus_depth_label()}</label>
+            <span class="range-value"
+              >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
+            >
+          </div>
+          <input id="fdepth" type="range" min="1" max="5" bind:value={$focusDepth} />
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if isProfileModalOpen && currentProfile}
+    <aside class="profile-sidebar" transition:fly={sidebarTransition}>
+      <button class="close-sidebar" onclick={closeProfile} aria-label={m.common_close()}>
+        <X size={24} />
+      </button>
+
+      <div class="sidebar-scroll">
+        <header class="sidebar-hero">
+          <div class="hero-avatar">
+            <div class="avatar-ring"></div>
+            {#if imageErrors[currentProfile.id]}
+              <div class="avatar-initials">
+                {getPersonInitials(currentProfile)}
+              </div>
+            {:else}
+              <img
+                src={getAvatarUrl(currentProfile.id)}
+                alt=""
+                onerror={() => handleImageError(currentProfile.id)}
+              />
+            {/if}
+          </div>
+          <h2>{getPersonName(currentProfile)}</h2>
+          <div class="badge-promo">
+            {m.profile_promotion({
+              level: currentProfile.level || m.profile_promotion_unknown(),
+            })}
+          </div>
+
+          <div class="hero-actions">
+            <button class="btn-center" onclick={() => centerOnPerson(currentProfile.id)}>
+              <Target size={16} />
+              {m.profile_center_view()}
+            </button>
+            {#if canariProfile?.profile?.sub}
+              <a
+                class="btn-profil"
+                href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={16} />
+                {m.profile_link()}
               </a>
             {/if}
-            <div class="menu-divider"></div>
-            <div class="menu-item locale-row">
-              <LocaleSwitcher />
-            </div>
-            <div class="menu-divider"></div>
-            <button onclick={handleLogout} class="menu-item logout">
-              <LogOut size={16} /> {m.nav_logout()}
-            </button>
           </div>
-        </div>
-      {/if}
-    </div>
-  </div>
-</nav>
+        </header>
 
-{#if isLoading}
-  <div class="loader-overlay" transition:fade>
-    <div class="loader-content">
-      <LoaderCircle class="spin" size={40} />
-      <span>{currentLoadingMessage}</span>
-    </div>
-  </div>
-{/if}
-
-{#if $selectedPersonId}
-  <div
-    class="focus-hub"
-    transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
-  >
-    <div class="hub-header">
-      <div class="hub-title">
-        <Target size={16} />
-        <span>{m.focus_mode()}</span>
-      </div>
-      <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
-    </div>
-    <div class="hub-body">
-      <div class="range-group">
-        <div class="range-labels">
-          <label for="fdepth">{m.focus_depth_label()}</label>
-          <span class="range-value"
-            >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
-          >
-        </div>
-        <input
-          id="fdepth"
-          type="range"
-          min="1"
-          max="5"
-          bind:value={$focusDepth}
-        />
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if isProfileModalOpen && currentProfile}
-  <aside class="profile-sidebar" transition:fly={sidebarTransition}>
-    <button class="close-sidebar" onclick={closeProfile} aria-label={m.common_close()}>
-      <X size={24} />
-    </button>
-
-    <div class="sidebar-scroll">
-      <header class="sidebar-hero">
-        <div class="hero-avatar">
-          <div class="avatar-ring"></div>
-          {#if imageErrors[currentProfile.id]}
-            <div class="avatar-initials">
-              {getPersonInitials(currentProfile)}
+        <section class="sidebar-info">
+          {#if canariProfile?.profile?.bio}
+            <div class="info-block">
+              <h3>{m.profile_bio()}</h3>
+              <BioMarkdown source={canariProfile.profile.bio} />
             </div>
-          {:else}
-            <img
-              src={getAvatarUrl(currentProfile.id)}
-              alt=""
-              onerror={() => handleImageError(currentProfile.id)}
-            />
           {/if}
-        </div>
-        <h2>{getPersonName(currentProfile)}</h2>
-        <div class="badge-promo">
-          {m.profile_promotion({
-            level: currentProfile.level || m.profile_promotion_unknown(),
-          })}
-        </div>
 
-        <div class="hero-actions">
-          <button
-            class="btn-center"
-            onclick={() => centerOnPerson(currentProfile.id)}
-          >
-            <Target size={16} /> {m.profile_center_view()}
-          </button>
-          {#if canariProfile?.profile?.sub}
-            <a
-              class="btn-profil"
-              href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink size={16} /> {m.profile_link()}
-            </a>
+          {#if canariProfile?.profile?.associations?.length}
+            <div class="info-block">
+              <h3>{m.profile_associations()}</h3>
+              <div class="asso-list">
+                {#each canariProfile.profile.associations as asso (asso.slug)}
+                  <div class="asso-card">
+                    {#if asso.logo}
+                      <img class="asso-logo" src={asso.logo} alt="" />
+                    {/if}
+                    <div class="asso-meta">
+                      <span class="asso-n">{asso.name}</span>
+                      <span class="asso-r">{asso.role}</span>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
           {/if}
-        </div>
-      </header>
 
-      <section class="sidebar-info">
-        {#if canariProfile?.profile?.bio}
-          <div class="info-block">
-            <h3>{m.profile_bio()}</h3>
-            <BioMarkdown source={canariProfile.profile.bio} />
-          </div>
-        {/if}
-
-        {#if canariProfile?.profile?.associations?.length}
-          <div class="info-block">
-            <h3>{m.profile_associations()}</h3>
-            <div class="asso-list">
-              {#each canariProfile.profile.associations as asso (asso.slug)}
-                <div class="asso-card">
-                  {#if asso.logo}
-                    <img class="asso-logo" src={asso.logo} alt="" />
-                  {/if}
-                  <div class="asso-meta">
-                    <span class="asso-n">{asso.name}</span>
-                    <span class="asso-r">{asso.role}</span>
+          {#if canariProfile?.profile?.formerAssociations?.length}
+            <div class="info-block">
+              <h3>{m.profile_former_associations()}</h3>
+              <div class="asso-list">
+                {#each canariProfile.profile.formerAssociations as asso, i (i)}
+                  <div class="asso-card">
+                    {#if asso.logo}
+                      <img class="asso-logo" src={asso.logo} alt="" />
+                    {/if}
+                    <div class="asso-meta">
+                      <span class="asso-n">{asso.name}</span>
+                      <span class="asso-r"
+                        >{asso.role}{asso.startYear
+                          ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ''})`
+                          : ''}</span
+                      >
+                    </div>
                   </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
-          </div>
-        {/if}
-
-        {#if canariProfile?.profile?.formerAssociations?.length}
-          <div class="info-block">
-            <h3>{m.profile_former_associations()}</h3>
-            <div class="asso-list">
-              {#each canariProfile.profile.formerAssociations as asso, i (i)}
-                <div class="asso-card">
-                  {#if asso.logo}
-                    <img class="asso-logo" src={asso.logo} alt="" />
-                  {/if}
-                  <div class="asso-meta">
-                    <span class="asso-n">{asso.name}</span>
-                    <span class="asso-r"
-                      >{asso.role}{asso.startYear
-                        ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ""})`
-                        : ""}</span
-                    >
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </section>
-    </div>
-  </aside>
+          {/if}
+        </section>
+      </div>
+    </aside>
   {/if}
 {:else}
   <div class="login-landing" transition:fade>
@@ -500,7 +484,7 @@
           src="/sky.png"
           alt="Sky"
           onerror={(e) => {
-            (e.currentTarget as HTMLElement).style.display = "none";
+            (e.currentTarget as HTMLElement).style.display = 'none';
           }}
         />
       </div>
@@ -571,7 +555,7 @@
     height: 28px;
   }
   .brand-text {
-    font-family: "Orbitron", sans-serif;
+    font-family: 'Orbitron', sans-serif;
     font-weight: 800;
     font-size: 22px;
     color: var(--text-main);
@@ -731,7 +715,7 @@
   /* Invisible bridge covering the gap between the trigger and the menu, so
      moving the mouse across it does not drop the hover and close the menu. */
   .dropdown-menu::before {
-    content: "";
+    content: '';
     position: absolute;
     left: 0;
     right: 0;
@@ -800,11 +784,7 @@
   .sidebar-hero {
     padding: 60px 40px 40px;
     text-align: center;
-    background: linear-gradient(
-      to bottom,
-      rgba(59, 130, 246, 0.1),
-      transparent
-    );
+    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.1), transparent);
   }
   .hero-avatar {
     position: relative;
@@ -1078,7 +1058,7 @@
   }
   .login-title {
     margin: 0;
-    font-family: "Orbitron", sans-serif;
+    font-family: 'Orbitron', sans-serif;
     font-weight: 800;
     font-size: 34px;
     letter-spacing: 4px;

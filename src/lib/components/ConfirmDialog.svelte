@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { fade, scale } from "svelte/transition";
-  import { activeDialog, type DialogRequest } from "$lib/stores/dialogStore";
-  import { m } from "$lib/paraglide/messages";
+  import { fade, scale } from 'svelte/transition';
+  import { activeDialog, type DialogRequest } from '$lib/stores/dialogStore';
+  import { m } from '$lib/paraglide/messages';
 
   /**
    * Global host for in-app confirm/alert modals. Rendered once at the app root;
@@ -12,17 +12,17 @@
 
   /** Resolve the active dialog with the given outcome and close it. */
   function settle(dialog: DialogRequest, ok: boolean) {
-    console.debug("[Dialog] settle:", ok);
+    console.debug('[Dialog] settle:', ok);
     dialog.resolve(ok);
     activeDialog.set(null);
   }
 
   function onKeydown(e: KeyboardEvent, dialog: DialogRequest) {
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       e.preventDefault();
       // Escape dismisses: cancel for a confirm, acknowledge for an alert.
       settle(dialog, false);
-    } else if (e.key === "Enter") {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       settle(dialog, true);
     }
@@ -50,17 +50,13 @@
       {/if}
       <p class="message">{dialog.message}</p>
       <div class="actions">
-        {#if dialog.kind === "confirm"}
+        {#if dialog.kind === 'confirm'}
           <button class="ghost" onclick={() => settle(dialog, false)}>
             {dialog.cancelLabel ?? m.common_cancel()}
           </button>
         {/if}
-        <button
-          class="primary"
-          class:danger={dialog.danger}
-          onclick={() => settle(dialog, true)}
-        >
-          {#if dialog.kind === "confirm"}
+        <button class="primary" class:danger={dialog.danger} onclick={() => settle(dialog, true)}>
+          {#if dialog.kind === 'confirm'}
             {dialog.confirmLabel ?? m.dialog_confirm()}
           {:else}
             {dialog.cancelLabel ?? m.dialog_ok()}

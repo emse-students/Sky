@@ -12,11 +12,11 @@
  * counts) so repeated runs on the same graph are stable.
  */
 
-import Graph from "graphology";
-import { connectedComponents } from "graphology-components";
-import forceAtlas2 from "graphology-layout-forceatlas2";
-import { circular } from "graphology-layout";
-import { hashString } from "$utils/format";
+import Graph from 'graphology';
+import { connectedComponents } from 'graphology-components';
+import forceAtlas2 from 'graphology-layout-forceatlas2';
+import { circular } from 'graphology-layout';
+import { hashString } from '$utils/format';
 
 export interface Point {
   x: number;
@@ -42,12 +42,9 @@ interface LaidOutComponent {
  * Compute a position for every node. `edges` are undirected pairs; unknown
  * endpoints and self-loops are ignored. Returns an empty map for an empty graph.
  */
-export function layoutGraph(
-  nodeIds: string[],
-  edges: [string, string][],
-): Record<string, Point> {
+export function layoutGraph(nodeIds: string[], edges: [string, string][]): Record<string, Point> {
   const graph = new Graph({
-    type: "undirected",
+    type: 'undirected',
     multi: false,
     allowSelfLoops: false,
   });
@@ -99,7 +96,7 @@ export function layoutGraph(
  */
 function layoutComponent(graph: Graph, comp: string[]): LaidOutComponent {
   const sub = new Graph({
-    type: "undirected",
+    type: 'undirected',
     multi: false,
     allowSelfLoops: false,
   });
@@ -177,15 +174,9 @@ function packCircles(radii: number[]): Point[] {
 }
 
 /** First non-overlapping spot for a circle of radius r, spiralling out from the origin. */
-function findSpot(
-  r: number,
-  placed: { x: number; y: number; r: number }[],
-): Point {
+function findSpot(r: number, placed: { x: number; y: number; r: number }[]): Point {
   const angleSteps = 24;
-  const maxOuter = placed.reduce(
-    (m, p) => Math.max(m, Math.hypot(p.x, p.y) + p.r),
-    0,
-  );
+  const maxOuter = placed.reduce((m, p) => Math.max(m, Math.hypot(p.x, p.y) + p.r), 0);
   const step = Math.max(r, 50);
   for (let ring = 0; ring <= maxOuter + r + step * 4; ring += step) {
     for (let a = 0; a < angleSteps; a++) {
@@ -204,7 +195,7 @@ function findSpot(
 function overlapsAny(
   cand: Point,
   r: number,
-  placed: { x: number; y: number; r: number }[],
+  placed: { x: number; y: number; r: number }[]
 ): boolean {
   for (const p of placed) {
     const minDist = r + p.r;
@@ -221,11 +212,7 @@ function overlapsAny(
  * Scatter lone people on deterministic rings outside the connected cluster, so
  * every star is visible without clumping at the origin.
  */
-function scatterIsolated(
-  ids: string[],
-  positions: Record<string, Point>,
-  maxRadius: number,
-): void {
+function scatterIsolated(ids: string[], positions: Record<string, Point>, maxRadius: number): void {
   const base = (maxRadius || 1000) + ISOLATED_GAP;
   for (const id of ids) {
     const h = hashString(id);

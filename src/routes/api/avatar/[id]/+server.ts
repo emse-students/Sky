@@ -1,26 +1,23 @@
-import type { RequestHandler } from "./$types";
-import { getPersonById, getPersonAuthSub } from "$lib/server/database";
-import { getPersonInitials } from "$lib/utils/format";
-import { OUTBOUND_BUDGET_MS } from "$lib/server/outbound";
+import type { RequestHandler } from './$types';
+import { getPersonById, getPersonAuthSub } from '$lib/server/database';
+import { getPersonInitials } from '$lib/utils/format';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 // Environment variable - loaded by Bun or SvelteKit
 const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;
-const MIGALLERY_API_URL =
-  process.env.MIGALLERY_API_URL || "https://gallery.mitv.fr";
+const MIGALLERY_API_URL = process.env.MIGALLERY_API_URL || 'https://gallery.mitv.fr';
 
 // A key that IS configured is the normal state and says nothing; only its absence is an event, and
 // it is fatal to every face on the map, so it is an error and not a debug line.
 if (!MIGALLERY_API_KEY) {
-  console.error(
-    "[Avatar API] MIGALLERY_API_KEY is not set in environment variables",
-  );
+  console.error('[Avatar API] MIGALLERY_API_KEY is not set in environment variables');
 }
 
 export const GET: RequestHandler = async ({ params }) => {
   const { id } = params;
 
   if (!MIGALLERY_API_KEY) {
-    console.error("[Avatar API] API key not configured");
+    console.error('[Avatar API] API key not configured');
     return new Response(null, { status: 500 });
   }
 
@@ -42,13 +39,13 @@ export const GET: RequestHandler = async ({ params }) => {
     if (sub) {
       try {
         response = await fetch(`${MIGALLERY_API_URL}/api/users/${sub}/avatar`, {
-          headers: { "x-api-key": MIGALLERY_API_KEY },
+          headers: { 'x-api-key': MIGALLERY_API_KEY },
           signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
         });
       } catch (error) {
         console.error(
           `[Avatar API] MiGallery unreachable within ${OUTBOUND_BUDGET_MS}ms (${MIGALLERY_API_URL}):`,
-          error instanceof Error ? `${error.name} ${error.message}` : error,
+          error instanceof Error ? `${error.name} ${error.message}` : error
         );
       }
     }
@@ -58,7 +55,7 @@ export const GET: RequestHandler = async ({ params }) => {
       // faceless account: every avatar in the tree would quietly turn into initials and nothing
       // would say why. Named loudly, with the destination, because the fix is a deployment one.
       console.error(
-        `[Avatar API] MiGallery answered ${response.status} for a photo lookup - key refused or upstream broken`,
+        `[Avatar API] MiGallery answered ${response.status} for a photo lookup - key refused or upstream broken`
       );
       response = null;
     }
@@ -75,18 +72,18 @@ export const GET: RequestHandler = async ({ params }) => {
         } else {
           // Fallback: extract from ID format (prenom.nom)
           initials = id
-            .split(".")
+            .split('.')
             .slice(0, 2)
             .map((part: string) => part.charAt(0).toUpperCase())
-            .join("");
+            .join('');
         }
       } catch {
         // Double fallback
         initials = id
-          .split(".")
+          .split('.')
           .slice(0, 2)
           .map((part: string) => part.charAt(0).toUpperCase())
-          .join("");
+          .join('');
       }
       // Return a placeholder SVG avatar
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
@@ -101,24 +98,24 @@ export const GET: RequestHandler = async ({ params }) => {
 			</svg>`;
       return new Response(svg, {
         headers: {
-          "Content-Type": "image/svg+xml",
+          'Content-Type': 'image/svg+xml',
           // Placeholder (no photo): do not cache, otherwise the real photo only
           // appears after expiry (a hard refresh would be required).
-          "Cache-Control": "no-store",
+          'Cache-Control': 'no-store',
         },
       });
     }
 
     // Forward the image with appropriate headers
     const imageBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
 
     return new Response(imageBuffer, {
       headers: {
-        "Content-Type": contentType,
+        'Content-Type': contentType,
         // Short cache + revalidation: a new photo appears quickly without a hard
         // refresh, while avoiding a re-download on every view.
-        "Cache-Control": "public, max-age=600, stale-while-revalidate=60",
+        'Cache-Control': 'public, max-age=600, stale-while-revalidate=60',
       },
     });
   } catch (error) {

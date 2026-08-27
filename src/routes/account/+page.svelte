@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { enhance } from "$app/forms";
-  import { ArrowLeft, Search, Link2, Check } from "@lucide/svelte";
-  import { goto } from "$app/navigation";
-  import { personMatchScore } from "$lib/utils/format";
-  import { confirmDialog } from "$lib/stores/dialogStore";
-  import { m } from "$lib/paraglide/messages";
-  import LocaleSwitcher from "$components/LocaleSwitcher.svelte";
+  import { enhance } from '$app/forms';
+  import { ArrowLeft, Search, Link2, Check } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
+  import { personMatchScore } from '$lib/utils/format';
+  import { confirmDialog } from '$lib/stores/dialogStore';
+  import { m } from '$lib/paraglide/messages';
+  import LocaleSwitcher from '$components/LocaleSwitcher.svelte';
 
   let { data, form } = $props();
 
@@ -20,9 +20,9 @@
     }
   }
 
-  let searchTerm = $state("");
+  let searchTerm = $state('');
   // Currently selected target fiche id (the one the account will move to).
-  let chosenId = $state("");
+  let chosenId = $state('');
 
   type Candidate = {
     id: string;
@@ -52,7 +52,7 @@
   });
 
   function pick(id: string) {
-    chosenId = chosenId === id ? "" : id;
+    chosenId = chosenId === id ? '' : id;
   }
 </script>
 
@@ -62,7 +62,7 @@
 
 <div class="account-layout">
   <header class="account-header">
-    <button class="btn-back" onclick={() => goto("/")}>
+    <button class="btn-back" onclick={() => goto('/')}>
       <ArrowLeft size={20} />
       <span>{m.common_back()}</span>
     </button>
@@ -82,11 +82,7 @@
 
     <div class="search-bar">
       <Search size={18} />
-      <input
-        type="text"
-        placeholder={m.account_search_placeholder()}
-        bind:value={searchTerm}
-      />
+      <input type="text" placeholder={m.account_search_placeholder()} bind:value={searchTerm} />
     </div>
 
     {#if !searchTerm && results.length > 0}
@@ -101,12 +97,8 @@
             class:chosen={chosenId === person.id}
             onclick={() => pick(person.id)}
           >
-            <span class="cand-name"
-              >{person.nom.toUpperCase()} {person.prenom}</span
-            >
-            <span class="cand-promo"
-              >{m.common_promo({ level: person.level ?? "-" })}</span
-            >
+            <span class="cand-name">{person.nom.toUpperCase()} {person.prenom}</span>
+            <span class="cand-promo">{m.common_promo({ level: person.level ?? '-' })}</span>
             {#if chosenId === person.id}
               <Check size={16} class="cand-check" />
             {/if}

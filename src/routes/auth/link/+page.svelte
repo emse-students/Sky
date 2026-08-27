@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import { enhance } from "$app/forms";
-  import { Star, UserPlus } from "@lucide/svelte";
-  import { m } from "$lib/paraglide/messages";
+  import { untrack } from 'svelte';
+  import { enhance } from '$app/forms';
+  import { Star, UserPlus } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages';
 
   let { data, form } = $props();
 
   // Frozen initial value (the choice is then driven by the user).
-  let choice = $state<string>(untrack(() => data.candidates[0]?.id ?? "new"));
+  let choice = $state<string>(untrack(() => data.candidates[0]?.id ?? 'new'));
   let submitting = $state(false);
 </script>
 
@@ -23,7 +23,7 @@
       {m.link_subtitle_before()}
       <strong>{data.firstName} {data.lastName}</strong>{data.level
         ? ` ${m.link_promo_paren({ level: data.level })}`
-        : ""}. {m.link_subtitle_after()}
+        : ''}. {m.link_subtitle_after()}
     </p>
 
     {#if form?.error}
@@ -43,23 +43,16 @@
       <div class="options">
         {#each data.candidates as c (c.id)}
           <label class="option" class:active={choice === c.id}>
-            <input
-              type="radio"
-              name="choice"
-              value={c.id}
-              bind:group={choice}
-            />
+            <input type="radio" name="choice" value={c.id} bind:group={choice} />
             <Star size={18} />
             <span class="name">{c.lastName} {c.firstName}</span>
             <span class="promo"
-              >{c.level
-                ? m.common_promo({ level: c.level })
-                : m.link_promo_unknown()}</span
+              >{c.level ? m.common_promo({ level: c.level }) : m.link_promo_unknown()}</span
             >
           </label>
         {/each}
 
-        <label class="option new" class:active={choice === "new"}>
+        <label class="option new" class:active={choice === 'new'}>
           <input type="radio" name="choice" value="new" bind:group={choice} />
           <UserPlus size={18} />
           <span class="name">{m.link_option_new()}</span>

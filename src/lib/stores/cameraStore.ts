@@ -1,5 +1,5 @@
-import { writable } from "svelte/store";
-import type { CameraState } from "$types/graph";
+import { writable } from 'svelte/store';
+import type { CameraState } from '$types/graph';
 
 const DEFAULT_CAMERA: CameraState = {
   x: 0,
@@ -48,14 +48,8 @@ function createCameraStore() {
     pan: (dx: number, dy: number) => {
       update((state) => {
         const maxPan = calculateMaxPan(state.targetZoom);
-        const newTargetX = Math.max(
-          -maxPan,
-          Math.min(maxPan, state.targetX + dx),
-        );
-        const newTargetY = Math.max(
-          -maxPan,
-          Math.min(maxPan, state.targetY + dy),
-        );
+        const newTargetX = Math.max(-maxPan, Math.min(maxPan, state.targetX + dx));
+        const newTargetY = Math.max(-maxPan, Math.min(maxPan, state.targetY + dy));
         return {
           ...state,
           targetX: newTargetX,
@@ -77,8 +71,7 @@ function createCameraStore() {
         const dy = state.targetY - state.y;
         const dz = state.targetZoom - state.zoom;
         // At rest when the remaining move is below half a screen pixel.
-        const panRest =
-          Math.abs(dx) < 0.5 / state.zoom && Math.abs(dy) < 0.5 / state.zoom;
+        const panRest = Math.abs(dx) < 0.5 / state.zoom && Math.abs(dy) < 0.5 / state.zoom;
         const zoomRest = Math.abs(dz) < 0.0002;
         if (panRest && zoomRest) {
           if (

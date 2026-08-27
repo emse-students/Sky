@@ -1,14 +1,14 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import {
   isSameFamily,
   updatePlaceholderIdentity,
   deletePlaceholderPerson,
   countPersonRelations,
   recalculatePositions,
-} from "$lib/server/database";
-import { isValidPromo, MIN_PROMO } from "$lib/server/promo";
-import { m } from "$lib/paraglide/messages";
+} from '$lib/server/database';
+import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Edit or delete a placeholder relative (a parrain/fillot not yet linked to a
@@ -22,7 +22,7 @@ function canManage(locals: App.Locals, id: string): boolean {
   if (!user) {
     return false;
   }
-  if (user.role === "admin") {
+  if (user.role === 'admin') {
     return true;
   }
   return !!user.profile_id && isSameFamily(user.profile_id, id);
@@ -30,10 +30,10 @@ function canManage(locals: App.Locals, id: string): boolean {
 
 /** Coerce a JSON promo value to a positive integer, or null. */
 function parseLevel(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === "string" && value.trim().length > 0) {
+  if (typeof value === 'string' && value.trim().length > 0) {
     const n = parseInt(value, 10);
     return Number.isNaN(n) ? null : n;
   }
@@ -55,10 +55,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   }
   // Reject typos: no promotion predates the school's founding year.
   if (!isValidPromo(level)) {
-    return json(
-      { error: m.api_promo_invalid({ min: MIN_PROMO }) },
-      { status: 400 },
-    );
+    return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
   }
   const ok = updatePlaceholderIdentity(params.id, data.prenom, data.nom, level);
   if (!ok) {
@@ -78,6 +75,6 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
   if (!ok) {
     return json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
   }
-  recalculatePositions().catch((e) => console.error("Recalc failed", e));
+  recalculatePositions().catch((e) => console.error('Recalc failed', e));
   return json({ success: true });
 };

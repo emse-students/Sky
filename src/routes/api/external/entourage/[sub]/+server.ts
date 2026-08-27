@@ -1,7 +1,7 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import { timingSafeEqual } from "crypto";
-import { getEntourageBySub } from "$lib/server/database";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { timingSafeEqual } from 'crypto';
+import { getEntourageBySub } from '$lib/server/database';
 
 // Inbound public API key (Canari -> Sky). Empty = every call is rejected.
 const SKY_API_KEY = process.env.SKY_API_KEY;
@@ -13,9 +13,7 @@ function validKey(provided: string | null): boolean {
   }
   const expected = Buffer.from(SKY_API_KEY);
   const received = Buffer.from(provided);
-  return (
-    expected.length === received.length && timingSafeEqual(expected, received)
-  );
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
 /**
@@ -25,8 +23,8 @@ function validKey(provided: string | null): boolean {
  * because authentication is the key, not an ICM session.
  */
 export const GET: RequestHandler = ({ params, request }) => {
-  if (!validKey(request.headers.get("x-api-key"))) {
-    return json({ error: "Forbidden" }, { status: 403 });
+  if (!validKey(request.headers.get('x-api-key'))) {
+    return json({ error: 'Forbidden' }, { status: 403 });
   }
   const { sub } = params;
   return json(getEntourageBySub(sub));

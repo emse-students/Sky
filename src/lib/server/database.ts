@@ -1,9 +1,9 @@
-import { checkPromoPair, MAX_PROMO_GAP } from "./promo";
-import { Database } from "bun:sqlite";
-import path from "path";
-import fs from "fs";
-import { randomUUID } from "crypto";
-import type { Person, JsonRelation, GraphDataFile } from "$types/graph";
+import { checkPromoPair, MAX_PROMO_GAP } from './promo';
+import { Database } from 'bun:sqlite';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+import type { Person, JsonRelation, GraphDataFile } from '$types/graph';
 import {
   normalizeName,
   nameDistance,
@@ -11,12 +11,12 @@ import {
   formatFirstName,
   formatLastName,
   personMatchScore,
-} from "$utils/format";
-import { layoutGraph } from "$server/positions";
-import { m } from "$lib/paraglide/messages";
+} from '$utils/format';
+import { layoutGraph } from '$server/positions';
+import { m } from '$lib/paraglide/messages';
 
-const DB_PATH = path.join(process.cwd(), "database", "sky.db");
-const SCHEMA_PATH = path.join(process.cwd(), "database", "schema.sql");
+const DB_PATH = path.join(process.cwd(), 'database', 'sky.db');
+const SCHEMA_PATH = path.join(process.cwd(), 'database', 'schema.sql');
 
 export { DB_PATH };
 
@@ -26,13 +26,11 @@ function initializeSchema(database: Database): void {
   try {
     // Check if schema exists
     const tableCheck = database
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='people'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='people'")
       .get();
 
     if (!tableCheck) {
-      console.debug("[Database] Initializing schema...");
+      console.debug('[Database] Initializing schema...');
 
       // schema.sql is the ONE schema. An inline copy lived here as a fallback and had
       // silently DIVERGED - it never carried the `bio` column schema.sql declared - so a
@@ -41,14 +39,14 @@ function initializeSchema(database: Database): void {
       // to recover from.
       if (!fs.existsSync(SCHEMA_PATH)) {
         throw new Error(
-          `[Database] schema.sql not found at ${SCHEMA_PATH}; refusing to create a database from an unknown schema`,
+          `[Database] schema.sql not found at ${SCHEMA_PATH}; refusing to create a database from an unknown schema`
         );
       }
-      database.exec(fs.readFileSync(SCHEMA_PATH, "utf-8"));
-      console.debug("[Database] Schema initialized from schema.sql");
+      database.exec(fs.readFileSync(SCHEMA_PATH, 'utf-8'));
+      console.debug('[Database] Schema initialized from schema.sql');
     }
   } catch (error) {
-    console.error("[Database] Failed to initialize schema:", error);
+    console.error('[Database] Failed to initialize schema:', error);
     throw error;
   }
 }
@@ -62,7 +60,7 @@ function initializeSchema(database: Database): void {
  */
 export function closeDatabase(): void {
   if (db) {
-    console.debug("[Database] Closing the handle on", DB_PATH);
+    console.debug('[Database] Closing the handle on', DB_PATH);
     db.close();
     db = null;
   }
@@ -81,7 +79,7 @@ export function getDatabase(): Database {
     }
 
     db = new Database(DB_PATH);
-    db.exec("PRAGMA foreign_keys = ON");
+    db.exec('PRAGMA foreign_keys = ON');
 
     // Initialize schema if needed
     initializeSchema(db);
@@ -93,7 +91,7 @@ export function getDatabase(): Database {
          a_id TEXT NOT NULL,
          b_id TEXT NOT NULL,
          PRIMARY KEY (a_id, b_id)
-       )`,
+       )`
     );
   }
   return db;
@@ -168,16 +166,12 @@ export function searchPeople(query: string): Person[] {
   // Year query (4 digits) -> match by promotion.
   if (/^\d{4}$/.test(q)) {
     const rows = database
-      .prepare("SELECT id FROM people WHERE level = ? LIMIT 50")
+      .prepare('SELECT id FROM people WHERE level = ? LIMIT 50')
       .all(parseInt(q)) as { id: string }[];
-    return rows
-      .map((row) => getPersonById(row.id))
-      .filter((p): p is Person => p !== null);
+    return rows.map((row) => getPersonById(row.id)).filter((p): p is Person => p !== null);
   }
 
-  const rows = database
-    .prepare("SELECT id, first_name, last_name, level FROM people")
-    .all() as {
+  const rows = database.prepare('SELECT id, first_name, last_name, level FROM people').all() as {
     id: string;
     first_name: string;
     last_name: string;
@@ -196,18 +190,16 @@ export function searchPeople(query: string): Person[] {
     .filter((p): p is Person => p !== null);
 }
 
-export function createPerson(
-  person: Omit<Person, "id"> & { id?: string },
-): string {
+export function createPerson(person: Omit<Person, 'id'> & { id?: string }): string {
   const database = getDatabase();
 
   const id =
     person.id ||
     `${person.prenom}.${person.nom}`
       .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9.]/g, "");
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9.]/g, '');
 
   const stmt = database.prepare(`
 		INSERT INTO people (id, first_name, last_name, level)
@@ -232,19 +224,14 @@ export function updatePerson(id: string, updates: Partial<Person>): boolean {
 		WHERE id = ?
 	`);
 
-  const result = stmt.run(
-    updates.prenom || null,
-    updates.nom || null,
-    updates.level || null,
-    id,
-  );
+  const result = stmt.run(updates.prenom || null, updates.nom || null, updates.level || null, id);
 
   return result.changes > 0;
 }
 
 export function deletePerson(id: string): boolean {
   const database = getDatabase();
-  const stmt = database.prepare("DELETE FROM people WHERE id = ?");
+  const stmt = database.prepare('DELETE FROM people WHERE id = ?');
   const result = stmt.run(id);
   return result.changes > 0;
 }
@@ -261,7 +248,7 @@ export function deletePerson(id: string): boolean {
 export function mergePeople(
   sourceId: string,
   targetId: string,
-  survivorIdentity?: { prenom: string; nom: string; level: number | null },
+  survivorIdentity?: { prenom: string; nom: string; level: number | null }
 ): void {
   const database = getDatabase();
 
@@ -269,61 +256,51 @@ export function mergePeople(
     // 1. Move relationships requests (target_id = sourceId)
     // I am the TARGET (fillot), so these are my Parrains.
     const incoming = database
-      .prepare(
-        "SELECT id, source_id, type FROM relationships WHERE target_id = ?",
-      )
+      .prepare('SELECT id, source_id, type FROM relationships WHERE target_id = ?')
       .all(sourceId) as { id: number; source_id: string; type: string }[];
 
     for (const rel of incoming) {
       try {
         database
-          .prepare("UPDATE relationships SET target_id = ? WHERE id = ?")
+          .prepare('UPDATE relationships SET target_id = ? WHERE id = ?')
           .run(targetId, rel.id);
       } catch {
         // Constraint violation (duplicate), delete this one
-        console.warn(
-          `Duplicate incoming relation from ${rel.source_id} during merge, deleting.`,
-        );
-        database.prepare("DELETE FROM relationships WHERE id = ?").run(rel.id);
+        console.warn(`Duplicate incoming relation from ${rel.source_id} during merge, deleting.`);
+        database.prepare('DELETE FROM relationships WHERE id = ?').run(rel.id);
       }
     }
 
     // 2. Move relationships source (source_id = sourceId)
     // I am the SOURCE (parrain), so these are my Fillots.
     const outgoing = database
-      .prepare(
-        "SELECT id, target_id, type FROM relationships WHERE source_id = ?",
-      )
+      .prepare('SELECT id, target_id, type FROM relationships WHERE source_id = ?')
       .all(sourceId) as { id: number; target_id: string; type: string }[];
 
     for (const rel of outgoing) {
       try {
         database
-          .prepare("UPDATE relationships SET source_id = ? WHERE id = ?")
+          .prepare('UPDATE relationships SET source_id = ? WHERE id = ?')
           .run(targetId, rel.id);
       } catch {
-        console.warn(
-          `Duplicate outgoing relation to ${rel.target_id} during merge, deleting.`,
-        );
-        database.prepare("DELETE FROM relationships WHERE id = ?").run(rel.id);
+        console.warn(`Duplicate outgoing relation to ${rel.target_id} during merge, deleting.`);
+        database.prepare('DELETE FROM relationships WHERE id = ?').run(rel.id);
       }
     }
 
     // 3. Delete the source person
-    database.prepare("DELETE FROM people WHERE id = ?").run(sourceId);
+    database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
 
     // 4. Apply the chosen identity to the survivor (only when resolving a
     // conflict). Re-format to keep the "NOM"/"Prenom" display convention.
     if (survivorIdentity) {
       database
-        .prepare(
-          "UPDATE people SET last_name = ?, first_name = ?, level = ? WHERE id = ?",
-        )
+        .prepare('UPDATE people SET last_name = ?, first_name = ?, level = ? WHERE id = ?')
         .run(
           formatLastName(survivorIdentity.nom),
           formatFirstName(survivorIdentity.prenom),
           survivorIdentity.level,
-          targetId,
+          targetId
         );
     }
   })();
@@ -365,9 +342,9 @@ export interface SessionPerson {
 /** The `people` record already linked to this Authentik sub, else null. */
 export function getPersonIdByAuthSub(authSub: string): string | null {
   const database = getDatabase();
-  const row = database
-    .prepare("SELECT id FROM people WHERE auth_sub = ?")
-    .get(authSub) as { id: string } | null;
+  const row = database.prepare('SELECT id FROM people WHERE auth_sub = ?').get(authSub) as {
+    id: string;
+  } | null;
   return row?.id ?? null;
 }
 
@@ -386,13 +363,11 @@ export interface MatchCandidate {
  */
 export function findUnlinkedCandidatesByName(
   lastName: string,
-  firstName: string,
+  firstName: string
 ): MatchCandidate[] {
   const database = getDatabase();
   const rows = database
-    .prepare(
-      "SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL",
-    )
+    .prepare('SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL')
     .all() as {
     id: string;
     first_name: string;
@@ -403,11 +378,7 @@ export function findUnlinkedCandidatesByName(
   const nLast = normalizeName(lastName);
   const nFirst = normalizeName(firstName);
   return rows
-    .filter(
-      (r) =>
-        normalizeName(r.last_name) === nLast &&
-        normalizeName(r.first_name) === nFirst,
-    )
+    .filter((r) => normalizeName(r.last_name) === nLast && normalizeName(r.first_name) === nFirst)
     .map((r) => ({
       id: r.id,
       firstName: r.first_name,
@@ -426,13 +397,11 @@ export function findUnlinkedCandidatesByName(
 export function findUnlinkedFuzzyByName(
   lastName: string,
   firstName: string,
-  maxDistance: number = NAME_MATCH_MAX_DISTANCE,
+  maxDistance: number = NAME_MATCH_MAX_DISTANCE
 ): MatchCandidate[] {
   const database = getDatabase();
   const rows = database
-    .prepare(
-      "SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL",
-    )
+    .prepare('SELECT id, first_name, last_name, level FROM people WHERE auth_sub IS NULL')
     .all() as {
     id: string;
     first_name: string;
@@ -462,14 +431,9 @@ export function findUnlinkedFuzzyByName(
  * truth shared by the callback (which decides to show the screen) and the screen
  * itself (load + choice validation), so they never diverge.
  */
-export function getLinkCandidates(
-  lastName: string,
-  firstName: string,
-): MatchCandidate[] {
+export function getLinkCandidates(lastName: string, firstName: string): MatchCandidate[] {
   const exact = findUnlinkedCandidatesByName(lastName, firstName);
-  return exact.length > 0
-    ? exact
-    : findUnlinkedFuzzyByName(lastName, firstName);
+  return exact.length > 0 ? exact : findUnlinkedFuzzyByName(lastName, firstName);
 }
 
 /**
@@ -506,7 +470,7 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
         role = ?,
         last_login = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`,
+      WHERE id = ?`
     )
     .run(
       identity.sub,
@@ -517,15 +481,12 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
       identity.formation,
       identity.role,
       nowEpoch(),
-      id,
+      id
     );
 }
 
 /** Refresh the identity fields of an already-linked record (on every SSO login). */
-export function refreshPersonIdentity(
-  id: string,
-  identity: OidcIdentity,
-): void {
+export function refreshPersonIdentity(id: string, identity: OidcIdentity): void {
   const database = getDatabase();
   database
     .prepare(
@@ -538,7 +499,7 @@ export function refreshPersonIdentity(
         role = ?,
         last_login = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`,
+      WHERE id = ?`
     )
     .run(
       identity.firstName || null,
@@ -548,7 +509,7 @@ export function refreshPersonIdentity(
       identity.formation,
       identity.role,
       nowEpoch(),
-      id,
+      id
     );
 }
 
@@ -559,7 +520,7 @@ export function createAuthedPerson(identity: OidcIdentity): string {
     .prepare(
       `INSERT INTO people
         (id, first_name, last_name, level, auth_sub, email, formation, role, last_login)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       identity.sub,
@@ -570,7 +531,7 @@ export function createAuthedPerson(identity: OidcIdentity): string {
       identity.email,
       identity.formation,
       identity.role,
-      nowEpoch(),
+      nowEpoch()
     );
   return identity.sub;
 }
@@ -581,8 +542,8 @@ export function createAuthedPerson(identity: OidcIdentity): string {
  * place the new star on the map.
  */
 export type LoginResolution =
-  | { kind: "linked"; personId: string; created: boolean }
-  | { kind: "choice"; candidates: MatchCandidate[] };
+  | { kind: 'linked'; personId: string; created: boolean }
+  | { kind: 'choice'; candidates: MatchCandidate[] };
 
 /**
  * Resolve an Authentik login:
@@ -597,22 +558,17 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
   const existing = getPersonIdByAuthSub(identity.sub);
   if (existing) {
     refreshPersonIdentity(existing, identity);
-    return { kind: "linked", personId: existing, created: false };
+    return { kind: 'linked', personId: existing, created: false };
   }
 
-  const candidates = findUnlinkedCandidatesByName(
-    identity.lastName,
-    identity.firstName,
-  );
-  const confident = candidates.filter((c) =>
-    promoMatches(c.level, identity.level),
-  );
+  const candidates = findUnlinkedCandidatesByName(identity.lastName, identity.firstName);
+  const confident = candidates.filter((c) => promoMatches(c.level, identity.level));
   if (confident.length === 1) {
     linkPersonAuth(confident[0].id, identity);
-    return { kind: "linked", personId: confident[0].id, created: false };
+    return { kind: 'linked', personId: confident[0].id, created: false };
   }
   if (candidates.length > 0) {
-    return { kind: "choice", candidates };
+    return { kind: 'choice', candidates };
   }
 
   // No exact match: offer the RESEMBLING records (typo/inversion) for
@@ -620,13 +576,13 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
   const fuzzy = findUnlinkedFuzzyByName(identity.lastName, identity.firstName);
   if (fuzzy.length > 0) {
     console.debug(
-      `[Login] ${fuzzy.length} fuzzy candidate(s) for ${identity.sub} (${identity.lastName} ${identity.firstName})`,
+      `[Login] ${fuzzy.length} fuzzy candidate(s) for ${identity.sub} (${identity.lastName} ${identity.firstName})`
     );
-    return { kind: "choice", candidates: fuzzy };
+    return { kind: 'choice', candidates: fuzzy };
   }
 
   return {
-    kind: "linked",
+    kind: 'linked',
     personId: createAuthedPerson(identity),
     created: true,
   };
@@ -635,9 +591,9 @@ export function resolveLogin(identity: OidcIdentity): LoginResolution {
 /** A record's auth_sub (the MiGallery photo key), else null. */
 export function getPersonAuthSub(id: string): string | null {
   const database = getDatabase();
-  const row = database
-    .prepare("SELECT auth_sub FROM people WHERE id = ?")
-    .get(id) as { auth_sub: string | null } | null;
+  const row = database.prepare('SELECT auth_sub FROM people WHERE id = ?').get(id) as {
+    auth_sub: string | null;
+  } | null;
   return row?.auth_sub ?? null;
 }
 
@@ -647,20 +603,18 @@ export function getPersonAuthSub(id: string): string | null {
  * SKY_ADMIN_SUBS env only bootstraps; the database stays the source of truth.
  */
 export function getPersonRoleByAuthSub(authSub: string): string | null {
-  const row = getDatabase()
-    .prepare("SELECT role FROM people WHERE auth_sub = ?")
-    .get(authSub) as { role: string } | null;
+  const row = getDatabase().prepare('SELECT role FROM people WHERE auth_sub = ?').get(authSub) as {
+    role: string;
+  } | null;
   return row?.role ?? null;
 }
 
 /** Set a record's role (admin management; the database is the source of truth). */
-export function setPersonRole(id: string, role: "user" | "admin"): boolean {
+export function setPersonRole(id: string, role: 'user' | 'admin'): boolean {
   console.debug(`[Admin] setPersonRole id=${id} role=${role}`);
   return (
     getDatabase()
-      .prepare(
-        "UPDATE people SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      )
+      .prepare('UPDATE people SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(role, id).changes > 0
   );
 }
@@ -674,11 +628,11 @@ export function unlinkPersonAuth(id: string): boolean {
   console.debug(`[Admin] unlinkPersonAuth id=${id}`);
   const database = getDatabase();
   const tx = database.transaction(() => {
-    database.prepare("DELETE FROM sessions WHERE person_id = ?").run(id);
+    database.prepare('DELETE FROM sessions WHERE person_id = ?').run(id);
     return database
       .prepare(
         `UPDATE people SET auth_sub = NULL, role = 'user',
-           updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+           updated_at = CURRENT_TIMESTAMP WHERE id = ?`
       )
       .run(id);
   });
@@ -694,11 +648,7 @@ export function unlinkPersonAuth(id: string): boolean {
  * if the current record is not linked, or the target is the same/missing/already
  * linked.
  */
-export function relinkSelf(
-  currentId: string,
-  targetId: string,
-  sessionToken: string,
-): boolean {
+export function relinkSelf(currentId: string, targetId: string, sessionToken: string): boolean {
   if (currentId === targetId) {
     return false;
   }
@@ -708,25 +658,23 @@ export function relinkSelf(
     const current = database
       .prepare(
         `SELECT auth_sub, first_name, last_name, level, email, formation, role
-         FROM people WHERE id = ?`,
+         FROM people WHERE id = ?`
       )
-      .get(currentId) as
-      | {
-          auth_sub: string | null;
-          first_name: string;
-          last_name: string;
-          level: number | null;
-          email: string | null;
-          formation: string | null;
-          role: string;
-        }
-      | null;
+      .get(currentId) as {
+      auth_sub: string | null;
+      first_name: string;
+      last_name: string;
+      level: number | null;
+      email: string | null;
+      formation: string | null;
+      role: string;
+    } | null;
     if (!current || current.auth_sub === null) {
       return false;
     }
-    const target = database
-      .prepare("SELECT auth_sub FROM people WHERE id = ?")
-      .get(targetId) as { auth_sub: string | null } | null;
+    const target = database.prepare('SELECT auth_sub FROM people WHERE id = ?').get(targetId) as {
+      auth_sub: string | null;
+    } | null;
     if (!target || target.auth_sub !== null) {
       return false;
     }
@@ -736,7 +684,7 @@ export function relinkSelf(
     database
       .prepare(
         `UPDATE people SET auth_sub = NULL, role = 'user',
-           updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+           updated_at = CURRENT_TIMESTAMP WHERE id = ?`
       )
       .run(currentId);
 
@@ -747,7 +695,7 @@ export function relinkSelf(
            auth_sub = ?, first_name = ?, last_name = ?, level = ?,
            email = ?, formation = ?, role = ?, last_login = ?,
            updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
+         WHERE id = ?`
       )
       .run(
         current.auth_sub,
@@ -758,12 +706,12 @@ export function relinkSelf(
         current.formation,
         current.role,
         nowEpoch(),
-        targetId,
+        targetId
       );
 
     // Repoint the active session so the user stays logged in on the new record.
     database
-      .prepare("UPDATE sessions SET person_id = ? WHERE token = ?")
+      .prepare('UPDATE sessions SET person_id = ? WHERE token = ?')
       .run(targetId, sessionToken);
     return true;
   })();
@@ -783,7 +731,7 @@ export function getUnlinkedPeople(): {
   const rows = getDatabase()
     .prepare(
       `SELECT id, first_name, last_name, level FROM people
-       WHERE auth_sub IS NULL ORDER BY last_name, first_name`,
+       WHERE auth_sub IS NULL ORDER BY last_name, first_name`
     )
     .all() as {
     id: string;
@@ -817,7 +765,7 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
   const rows = getDatabase()
     .prepare(
       `SELECT id, first_name, last_name, level, role, auth_sub, email, formation
-       FROM people ORDER BY last_name, first_name`,
+       FROM people ORDER BY last_name, first_name`
     )
     .all() as {
     id: string;
@@ -851,9 +799,7 @@ export function createSession(personId: string): {
   const token = randomUUID();
   const expiresAt = nowEpoch() + SESSION_TTL_SECONDS;
   database
-    .prepare(
-      "INSERT INTO sessions (token, person_id, expires_at) VALUES (?, ?, ?)",
-    )
+    .prepare('INSERT INTO sessions (token, person_id, expires_at) VALUES (?, ?, ?)')
     .run(token, personId, expiresAt);
   return { token, expiresAt };
 }
@@ -867,20 +813,18 @@ export function getSessionPerson(token: string): SessionPerson | null {
               p.auth_sub, p.email, p.formation, p.role
        FROM sessions s
        JOIN people p ON p.id = s.person_id
-       WHERE s.token = ? AND s.expires_at > ?`,
+       WHERE s.token = ? AND s.expires_at > ?`
     )
-    .get(token, nowEpoch()) as
-    | {
-        id: string;
-        first_name: string;
-        last_name: string;
-        level: number | null;
-        auth_sub: string | null;
-        email: string | null;
-        formation: string | null;
-        role: string;
-      }
-    | null;
+    .get(token, nowEpoch()) as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    auth_sub: string | null;
+    email: string | null;
+    formation: string | null;
+    role: string;
+  } | null;
   if (!row) {
     return null;
   }
@@ -898,14 +842,12 @@ export function getSessionPerson(token: string): SessionPerson | null {
 
 /** Delete a session (logout). */
 export function deleteSession(token: string): void {
-  getDatabase().prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  getDatabase().prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
 /** Purge expired sessions (called opportunistically at login). */
 export function deleteExpiredSessions(): void {
-  getDatabase()
-    .prepare("DELETE FROM sessions WHERE expires_at <= ?")
-    .run(nowEpoch());
+  getDatabase().prepare('DELETE FROM sessions WHERE expires_at <= ?').run(nowEpoch());
 }
 
 // ============================================
@@ -926,7 +868,7 @@ export function createPendingLink(identity: OidcIdentity): string {
     .prepare(
       `INSERT INTO pending_links
         (token, sub, first_name, last_name, level, email, formation, role, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       token,
@@ -937,7 +879,7 @@ export function createPendingLink(identity: OidcIdentity): string {
       identity.email,
       identity.formation,
       identity.role,
-      nowEpoch() + PENDING_TTL_SECONDS,
+      nowEpoch() + PENDING_TTL_SECONDS
     );
   return token;
 }
@@ -948,19 +890,17 @@ export function getPendingLink(token: string): OidcIdentity | null {
   const row = database
     .prepare(
       `SELECT sub, first_name, last_name, level, email, formation, role
-       FROM pending_links WHERE token = ? AND expires_at > ?`,
+       FROM pending_links WHERE token = ? AND expires_at > ?`
     )
-    .get(token, nowEpoch()) as
-    | {
-        sub: string;
-        first_name: string;
-        last_name: string;
-        level: number | null;
-        email: string | null;
-        formation: string | null;
-        role: string;
-      }
-    | null;
+    .get(token, nowEpoch()) as {
+    sub: string;
+    first_name: string;
+    last_name: string;
+    level: number | null;
+    email: string | null;
+    formation: string | null;
+    role: string;
+  } | null;
   if (!row) {
     return null;
   }
@@ -977,14 +917,12 @@ export function getPendingLink(token: string): OidcIdentity | null {
 
 /** Delete a pending link request (after resolution or expiry). */
 export function deletePendingLink(token: string): void {
-  getDatabase().prepare("DELETE FROM pending_links WHERE token = ?").run(token);
+  getDatabase().prepare('DELETE FROM pending_links WHERE token = ?').run(token);
 }
 
 /** Purge expired pending link requests. */
 export function deleteExpiredPendingLinks(): void {
-  getDatabase()
-    .prepare("DELETE FROM pending_links WHERE expires_at <= ?")
-    .run(nowEpoch());
+  getDatabase().prepare('DELETE FROM pending_links WHERE expires_at <= ?').run(nowEpoch());
 }
 
 // ============================================
@@ -993,11 +931,11 @@ export function deleteExpiredPendingLinks(): void {
 
 /** Normalize a name fragment for an id: lowercase, accent-free, alphanumeric. */
 function slugPart(value: string): string {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /**
@@ -1008,15 +946,13 @@ function slugPart(value: string): string {
 export function generatePersonId(
   firstName: string,
   lastName: string,
-  level: number | null,
+  level: number | null
 ): string {
   const database = getDatabase();
   const exists = (id: string): boolean =>
-    database.prepare("SELECT 1 FROM people WHERE id = ?").get(id) != null;
+    database.prepare('SELECT 1 FROM people WHERE id = ?').get(id) != null;
 
-  const base =
-    `${slugPart(firstName)}.${slugPart(lastName)}`.replace(/^\.|\.$/g, "") ||
-    "anonyme";
+  const base = `${slugPart(firstName)}.${slugPart(lastName)}`.replace(/^\.|\.$/g, '') || 'anonyme';
   if (!exists(base)) {
     return base;
   }
@@ -1035,7 +971,7 @@ export function generatePersonId(
 // LEGACY DB (lecture seule, fenetre /admin/legacy)
 // ============================================
 
-const LEGACY_DB_PATH = path.join(process.cwd(), "database", "sky-legacy.db");
+const LEGACY_DB_PATH = path.join(process.cwd(), 'database', 'sky-legacy.db');
 let legacyDb: Database | null = null;
 
 /** True if the legacy snapshot (frozen old database) exists. */
@@ -1082,9 +1018,9 @@ export function getLegacyCounts(): {
     }
   };
   return {
-    people: count("SELECT count(*) c FROM people"),
-    relationships: count("SELECT count(*) c FROM relationships"),
-    links: count("SELECT count(*) c FROM external_links"),
+    people: count('SELECT count(*) c FROM people'),
+    relationships: count('SELECT count(*) c FROM relationships'),
+    links: count('SELECT count(*) c FROM external_links'),
   };
 }
 
@@ -1101,13 +1037,13 @@ export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
           `SELECT id, first_name, last_name, level, bio, image_url FROM people
            WHERE lower(first_name) LIKE ? OR lower(last_name) LIKE ?
               OR lower(id) LIKE ? OR CAST(level AS TEXT) LIKE ?
-           ORDER BY last_name, first_name LIMIT ?`,
+           ORDER BY last_name, first_name LIMIT ?`
         )
         .all(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, limit) as LegacyPerson[])
     : (ldb
         .prepare(
           `SELECT id, first_name, last_name, level, bio, image_url FROM people
-           ORDER BY last_name, first_name LIMIT ?`,
+           ORDER BY last_name, first_name LIMIT ?`
         )
         .all(limit) as LegacyPerson[]);
   return rows;
@@ -1127,14 +1063,14 @@ export function getLegacyPersonRelations(id: string): {
     .prepare(
       `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
        FROM relationships r JOIN people p ON p.id = r.source_id
-       WHERE r.target_id = ? ORDER BY r.type`,
+       WHERE r.target_id = ? ORDER BY r.type`
     )
     .all(id) as { id: string; name: string; type: string }[];
   const fillots = ldb
     .prepare(
       `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
        FROM relationships r JOIN people p ON p.id = r.target_id
-       WHERE r.source_id = ? ORDER BY r.type`,
+       WHERE r.source_id = ? ORDER BY r.type`
     )
     .all(id) as { id: string; name: string; type: string }[];
   return { parrains, fillots };
@@ -1175,22 +1111,18 @@ export function createRelationship(relationship: JsonRelation): boolean {
     stmt.run(relationship.source, relationship.target, relationship.type);
     return true;
   } catch (error) {
-    console.error("Create relationship error:", error);
+    console.error('Create relationship error:', error);
     return false;
   }
 }
 
-export function deleteRelationship(
-  source: string,
-  target: string,
-  type?: string,
-): boolean {
+export function deleteRelationship(source: string, target: string, type?: string): boolean {
   const database = getDatabase();
-  let query = "DELETE FROM relationships WHERE source_id = ? AND target_id = ?";
+  let query = 'DELETE FROM relationships WHERE source_id = ? AND target_id = ?';
   const params: string[] = [source, target];
 
   if (type) {
-    query += " AND type = ?";
+    query += ' AND type = ?';
     params.push(type);
   }
 
@@ -1204,11 +1136,11 @@ export function deleteRelationship(
 // ============================================
 
 /** Godparent link type: official or adoption. */
-export type RelationKind = "parrainage" | "adoption";
+export type RelationKind = 'parrainage' | 'adoption';
 
 /** True if the value is a known link type. */
 export function isRelationKind(value: unknown): value is RelationKind {
-  return value === "parrainage" || value === "adoption";
+  return value === 'parrainage' || value === 'adoption';
 }
 
 /**
@@ -1231,16 +1163,16 @@ export const MAX_FILLOTS: Record<RelationKind, number> = {
 
 /** Machine code for a godparent-rule violation. */
 export type RelationErrorCode =
-  | "INVALID_KIND"
-  | "SELF"
-  | "NOT_FOUND"
-  | "DUPLICATE"
-  | "MAX_PARRAIN"
-  | "MAX_FILLOT"
-  | "CYCLE"
-  | "PROMO_UNKNOWN"
-  | "PROMO_ORDER"
-  | "PROMO_GAP";
+  | 'INVALID_KIND'
+  | 'SELF'
+  | 'NOT_FOUND'
+  | 'DUPLICATE'
+  | 'MAX_PARRAIN'
+  | 'MAX_FILLOT'
+  | 'CYCLE'
+  | 'PROMO_UNKNOWN'
+  | 'PROMO_ORDER'
+  | 'PROMO_GAP';
 
 /**
  * Business error for a rejected godparent link (rules 1/1/3/2, cycle,
@@ -1250,7 +1182,7 @@ export class RelationError extends Error {
   code: RelationErrorCode;
   constructor(code: RelationErrorCode, message: string) {
     super(message);
-    this.name = "RelationError";
+    this.name = 'RelationError';
     this.code = code;
   }
 }
@@ -1258,9 +1190,7 @@ export class RelationError extends Error {
 /** Number of godparents of a given type pointing at `personId` (incoming links). */
 function countIncoming(personId: string, kind: RelationKind): number {
   const row = getDatabase()
-    .prepare(
-      "SELECT COUNT(*) AS c FROM relationships WHERE target_id = ? AND type = ?",
-    )
+    .prepare('SELECT COUNT(*) AS c FROM relationships WHERE target_id = ? AND type = ?')
     .get(personId, kind) as { c: number };
   return row.c;
 }
@@ -1268,9 +1198,7 @@ function countIncoming(personId: string, kind: RelationKind): number {
 /** Number of godchildren of a given type from `personId` (outgoing links). */
 function countOutgoing(personId: string, kind: RelationKind): number {
   const row = getDatabase()
-    .prepare(
-      "SELECT COUNT(*) AS c FROM relationships WHERE source_id = ? AND type = ?",
-    )
+    .prepare('SELECT COUNT(*) AS c FROM relationships WHERE source_id = ? AND type = ?')
     .get(personId, kind) as { c: number };
   return row.c;
 }
@@ -1279,25 +1207,21 @@ function countOutgoing(personId: string, kind: RelationKind): number {
 function edgeExists(sourceId: string, targetId: string): boolean {
   return (
     getDatabase()
-      .prepare(
-        "SELECT 1 FROM relationships WHERE source_id = ? AND target_id = ?",
-      )
+      .prepare('SELECT 1 FROM relationships WHERE source_id = ? AND target_id = ?')
       .get(sourceId, targetId) != null
   );
 }
 
 /** True if a record exists. */
 function personExists(id: string): boolean {
-  return (
-    getDatabase().prepare("SELECT 1 FROM people WHERE id = ?").get(id) != null
-  );
+  return getDatabase().prepare('SELECT 1 FROM people WHERE id = ?').get(id) != null;
 }
 
 /** Promotion (year of entry) of a record, or null if unknown or absent. */
 function personLevel(id: string): number | null {
-  const row = getDatabase()
-    .prepare("SELECT level FROM people WHERE id = ?")
-    .get(id) as { level: number | null } | null;
+  const row = getDatabase().prepare('SELECT level FROM people WHERE id = ?').get(id) as {
+    level: number | null;
+  } | null;
   return row ? row.level : null;
 }
 
@@ -1308,9 +1232,7 @@ function personLevel(id: string): number | null {
  */
 function canReach(fromId: string, toId: string): boolean {
   const database = getDatabase();
-  const stmt = database.prepare(
-    "SELECT target_id FROM relationships WHERE source_id = ?",
-  );
+  const stmt = database.prepare('SELECT target_id FROM relationships WHERE source_id = ?');
   const visited = new Set<string>();
   const queue: string[] = [fromId];
   while (queue.length > 0) {
@@ -1339,63 +1261,48 @@ function canReach(fromId: string, toId: string): boolean {
  * more recent, both promos known, at most MAX_PROMO_GAP years apart). Throws
  * `RelationError` otherwise.
  */
-export function addParrainage(
-  sourceId: string,
-  targetId: string,
-  kind: RelationKind,
-): void {
-  console.debug(
-    `[Entourage] addParrainage source=${sourceId} target=${targetId} kind=${kind}`,
-  );
+export function addParrainage(sourceId: string, targetId: string, kind: RelationKind): void {
+  console.debug(`[Entourage] addParrainage source=${sourceId} target=${targetId} kind=${kind}`);
   if (!isRelationKind(kind)) {
-    throw new RelationError("INVALID_KIND", m.rel_err_invalid_kind());
+    throw new RelationError('INVALID_KIND', m.rel_err_invalid_kind());
   }
   if (sourceId === targetId) {
-    throw new RelationError("SELF", m.rel_err_self());
+    throw new RelationError('SELF', m.rel_err_self());
   }
   if (!personExists(sourceId) || !personExists(targetId)) {
-    throw new RelationError("NOT_FOUND", m.rel_err_not_found());
+    throw new RelationError('NOT_FOUND', m.rel_err_not_found());
   }
   if (edgeExists(sourceId, targetId)) {
-    throw new RelationError("DUPLICATE", m.rel_err_duplicate());
+    throw new RelationError('DUPLICATE', m.rel_err_duplicate());
   }
   if (countOutgoing(sourceId, kind) >= MAX_FILLOTS[kind]) {
     throw new RelationError(
-      "MAX_FILLOT",
-      kind === "parrainage"
-        ? m.rel_err_max_fillot_official()
-        : m.rel_err_max_fillot_adoption(),
+      'MAX_FILLOT',
+      kind === 'parrainage' ? m.rel_err_max_fillot_official() : m.rel_err_max_fillot_adoption()
     );
   }
   if (countIncoming(targetId, kind) >= MAX_PARRAINS[kind]) {
     throw new RelationError(
-      "MAX_PARRAIN",
-      kind === "parrainage"
-        ? m.rel_err_max_parrain_official()
-        : m.rel_err_max_parrain_adoption(),
+      'MAX_PARRAIN',
+      kind === 'parrainage' ? m.rel_err_max_parrain_official() : m.rel_err_max_parrain_adoption()
     );
   }
   if (canReach(targetId, sourceId)) {
-    throw new RelationError("CYCLE", m.rel_err_cycle());
+    throw new RelationError('CYCLE', m.rel_err_cycle());
   }
   // Promo rules: source = godparent, target = godchild. The godchild must be a
   // strictly more recent, at-most-MAX_PROMO_GAP-younger promotion, and both
   // promos must be known.
   switch (checkPromoPair(personLevel(sourceId), personLevel(targetId))) {
-    case "PROMO_UNKNOWN":
-      throw new RelationError("PROMO_UNKNOWN", m.rel_err_promo_unknown());
-    case "PROMO_ORDER":
-      throw new RelationError("PROMO_ORDER", m.rel_err_promo_order());
-    case "PROMO_GAP":
-      throw new RelationError(
-        "PROMO_GAP",
-        m.rel_err_promo_gap({ max: MAX_PROMO_GAP }),
-      );
+    case 'PROMO_UNKNOWN':
+      throw new RelationError('PROMO_UNKNOWN', m.rel_err_promo_unknown());
+    case 'PROMO_ORDER':
+      throw new RelationError('PROMO_ORDER', m.rel_err_promo_order());
+    case 'PROMO_GAP':
+      throw new RelationError('PROMO_GAP', m.rel_err_promo_gap({ max: MAX_PROMO_GAP }));
   }
   getDatabase()
-    .prepare(
-      "INSERT INTO relationships (source_id, target_id, type) VALUES (?, ?, ?)",
-    )
+    .prepare('INSERT INTO relationships (source_id, target_id, type) VALUES (?, ?, ?)')
     .run(sourceId, targetId, kind);
 }
 
@@ -1407,21 +1314,14 @@ export function getRelationshipById(id: number): {
   type: string;
 } | null {
   const row = getDatabase()
-    .prepare(
-      "SELECT id, source_id, target_id, type FROM relationships WHERE id = ?",
-    )
-    .get(id) as
-    | { id: number; source_id: string; target_id: string; type: string }
-    | null;
+    .prepare('SELECT id, source_id, target_id, type FROM relationships WHERE id = ?')
+    .get(id) as { id: number; source_id: string; target_id: string; type: string } | null;
   return row ?? null;
 }
 
 /** Delete a godparent link by its id. True if a row was removed. */
 export function removeRelationshipById(id: number): boolean {
-  return (
-    getDatabase().prepare("DELETE FROM relationships WHERE id = ?").run(id)
-      .changes > 0
-  );
+  return getDatabase().prepare('DELETE FROM relationships WHERE id = ?').run(id).changes > 0;
 }
 
 /** A member of a person's entourage (a parrain or a fillot). */
@@ -1456,7 +1356,7 @@ interface EntourageRow {
 function toMember(row: EntourageRow): EntourageMember {
   return {
     relId: row.relId,
-    kind: row.type === "adoption" ? "adoption" : "parrainage",
+    kind: row.type === 'adoption' ? 'adoption' : 'parrainage',
     id: row.id,
     prenom: row.first_name,
     nom: row.last_name,
@@ -1476,7 +1376,7 @@ export function getEntourage(personId: string): Entourage {
       .prepare(
         `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.source_id
-         WHERE r.target_id = ? ORDER BY r.type, p.last_name`,
+         WHERE r.target_id = ? ORDER BY r.type, p.last_name`
       )
       .all(personId) as EntourageRow[]
   ).map(toMember);
@@ -1485,7 +1385,7 @@ export function getEntourage(personId: string): Entourage {
       .prepare(
         `SELECT r.id AS relId, r.type, p.id, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.target_id
-         WHERE r.source_id = ? ORDER BY r.type, p.last_name`,
+         WHERE r.source_id = ? ORDER BY r.type, p.last_name`
       )
       .all(personId) as EntourageRow[]
   ).map(toMember);
@@ -1495,9 +1395,7 @@ export function getEntourage(personId: string): Entourage {
 /** Number of parrainage relationships touching a person (as source or target). */
 export function countPersonRelations(id: string): number {
   const row = getDatabase()
-    .prepare(
-      "SELECT COUNT(*) AS n FROM relationships WHERE source_id = ? OR target_id = ?",
-    )
+    .prepare('SELECT COUNT(*) AS n FROM relationships WHERE source_id = ? OR target_id = ?')
     .get(id, id) as { n: number };
   return row.n;
 }
@@ -1508,7 +1406,7 @@ export function areDirectlyRelated(aId: string, bId: string): boolean {
     .prepare(
       `SELECT 1 FROM relationships
        WHERE (source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)
-       LIMIT 1`,
+       LIMIT 1`
     )
     .get(aId, bId, bId, aId);
   return row != null;
@@ -1527,10 +1425,10 @@ export function isSameFamily(aId: string, bId: string): boolean {
   }
   const database = getDatabase();
   const outStmt = database.prepare(
-    "SELECT target_id AS other FROM relationships WHERE source_id = ?",
+    'SELECT target_id AS other FROM relationships WHERE source_id = ?'
   );
   const inStmt = database.prepare(
-    "SELECT source_id AS other FROM relationships WHERE target_id = ?",
+    'SELECT source_id AS other FROM relationships WHERE target_id = ?'
   );
   const visited = new Set<string>();
   const queue: string[] = [aId];
@@ -1564,20 +1462,15 @@ export function updatePlaceholderIdentity(
   id: string,
   firstName: string,
   lastName: string,
-  level: number | null,
+  level: number | null
 ): boolean {
   const changes = getDatabase()
     .prepare(
       `UPDATE people SET first_name = ?, last_name = ?, level = ?,
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND auth_sub IS NULL`,
+       WHERE id = ? AND auth_sub IS NULL`
     )
-    .run(
-      formatFirstName(firstName),
-      formatLastName(lastName),
-      level,
-      id,
-    ).changes;
+    .run(formatFirstName(firstName), formatLastName(lastName), level, id).changes;
   return changes > 0;
 }
 
@@ -1588,16 +1481,14 @@ export function updatePlaceholderIdentity(
 export function deletePlaceholderPerson(id: string): boolean {
   const database = getDatabase();
   return database.transaction(() => {
-    const row = database
-      .prepare("SELECT auth_sub FROM people WHERE id = ?")
-      .get(id) as { auth_sub: string | null } | null;
+    const row = database.prepare('SELECT auth_sub FROM people WHERE id = ?').get(id) as {
+      auth_sub: string | null;
+    } | null;
     if (!row || row.auth_sub !== null) {
       return false;
     }
-    database
-      .prepare("DELETE FROM relationships WHERE source_id = ? OR target_id = ?")
-      .run(id, id);
-    database.prepare("DELETE FROM people WHERE id = ?").run(id);
+    database.prepare('DELETE FROM relationships WHERE source_id = ? OR target_id = ?').run(id, id);
+    database.prepare('DELETE FROM people WHERE id = ?').run(id);
     return true;
   })();
 }
@@ -1642,7 +1533,7 @@ function pairKey(a: string, b: string): string {
 export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
   const database = getDatabase();
   const people = database
-    .prepare("SELECT id, first_name, last_name, level, auth_sub FROM people")
+    .prepare('SELECT id, first_name, last_name, level, auth_sub FROM people')
     .all() as {
     id: string;
     first_name: string;
@@ -1653,11 +1544,11 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
 
   const ignored = new Set(
     (
-      database.prepare("SELECT a_id, b_id FROM ignored_merge_pairs").all() as {
+      database.prepare('SELECT a_id, b_id FROM ignored_merge_pairs').all() as {
         a_id: string;
         b_id: string;
       }[]
-    ).map((r) => pairKey(r.a_id, r.b_id)),
+    ).map((r) => pairKey(r.a_id, r.b_id))
   );
 
   // Sorted-token normalized length, for a cheap prune before the edit distance.
@@ -1665,7 +1556,7 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
     const tokens = [normalizeName(p.last_name), normalizeName(p.first_name)]
       .filter((t) => t.length > 0)
       .sort()
-      .join(" ");
+      .join(' ');
     return tokens.length;
   });
 
@@ -1697,19 +1588,10 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
       // Promo compatibility: equal, unknown on one side, or within a small year
       // tolerance (a data-entry slip, or a legacy record carrying the graduation
       // year instead of the entry year the promotion actually is).
-      if (
-        A.level !== null &&
-        B.level !== null &&
-        Math.abs(A.level - B.level) > 3
-      ) {
+      if (A.level !== null && B.level !== null && Math.abs(A.level - B.level) > 3) {
         continue;
       }
-      const d = nameDistance(
-        A.last_name,
-        A.first_name,
-        B.last_name,
-        B.first_name,
-      );
+      const d = nameDistance(A.last_name, A.first_name, B.last_name, B.first_name);
       if (d > NAME_MATCH_MAX_DISTANCE) {
         continue;
       }
@@ -1732,9 +1614,7 @@ export function getMergeSuggestions(limit = 100): MergeSuggestion[] {
 export function ignoreMergePair(aId: string, bId: string): void {
   const [x, y] = aId < bId ? [aId, bId] : [bId, aId];
   getDatabase()
-    .prepare(
-      "INSERT OR IGNORE INTO ignored_merge_pairs (a_id, b_id) VALUES (?, ?)",
-    )
+    .prepare('INSERT OR IGNORE INTO ignored_merge_pairs (a_id, b_id) VALUES (?, ?)')
     .run(x, y);
 }
 
@@ -1767,7 +1647,7 @@ function toExternalMember(row: ExternalRow): ExternalEntourageMember {
     prenom: row.first_name,
     nom: row.last_name,
     level: row.level,
-    kind: row.type === "adoption" ? "adoption" : "parrainage",
+    kind: row.type === 'adoption' ? 'adoption' : 'parrainage',
     sub: row.auth_sub,
   };
 }
@@ -1779,9 +1659,9 @@ function toExternalMember(row: ExternalRow): ExternalEntourageMember {
  */
 export function getEntourageBySub(sub: string): ExternalEntourage {
   const database = getDatabase();
-  const person = database
-    .prepare("SELECT id FROM people WHERE auth_sub = ?")
-    .get(sub) as { id: string } | null;
+  const person = database.prepare('SELECT id FROM people WHERE auth_sub = ?').get(sub) as {
+    id: string;
+  } | null;
   if (!person) {
     return { found: false, parrains: [], fillots: [] };
   }
@@ -1790,7 +1670,7 @@ export function getEntourageBySub(sub: string): ExternalEntourage {
       .prepare(
         `SELECT r.type, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.source_id
-         WHERE r.target_id = ? ORDER BY r.type, p.last_name`,
+         WHERE r.target_id = ? ORDER BY r.type, p.last_name`
       )
       .all(person.id) as ExternalRow[]
   ).map(toExternalMember);
@@ -1799,7 +1679,7 @@ export function getEntourageBySub(sub: string): ExternalEntourage {
       .prepare(
         `SELECT r.type, p.first_name, p.last_name, p.level, p.auth_sub
          FROM relationships r JOIN people p ON p.id = r.target_id
-         WHERE r.source_id = ? ORDER BY r.type, p.last_name`,
+         WHERE r.source_id = ? ORDER BY r.type, p.last_name`
       )
       .all(person.id) as ExternalRow[]
   ).map(toExternalMember);
@@ -1819,12 +1699,9 @@ export interface NamesakeCandidate {
  * Records whose normalized last+first name match, linked or not (dedup when
  * creating an entourage member: propose linking rather than duplicating).
  */
-export function findPeopleByName(
-  lastName: string,
-  firstName: string,
-): NamesakeCandidate[] {
+export function findPeopleByName(lastName: string, firstName: string): NamesakeCandidate[] {
   const rows = getDatabase()
-    .prepare("SELECT id, first_name, last_name, level, auth_sub FROM people")
+    .prepare('SELECT id, first_name, last_name, level, auth_sub FROM people')
     .all() as {
     id: string;
     first_name: string;
@@ -1835,11 +1712,7 @@ export function findPeopleByName(
   const nLast = normalizeName(lastName);
   const nFirst = normalizeName(firstName);
   return rows
-    .filter(
-      (r) =>
-        normalizeName(r.last_name) === nLast &&
-        normalizeName(r.first_name) === nFirst,
-    )
+    .filter((r) => normalizeName(r.last_name) === nLast && normalizeName(r.first_name) === nFirst)
     .map((r) => ({
       id: r.id,
       firstName: r.first_name,
@@ -1857,7 +1730,7 @@ export function createPlaceholderPerson(
   firstName: string,
   lastName: string,
   level: number | null,
-  createdBy: string,
+  createdBy: string
 ): string {
   // Enforce the display convention at creation: "NOM" uppercase, "Prenom" capitalized.
   const nom = formatLastName(lastName);
@@ -1867,7 +1740,7 @@ export function createPlaceholderPerson(
   getDatabase()
     .prepare(
       `INSERT INTO people (id, first_name, last_name, level, created_by)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)`
     )
     .run(id, prenom, nom, level, createdBy);
   return id;
@@ -1887,17 +1760,17 @@ export function createPlaceholderAndLink(
   level: number | null,
   createdBy: string,
   centerId: string,
-  role: "parrain" | "fillot",
-  kind: RelationKind,
+  role: 'parrain' | 'fillot',
+  kind: RelationKind
 ): string {
   console.debug(
-    `[Entourage] createPlaceholderAndLink center=${centerId} role=${role} kind=${kind}`,
+    `[Entourage] createPlaceholderAndLink center=${centerId} role=${role} kind=${kind}`
   );
   return getDatabase().transaction(() => {
     const id = createPlaceholderPerson(firstName, lastName, level, createdBy);
     // parrain = the new star is the godparent (source), fillot = the godchild.
-    const sourceId = role === "parrain" ? id : centerId;
-    const targetId = role === "parrain" ? centerId : id;
+    const sourceId = role === 'parrain' ? id : centerId;
+    const targetId = role === 'parrain' ? centerId : id;
     addParrainage(sourceId, targetId, kind);
     return id;
   })();
@@ -1966,20 +1839,21 @@ export function recalculatePositions(): Promise<PositionsStatus> {
     ok: boolean,
     error: string | null,
     positioned: number,
-    total: number,
+    total: number
   ): PositionsStatus => {
     lastPositionsStatus = { ok, at: nowEpoch(), positioned, total, error };
     return lastPositionsStatus;
   };
 
   try {
-    const nodeIds = (
-      database.prepare("SELECT id FROM people").all() as { id: string }[]
-    ).map((r) => r.id);
+    const nodeIds = (database.prepare('SELECT id FROM people').all() as { id: string }[]).map(
+      (r) => r.id
+    );
     const nodeSet = new Set(nodeIds);
-    const edgeRows = database
-      .prepare("SELECT source_id, target_id FROM relationships")
-      .all() as { source_id: string; target_id: string }[];
+    const edgeRows = database.prepare('SELECT source_id, target_id FROM relationships').all() as {
+      source_id: string;
+      target_id: string;
+    }[];
     const edges: [string, string][] = [];
     for (const e of edgeRows) {
       if (nodeSet.has(e.source_id) && nodeSet.has(e.target_id)) {
@@ -1988,23 +1862,16 @@ export function recalculatePositions(): Promise<PositionsStatus> {
     }
 
     console.debug(
-      `[Positions] Computing layout for ${nodeIds.length} people, ${edges.length} links...`,
+      `[Positions] Computing layout for ${nodeIds.length} people, ${edges.length} links...`
     );
     const positions = layoutGraph(nodeIds, edges);
 
-    const file = path.join(process.cwd(), "database", "positions.json");
+    const file = path.join(process.cwd(), 'database', 'positions.json');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(positions, null, 2));
 
-    const status = record(
-      true,
-      null,
-      Object.keys(positions).length,
-      nodeIds.length,
-    );
-    console.debug(
-      `[Positions] Done: ${status.positioned}/${status.total} nodes positioned`,
-    );
+    const status = record(true, null, Object.keys(positions).length, nodeIds.length);
+    console.debug(`[Positions] Done: ${status.positioned}/${status.total} nodes positioned`);
     return Promise.resolve(status);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -2012,17 +1879,17 @@ export function recalculatePositions(): Promise<PositionsStatus> {
     let total = 0;
     try {
       total = (
-        database.prepare("SELECT COUNT(*) AS n FROM people").get() as {
+        database.prepare('SELECT COUNT(*) AS n FROM people').get() as {
           n: number;
         }
       ).n;
     } catch (countError) {
-      console.error("[Positions] people count failed:", countError);
+      console.error('[Positions] people count failed:', countError);
     }
     return Promise.reject(
       Object.assign(new Error(message), {
         status: record(false, message, 0, total),
-      }),
+      })
     );
   }
 }

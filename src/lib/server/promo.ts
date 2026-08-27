@@ -38,16 +38,16 @@ export function isValidPromo(level: number | null): boolean {
  */
 export function checkPromoPair(
   parrainLevel: number | null,
-  fillotLevel: number | null,
-): "PROMO_UNKNOWN" | "PROMO_ORDER" | "PROMO_GAP" | null {
+  fillotLevel: number | null
+): 'PROMO_UNKNOWN' | 'PROMO_ORDER' | 'PROMO_GAP' | null {
   if (parrainLevel === null || fillotLevel === null) {
-    return "PROMO_UNKNOWN";
+    return 'PROMO_UNKNOWN';
   }
   if (fillotLevel <= parrainLevel) {
-    return "PROMO_ORDER";
+    return 'PROMO_ORDER';
   }
   if (fillotLevel - parrainLevel > MAX_PROMO_GAP) {
-    return "PROMO_GAP";
+    return 'PROMO_GAP';
   }
   return null;
 }

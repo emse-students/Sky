@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
   import {
     filteredGraph,
     selectedPersonId,
     graphStore,
     findNeighborsWithinHops,
     focusDepth,
-  } from "$stores/graphStore";
-  import { cameraStore } from "$stores/cameraStore";
-  import { getPersonName } from "$lib/utils/format";
-  import { computePromoBounds, promoColor } from "$lib/utils/promoColor";
+  } from '$stores/graphStore';
+  import { cameraStore } from '$stores/cameraStore';
+  import { getPersonName } from '$lib/utils/format';
+  import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -63,11 +63,7 @@
     if (!fullGraph.positions[personId]) return;
 
     // Calculate bounding box of the focus group (family/neighbors)
-    const neighbors = findNeighborsWithinHops(
-      personId,
-      fullGraph.relations,
-      $focusDepth,
-    );
+    const neighbors = findNeighborsWithinHops(personId, fullGraph.relations, $focusDepth);
 
     let minX = Infinity,
       maxX = -Infinity,
@@ -116,9 +112,9 @@
   }
 
   onMount(() => {
-    ctx = canvas.getContext("2d")!;
+    ctx = canvas.getContext('2d')!;
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
 
     // Load data
     graphStore.load();
@@ -135,7 +131,7 @@
     animate();
 
     return () => {
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrame);
     };
   });
@@ -172,13 +168,11 @@
       ctx.lineWidth = 1 / camera.zoom;
       const dash = 5 / camera.zoom;
       for (const adoption of [false, true]) {
-        ctx.strokeStyle = adoption
-          ? "rgba(150, 100, 255, 0.4)"
-          : "rgba(100, 150, 255, 0.3)";
+        ctx.strokeStyle = adoption ? 'rgba(150, 100, 255, 0.4)' : 'rgba(100, 150, 255, 0.3)';
         ctx.setLineDash(adoption ? [dash, dash] : []);
         ctx.beginPath();
         for (const rel of relations) {
-          if ((rel.type === "adoption") !== adoption) continue;
+          if ((rel.type === 'adoption') !== adoption) continue;
           const pos1 = positions[rel.id1];
           const pos2 = positions[rel.id2];
           if (!pos1 || !pos2) continue;
@@ -206,12 +200,7 @@
       if (!pos) return;
 
       // Skip if off-screen
-      if (
-        pos.x < viewLeft ||
-        pos.x > viewRight ||
-        pos.y < viewTop ||
-        pos.y > viewBottom
-      ) {
+      if (pos.x < viewLeft || pos.x > viewRight || pos.y < viewTop || pos.y > viewBottom) {
         return;
       }
 
@@ -223,9 +212,9 @@
       ctx.arc(pos.x, pos.y, 4 / camera.zoom, 0, Math.PI * 2);
 
       if (isSelected) {
-        ctx.fillStyle = "#fbbf24";
+        ctx.fillStyle = '#fbbf24';
       } else if (isHovered) {
-        ctx.fillStyle = "#60a5fa";
+        ctx.fillStyle = '#60a5fa';
       } else {
         // Tint by promo: darker = older, lighter = more recent.
         ctx.fillStyle = promoColor(person.level, promoBounds);
@@ -234,13 +223,9 @@
 
       // Label - always shown once zoomed in
       if (camera.zoom > 0.15) {
-        ctx.fillStyle = isSelected
-          ? "#fbbf24"
-          : isHovered
-            ? "#fff"
-            : "rgba(255, 255, 255, 0.7)";
+        ctx.fillStyle = isSelected ? '#fbbf24' : isHovered ? '#fff' : 'rgba(255, 255, 255, 0.7)';
         ctx.font = `${12 / camera.zoom}px "Space Grotesk", sans-serif`;
-        ctx.textAlign = "center";
+        ctx.textAlign = 'center';
         ctx.fillText(getPersonName(person), pos.x, pos.y - 10 / camera.zoom);
       }
     });
@@ -267,10 +252,7 @@
       const dx = (e.clientX - dragStart.x) / camera.zoom;
       const dy = (e.clientY - dragStart.y) / camera.zoom;
 
-      if (
-        Math.abs(e.clientX - dragStart.x) > 5 ||
-        Math.abs(e.clientY - dragStart.y) > 5
-      ) {
+      if (Math.abs(e.clientX - dragStart.x) > 5 || Math.abs(e.clientY - dragStart.y) > 5) {
         hasDragged = true;
       }
 
@@ -288,11 +270,7 @@
         hoveredPerson = found;
         requestRedraw();
       }
-      canvas.style.cursor = found
-        ? "pointer"
-        : isDragging
-          ? "grabbing"
-          : "grab";
+      canvas.style.cursor = found ? 'pointer' : isDragging ? 'grabbing' : 'grab';
     }
   }
 
@@ -386,10 +364,7 @@
       const dx = (t.clientX - lastTouchX) / camera.zoom;
       const dy = (t.clientY - lastTouchY) / camera.zoom;
 
-      if (
-        Math.abs(t.clientX - dragStart.x) > 5 ||
-        Math.abs(t.clientY - dragStart.y) > 5
-      ) {
+      if (Math.abs(t.clientX - dragStart.x) > 5 || Math.abs(t.clientY - dragStart.y) > 5) {
         isDragging = true;
         hasDragged = true;
       }
@@ -403,8 +378,7 @@
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.sqrt(
-        Math.pow(t1.clientX - t2.clientX, 2) +
-          Math.pow(t1.clientY - t2.clientY, 2),
+        Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2)
       );
       const delta = (dist - lastTouchDistance) * 0.005;
       cameraStore.zoom(delta);

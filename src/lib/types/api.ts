@@ -8,7 +8,7 @@ export interface SessionUser {
   auth_sub: string | null; // Authentik sub (= Canari profile id), null if placeholder
   name: string; // "LASTNAME Firstname"
   email: string | null;
-  role: "admin" | "user";
+  role: 'admin' | 'user';
   formation: string | null; // 'ICM', 'ISMIN'...
   promo: number | null; // = people.level
 }

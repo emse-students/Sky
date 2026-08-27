@@ -12,7 +12,7 @@ export interface MergeIdentity {
 }
 
 /** The identity fields, in the order they should be presented. */
-export type IdentityField = "nom" | "prenom" | "level";
+export type IdentityField = 'nom' | 'prenom' | 'level';
 
 /** One conflicting field: its two candidate values (from fiche A and fiche B). */
 export interface IdentityFieldDiff {
@@ -27,19 +27,16 @@ export interface IdentityFieldDiff {
  * no resolution. Names compare case-sensitively (both are already stored in the
  * normalized "NOM"/"Prenom" form); promo compares by value (null = unknown).
  */
-export function diffIdentity(
-  a: MergeIdentity,
-  b: MergeIdentity,
-): IdentityFieldDiff[] {
+export function diffIdentity(a: MergeIdentity, b: MergeIdentity): IdentityFieldDiff[] {
   const diffs: IdentityFieldDiff[] = [];
   if (a.nom !== b.nom) {
-    diffs.push({ field: "nom", a: a.nom, b: b.nom });
+    diffs.push({ field: 'nom', a: a.nom, b: b.nom });
   }
   if (a.prenom !== b.prenom) {
-    diffs.push({ field: "prenom", a: a.prenom, b: b.prenom });
+    diffs.push({ field: 'prenom', a: a.prenom, b: b.prenom });
   }
   if (a.level !== b.level) {
-    diffs.push({ field: "level", a: a.level, b: b.level });
+    diffs.push({ field: 'level', a: a.level, b: b.level });
   }
   return diffs;
 }

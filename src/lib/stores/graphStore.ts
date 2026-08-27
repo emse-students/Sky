@@ -1,12 +1,6 @@
-import { writable, derived } from "svelte/store";
-import type {
-  Person,
-  Relation,
-  Position,
-  GraphDataFile,
-  JsonRelation,
-} from "$types/graph";
-import { hashString } from "$lib/utils/format";
+import { writable, derived } from 'svelte/store';
+import type { Person, Relation, Position, GraphDataFile, JsonRelation } from '$types/graph';
+import { hashString } from '$lib/utils/format';
 
 export interface GraphData {
   people: Person[];
@@ -18,14 +12,12 @@ export interface GraphData {
 export function findNeighborsWithinHops(
   personId: string,
   relations: Relation[],
-  maxHops: number,
+  maxHops: number
 ): Set<string> {
   const neighbors = new Set<string>();
   neighbors.add(personId); // Include the person themselves
 
-  const queue: Array<{ id: string; depth: number }> = [
-    { id: personId, depth: 0 },
-  ];
+  const queue: Array<{ id: string; depth: number }> = [{ id: personId, depth: 0 }];
   const visited = new Set<string>();
 
   while (queue.length > 0) {
@@ -66,7 +58,7 @@ export function findNeighborsWithinHops(
  */
 export function ensureAllPositioned(
   people: Person[],
-  serverPositions: Record<string, Position>,
+  serverPositions: Record<string, Position>
 ): Record<string, Position> {
   const positions: Record<string, Position> = { ...serverPositions };
 
@@ -95,7 +87,7 @@ export function ensureAllPositioned(
 
   if (missing > 0) {
     console.warn(
-      `[Graph] ${missing} person(s) missing from positions.json, scattered as a fallback (run a positions recompute)`,
+      `[Graph] ${missing} person(s) missing from positions.json, scattered as a fallback (run a positions recompute)`
     );
   }
   return positions;
@@ -134,14 +126,12 @@ function createGraphStore() {
         if (posRes.ok) {
           serverPositions = (await posRes.json()) as Record<string, Position>;
         } else {
-          console.warn(
-            "Could not load positions.json, graph might look empty or clumped",
-          );
+          console.warn('Could not load positions.json, graph might look empty or clumped');
         }
 
         // Convert people object to array if needed
         let peopleArray: Person[] = [];
-        if (typeof data.people === "object" && data.people !== null) {
+        if (typeof data.people === 'object' && data.people !== null) {
           peopleArray = Object.entries(data.people).map(([key, p]) => ({
             ...p,
             id: p.id || key,
@@ -170,7 +160,7 @@ function createGraphStore() {
           positions,
         });
       } catch (error) {
-        console.error("Failed to load graph data:", error);
+        console.error('Failed to load graph data:', error);
       }
     },
     searchPeople: (query: string) => {
@@ -190,7 +180,7 @@ function createGraphStore() {
 
 export const graphStore = createGraphStore();
 
-export const searchQuery = writable("");
+export const searchQuery = writable('');
 export const selectedPersonId = writable<string | null>(null);
 export const focusDepth = writable<number>(3); // Default to 3 hops
 
@@ -204,19 +194,15 @@ export const filteredGraph = derived(
     }
 
     // Find neighbors within depth
-    const visiblePeople = findNeighborsWithinHops(
-      $selectedId,
-      $graph.relations,
-      $depth,
-    );
+    const visiblePeople = findNeighborsWithinHops($selectedId, $graph.relations, $depth);
 
     // Filter people and relations
     return {
       people: $graph.people.filter((p) => visiblePeople.has(p.id)),
       relations: $graph.relations.filter(
-        (r) => visiblePeople.has(r.id1) && visiblePeople.has(r.id2),
+        (r) => visiblePeople.has(r.id1) && visiblePeople.has(r.id2)
       ),
       positions: $graph.positions,
     };
-  },
+  }
 );

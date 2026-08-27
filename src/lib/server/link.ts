@@ -3,4 +3,4 @@
  * token references a `pending_links` row server-side (verified SSO identity);
  * the client never carries the identity itself.
  */
-export const PENDING_COOKIE_NAME = "__pending_link";
+export const PENDING_COOKIE_NAME = '__pending_link';

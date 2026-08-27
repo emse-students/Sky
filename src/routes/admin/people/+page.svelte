@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { fade } from "svelte/transition";
+  import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import {
     Search,
     SquarePen,
@@ -13,13 +13,13 @@
     Shield,
     Unlink,
     GitMerge,
-  } from "@lucide/svelte";
-  import { goto } from "$app/navigation";
-  import { confirmDialog, alertDialog } from "$lib/stores/dialogStore";
-  import { m } from "$lib/paraglide/messages";
+  } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
+  import { confirmDialog, alertDialog } from '$lib/stores/dialogStore';
+  import { m } from '$lib/paraglide/messages';
 
   let people: any[] = $state([]);
-  let searchTerm = $state("");
+  let searchTerm = $state('');
   let loading = $state(true);
   let editingPerson: any = $state(null);
   let isCreating = $state(false);
@@ -30,26 +30,23 @@
     if (!term) return people;
 
     return people.filter((p: any) => {
-      const fullName = `${p.prenom || ""} ${p.nom || ""}`.toLowerCase();
-      const id = (p.id || "").toLowerCase();
-      const level = p.level?.toString() || "";
-      return (
-        fullName.includes(term) || id.includes(term) || level.includes(term)
-      );
+      const fullName = `${p.prenom || ''} ${p.nom || ''}`.toLowerCase();
+      const id = (p.id || '').toLowerCase();
+      const level = p.level?.toString() || '';
+      return fullName.includes(term) || id.includes(term) || level.includes(term);
     });
   });
 
   let allSelected = $derived(
-    filteredPeople.length > 0 &&
-      filteredPeople.every((p) => selectedIds.includes(p.id)),
+    filteredPeople.length > 0 && filteredPeople.every((p) => selectedIds.includes(p.id))
   );
 
   // Form state. Bio and photo come from Canari/MiGallery: not editable here.
   let form = $state({
-    id: "",
-    prenom: "",
-    nom: "",
-    level: "",
+    id: '',
+    prenom: '',
+    nom: '',
+    level: '',
   });
 
   onMount(async () => {
@@ -59,7 +56,7 @@
   async function loadPeople() {
     loading = true;
     try {
-      const res = await fetch("/api/admin/people");
+      const res = await fetch('/api/admin/people');
       if (res.ok) {
         const data = await res.json();
         people = Array.isArray(data) ? data : data.people || [];
@@ -71,21 +68,21 @@
 
   /** Promote/demote a fiche (admin management). */
   async function toggleRole(person: any) {
-    const role = person.role === "admin" ? "user" : "admin";
+    const role = person.role === 'admin' ? 'user' : 'admin';
     if (
       !(await confirmDialog(
         m.admin_people_role_confirm({
           name: `${person.prenom} ${person.nom}`,
           role,
-        }),
+        })
       ))
     ) {
       return;
     }
     const res = await fetch(`/api/admin/people/${person.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set-role", role }),
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set-role', role }),
     });
     if (res.ok) await loadPeople();
   }
@@ -105,14 +102,14 @@
         m.admin_people_merge_confirm({
           source: `${source.prenom} ${source.nom}`,
           target: `${target.prenom} ${target.nom}`,
-        }),
+        })
       ))
     ) {
       return;
     }
-    const res = await fetch("/api/admin/merge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('/api/admin/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId: source.id, targetId: target.id }),
     });
     if (res.ok) {
@@ -130,15 +127,15 @@
       !(await confirmDialog(
         m.admin_people_unlink_confirm({
           name: `${person.prenom} ${person.nom}`,
-        }),
+        })
       ))
     ) {
       return;
     }
     const res = await fetch(`/api/admin/people/${person.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unlink" }),
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'unlink' }),
     });
     if (res.ok) await loadPeople();
   }
@@ -161,23 +158,21 @@
 
   async function deleteSelected() {
     if (
-      !(await confirmDialog(
-        m.admin_people_delete_selected_confirm({ count: selectedIds.length }),
-        { danger: true, confirmLabel: m.common_delete() },
-      ))
+      !(await confirmDialog(m.admin_people_delete_selected_confirm({ count: selectedIds.length }), {
+        danger: true,
+        confirmLabel: m.common_delete(),
+      }))
     )
       return;
     loading = true;
     try {
       await Promise.all(
-        selectedIds.map((id) =>
-          fetch(`/api/admin/people/${id}`, { method: "DELETE" }),
-        ),
+        selectedIds.map((id) => fetch(`/api/admin/people/${id}`, { method: 'DELETE' }))
       );
       await loadPeople();
       selectedIds = [];
     } catch (e) {
-      console.error("Bulk delete error", e);
+      console.error('Bulk delete error', e);
     } finally {
       loading = false;
     }
@@ -189,7 +184,7 @@
       id: person.id,
       prenom: person.prenom,
       nom: person.nom,
-      level: person.level?.toString() || "",
+      level: person.level?.toString() || '',
     };
     isCreating = false;
   }
@@ -197,10 +192,10 @@
   function startCreate() {
     editingPerson = null;
     form = {
-      id: "",
-      prenom: "",
-      nom: "",
-      level: "",
+      id: '',
+      prenom: '',
+      nom: '',
+      level: '',
     };
     isCreating = true;
   }
@@ -212,12 +207,7 @@
 
   async function savePerson() {
     // Last name, first name and promo are mandatory (ID too when creating).
-    if (
-      !form.prenom.trim() ||
-      !form.nom.trim() ||
-      !form.level ||
-      (isCreating && !form.id.trim())
-    ) {
+    if (!form.prenom.trim() || !form.nom.trim() || !form.level || (isCreating && !form.id.trim())) {
       await alertDialog(m.admin_people_required());
       return;
     }
@@ -229,14 +219,12 @@
         level: form.level ? parseInt(form.level) : null,
       };
 
-      const url = isCreating
-        ? "/api/admin/people"
-        : `/api/admin/people/${editingPerson.id}`;
-      const method = isCreating ? "POST" : "PUT";
+      const url = isCreating ? '/api/admin/people' : `/api/admin/people/${editingPerson.id}`;
+      const method = isCreating ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -248,7 +236,7 @@
         await alertDialog(d.error || m.admin_people_save_failed());
       }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error('Save error:', error);
     }
   }
 
@@ -276,14 +264,14 @@
 
     try {
       const res = await fetch(`/api/admin/people/${id}`, {
-        method: "DELETE",
+        method: 'DELETE',
       });
 
       if (res.ok) {
         await loadPeople();
       }
     } catch (error) {
-      console.error("Delete error:", error);
+      console.error('Delete error:', error);
     }
   }
 </script>
@@ -294,7 +282,7 @@
 
 <div class="admin-layout">
   <header class="admin-header">
-    <button class="btn-back" onclick={() => goto("/admin")}>
+    <button class="btn-back" onclick={() => goto('/admin')}>
       <ArrowLeft size={20} />
       <span>{m.common_back()}</span>
     </button>
@@ -350,11 +338,7 @@
             <thead>
               <tr>
                 <th class="checkbox-col">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onchange={toggleAll}
-                  />
+                  <input type="checkbox" checked={allSelected} onchange={toggleAll} />
                 </th>
                 <th>ID</th>
                 <th>{m.common_lastname()}</th>
@@ -367,10 +351,7 @@
             </thead>
             <tbody>
               {#each filteredPeople as person (person.id)}
-                <tr
-                  transition:fade
-                  class:selected={selectedIds.includes(person.id)}
-                >
+                <tr transition:fade class:selected={selectedIds.includes(person.id)}>
                   <td class="checkbox-col">
                     <input
                       type="checkbox"
@@ -378,30 +359,24 @@
                       onchange={() => toggleSelection(person.id)}
                     />
                   </td>
-                  <td class="mono" title={displayId(person)}
-                    >{truncateId(displayId(person))}</td
-                  >
+                  <td class="mono" title={displayId(person)}>{truncateId(displayId(person))}</td>
                   <td>{person.nom}</td>
                   <td>{person.prenom}</td>
-                  <td>{person.level || "—"}</td>
+                  <td>{person.level || '—'}</td>
                   <td>
                     {#if person.linked}
-                      <span class="badge linked"
-                        >{m.admin_people_badge_account()}</span
-                      >
+                      <span class="badge linked">{m.admin_people_badge_account()}</span>
                     {:else}
-                      <span class="badge ghost"
-                        >{m.admin_people_badge_fiche()}</span
-                      >
+                      <span class="badge ghost">{m.admin_people_badge_fiche()}</span>
                     {/if}
                   </td>
                   <td>
                     <span
                       class="badge"
-                      class:admin={person.role === "admin"}
-                      class:ghost={person.role !== "admin"}
+                      class:admin={person.role === 'admin'}
+                      class:ghost={person.role !== 'admin'}
                     >
-                      {person.role === "admin"
+                      {person.role === 'admin'
                         ? m.admin_people_badge_admin()
                         : m.admin_people_badge_user()}
                     </span>
@@ -416,7 +391,7 @@
                     </button>
                     <button
                       class="btn-icon"
-                      title={person.role === "admin"
+                      title={person.role === 'admin'
                         ? m.admin_people_remove_admin()
                         : m.admin_people_make_admin()}
                       onclick={() => toggleRole(person)}
@@ -435,10 +410,7 @@
                     <button class="btn-icon" onclick={() => startEdit(person)}>
                       <SquarePen size={16} />
                     </button>
-                    <button
-                      class="btn-icon danger"
-                      onclick={() => deletePerson(person.id)}
-                    >
+                    <button class="btn-icon danger" onclick={() => deletePerson(person.id)}>
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -501,12 +473,7 @@
 
           <div class="form-group">
             <label for="level">{m.admin_people_promo_label()}</label>
-            <input
-              id="level"
-              type="number"
-              bind:value={form.level}
-              placeholder="2024"
-            />
+            <input id="level" type="number" bind:value={form.level} placeholder="2024" />
           </div>
         </div>
 
@@ -515,9 +482,7 @@
         </p>
 
         <div class="form-actions">
-          <button class="btn-cancel" onclick={cancelEdit}
-            >{m.common_cancel()}</button
-          >
+          <button class="btn-cancel" onclick={cancelEdit}>{m.common_cancel()}</button>
           <button class="btn-save" onclick={savePerson}>
             <Save size={18} />
             <span>{m.common_save()}</span>
@@ -640,7 +605,7 @@
   }
 
   .mono {
-    font-family: "Courier New", monospace;
+    font-family: 'Courier New', monospace;
     font-size: 13px;
     color: #94a3b8;
   }
@@ -811,7 +776,7 @@
     padding: 0 16px;
   }
 
-  input[type="checkbox"] {
+  input[type='checkbox'] {
     width: 16px;
     height: 16px;
     cursor: pointer;

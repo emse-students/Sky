@@ -9,7 +9,7 @@ on:
       - main
   schedule:
     # Analyse quotidienne à 2h du matin
-    - cron: "0 2 * * *"
+    - cron: '0 2 * * *'
 
 jobs:
   codeql:

@@ -18,10 +18,10 @@ export interface JsonRelation {
 }
 
 /** Direction of an entourage link from the user's point of view. */
-export type RelationRole = "parrain" | "fillot";
+export type RelationRole = 'parrain' | 'fillot';
 
 /** Godparent link type (client mirror of the server type). */
-export type RelationKind = "parrainage" | "adoption";
+export type RelationKind = 'parrainage' | 'adoption';
 
 /** An entourage member as returned by /api/entourage. */
 export interface EntourageMember {

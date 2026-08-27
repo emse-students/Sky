@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { ArrowLeft, Search, Database, X } from "@lucide/svelte";
-  import { m } from "$lib/paraglide/messages";
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { ArrowLeft, Search, Database, X } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages';
 
   interface LegacyPerson {
     id: string;
@@ -22,7 +22,7 @@
   let counts = $state({ people: 0, relationships: 0, links: 0 });
   let people = $state<LegacyPerson[]>([]);
   let loading = $state(true);
-  let query = $state("");
+  let query = $state('');
   let selected = $state<LegacyPerson | null>(null);
   let relations = $state<{ parrains: LegacyRel[]; fillots: LegacyRel[] }>({
     parrains: [],
@@ -36,9 +36,7 @@
   async function load() {
     loading = true;
     try {
-      const res = await fetch(
-        `/api/admin/legacy?q=${encodeURIComponent(query)}`,
-      );
+      const res = await fetch(`/api/admin/legacy?q=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
         exists = data.exists;
@@ -71,8 +69,9 @@
 
 <div class="legacy">
   <header>
-    <button class="btn-back" onclick={() => goto("/admin")}>
-      <ArrowLeft size={18} /> {m.common_back()}
+    <button class="btn-back" onclick={() => goto('/admin')}>
+      <ArrowLeft size={18} />
+      {m.common_back()}
     </button>
     <h1>{m.legacy_heading()} <span class="ro">{m.legacy_readonly()}</span></h1>
     <div class="counts">
@@ -92,11 +91,7 @@
   {:else}
     <div class="search">
       <Search size={18} />
-      <input
-        placeholder={m.legacy_search_placeholder()}
-        bind:value={query}
-        oninput={onSearch}
-      />
+      <input placeholder={m.legacy_search_placeholder()} bind:value={query} oninput={onSearch} />
     </div>
 
     <div class="grid">
@@ -114,13 +109,10 @@
             </thead>
             <tbody>
               {#each people as p (p.id)}
-                <tr
-                  class:active={selected?.id === p.id}
-                  onclick={() => openPerson(p)}
-                >
+                <tr class:active={selected?.id === p.id} onclick={() => openPerson(p)}>
                   <td>{p.last_name}</td>
                   <td>{p.first_name}</td>
-                  <td>{p.level ?? "-"}</td>
+                  <td>{p.level ?? '-'}</td>
                 </tr>
               {/each}
             </tbody>
@@ -139,7 +131,7 @@
           <h2>{selected.last_name} {selected.first_name}</h2>
           <div class="muted mono">{selected.id}</div>
           <div class="muted">
-            {m.common_promo({ level: selected.level ?? "-" })}
+            {m.common_promo({ level: selected.level ?? '-' })}
           </div>
           {#if selected.bio}
             <p class="bio">{selected.bio}</p>
@@ -340,7 +332,7 @@
     padding: 10px 16px;
   }
   .mono {
-    font-family: "Courier New", monospace;
+    font-family: 'Courier New', monospace;
   }
   .empty {
     color: #94a3b8;

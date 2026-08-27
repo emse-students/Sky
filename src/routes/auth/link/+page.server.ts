@@ -1,6 +1,6 @@
-import { redirect, fail } from "@sveltejs/kit";
-import type { PageServerLoad, Actions } from "./$types";
-import { PENDING_COOKIE_NAME } from "$server/link";
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { PENDING_COOKIE_NAME } from '$server/link';
 import {
   getPendingLink,
   deletePendingLink,
@@ -10,8 +10,8 @@ import {
   createSession,
   getPersonIdByAuthSub,
   recalculatePositions,
-} from "$server/database";
-import { setSessionCookie } from "$server/session";
+} from '$server/database';
+import { setSessionCookie } from '$server/session';
 
 /**
  * Ecran de choix de liaison : affiche les fiches candidates (meme nom/prenom,
@@ -22,7 +22,7 @@ export const load: PageServerLoad = ({ cookies }) => {
   const token = cookies.get(PENDING_COOKIE_NAME);
   const identity = token ? getPendingLink(token) : null;
   if (!identity) {
-    throw redirect(302, "/auth/login");
+    throw redirect(302, '/auth/login');
   }
   return {
     firstName: identity.firstName,
@@ -37,10 +37,10 @@ export const actions: Actions = {
     const token = cookies.get(PENDING_COOKIE_NAME);
     const identity = token ? getPendingLink(token) : null;
     if (!token || !identity) {
-      throw redirect(302, "/auth/login");
+      throw redirect(302, '/auth/login');
     }
 
-    const choice = String((await request.formData()).get("choice") ?? "");
+    const choice = String((await request.formData()).get('choice') ?? '');
 
     let personId: string;
     let created = false;
@@ -48,18 +48,17 @@ export const actions: Actions = {
     if (already) {
       // Double submit / concurrent login: the fiche is already linked to this sub.
       personId = already;
-    } else if (choice === "new") {
+    } else if (choice === 'new') {
       personId = createAuthedPerson(identity);
       created = true;
     } else {
       // The choice must be a STILL-unlinked candidate (anti-race / anti-hijack).
-      const candidate = getLinkCandidates(
-        identity.lastName,
-        identity.firstName,
-      ).find((c) => c.id === choice);
+      const candidate = getLinkCandidates(identity.lastName, identity.firstName).find(
+        (c) => c.id === choice
+      );
       if (!candidate) {
         return fail(400, {
-          error: "Ce choix n est plus disponible. Reessaie.",
+          error: 'Ce choix n est plus disponible. Reessaie.',
         });
       }
       linkPersonAuth(candidate.id, identity);
@@ -67,16 +66,16 @@ export const actions: Actions = {
     }
 
     deletePendingLink(token);
-    cookies.delete(PENDING_COOKIE_NAME, { path: "/" });
+    cookies.delete(PENDING_COOKIE_NAME, { path: '/' });
     const session = createSession(personId);
     setSessionCookie(cookies, session.token, session.expiresAt);
 
     // A newly created fiche needs a position so it shows on the map (best-effort).
     if (created) {
       recalculatePositions().catch((err) =>
-        console.error("[LINK] Position recompute failed:", err),
+        console.error('[LINK] Position recompute failed:', err)
       );
     }
-    throw redirect(302, "/");
+    throw redirect(302, '/');
   },
 };

@@ -1,12 +1,8 @@
-import { redirect, fail } from "@sveltejs/kit";
-import type { PageServerLoad, Actions } from "./$types";
-import {
-  getLinkCandidates,
-  getUnlinkedPeople,
-  relinkSelf,
-} from "$server/database";
-import { SESSION_COOKIE_NAME } from "$server/session";
-import { m } from "$lib/paraglide/messages";
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { getLinkCandidates, getUnlinkedPeople, relinkSelf } from '$server/database';
+import { SESSION_COOKIE_NAME } from '$server/session';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Account correction screen: shows the fiche the signed-in user is currently
@@ -18,10 +14,10 @@ import { m } from "$lib/paraglide/messages";
 export const load: PageServerLoad = ({ locals }) => {
   const user = locals.user;
   if (!user) {
-    throw redirect(302, "/auth/login");
+    throw redirect(302, '/auth/login');
   }
-  const [nom, ...rest] = user.name.split(" ");
-  const prenom = rest.join(" ");
+  const [nom, ...rest] = user.name.split(' ');
+  const prenom = rest.join(' ');
   return {
     currentId: user.id,
     currentName: user.name,
@@ -42,9 +38,9 @@ export const actions: Actions = {
     const user = locals.user;
     const token = cookies.get(SESSION_COOKIE_NAME);
     if (!user || !token) {
-      throw redirect(302, "/auth/login");
+      throw redirect(302, '/auth/login');
     }
-    const targetId = String((await request.formData()).get("targetId") ?? "");
+    const targetId = String((await request.formData()).get('targetId') ?? '');
     if (!targetId) {
       return fail(400, { error: m.account_no_fiche_selected() });
     }
@@ -52,6 +48,6 @@ export const actions: Actions = {
     if (!ok) {
       return fail(400, { error: m.account_fiche_unavailable() });
     }
-    throw redirect(302, "/");
+    throw redirect(302, '/');
   },
 };
