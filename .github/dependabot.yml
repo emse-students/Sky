@@ -15,10 +15,13 @@ updates:
       - 'github-actions'
     open-pull-requests-limit: 5
 
-  # Dependances npm (racine)
+  # Dependances JS (racine). L'ecosysteme est `bun`, PAS `npm`: le seul lockfile committe est
+  # `bun.lock`, et l'ecosysteme npm ne le connait pas - il ouvrait des PR ne touchant QUE
+  # `package.json`, ce que `bun install --frozen-lockfile` refuse a juste titre. Le symptome etait
+  # invisible tant que la CI installait sans `--frozen-lockfile`.
   # Les minor/patch de dev et les patch de prod sont groupes en une seule PR
   # pour limiter le bruit ; les majors arrivent en PR individuelles a revoir.
-  - package-ecosystem: 'npm'
+  - package-ecosystem: 'bun'
     directory: '/'
     rebase-strategy: auto
     schedule:
@@ -27,9 +30,15 @@ updates:
     commit-message:
       prefix: 'chore(deps):'
       include: 'scope'
+    # `typescript` reste en 6: le `--tsgo` de `check` passe par `@typescript/native`
+    # (npm:typescript@^7), qui est un paquet DISTINCT. Un major sur `typescript` remplacerait le
+    # compilateur stable, et `dependabot-auto-merge.yml` le fusionnerait sans que personne regarde.
+    ignore:
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
     labels:
       - 'dependencies'
-      - 'npm'
+      - 'bun'
     open-pull-requests-limit: 5
     groups:
       development-dependencies:
