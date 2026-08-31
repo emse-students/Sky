@@ -1,17 +1,36 @@
 <script lang="ts">
-  import SvelteMarkdown from '@humanspeak/svelte-markdown';
+  import SvelteMarkdown, { allowHtmlOnly } from '@humanspeak/svelte-markdown';
   import { normalizeBioLineBreaks } from '$lib/utils/markdown';
 
-  // Canari bios are authored in Markdown; render them the same way here (GFM +
-  // hard line breaks). SvelteMarkdown renders through Svelte components and
-  // escapes raw HTML, so external bio text cannot inject markup.
+  // Canari bios are authored in Markdown; render them the same way here (GFM + hard line breaks).
+  //
+  // THE HTML ALLOWLIST IS EMPTY, AND IT IS NOT DECORATION. This comment used to claim that
+  // SvelteMarkdown "escapes raw HTML, so external bio text cannot inject markup". Measured on
+  // 2026-08-31 that was FALSE: `<div id="x">` and `<iframe src="https://evil.example">` were both
+  // built as real elements, the iframe keeping its `src`. Event handlers (`onerror`, `onclick`),
+  // `javascript:` hrefs and `<script>` execution were all already stripped by the library, so this
+  // was never script execution - but a bio could embed an arbitrary third-party frame in the page,
+  // and a bio is text this application did not write.
+  //
+  // An ALLOWLIST rather than a block on `iframe`: a denylist is a list of the attacks somebody
+  // thought of. Empty is the right allowlist here because a bio is Markdown - `**bold**`, links and
+  // lists all still render, since those are markdown nodes and not raw HTML. A blocked tag renders
+  // as plain escaped text, which is what the old comment promised was already happening.
+  //
+  // `BioMarkdown.test.ts` is what keeps this true across an upgrade of the renderer.
+  const NO_RAW_HTML = allowHtmlOnly([]);
+
   let { source, class: className = '' }: { source: string; class?: string } = $props();
 
   const rendered = $derived(normalizeBioLineBreaks(source.trim()));
 </script>
 
 <div class="bio-markdown {className}">
-  <SvelteMarkdown source={rendered} options={{ gfm: true, breaks: true }} />
+  <SvelteMarkdown
+    source={rendered}
+    options={{ gfm: true, breaks: true }}
+    renderers={{ html: NO_RAW_HTML }}
+  />
 </div>
 
 <style>
