@@ -106,6 +106,43 @@ The Husky pre-commit hook runs all three. It used to run `lint && check` only, w
 through that `ci-bun.yml` then rejected on formatting - the gate a hook does not run is a gate you
 meet after pushing. The lockfile is committed and CI installs `--frozen-lockfile`.
 
+## Dependency updates, and the merge that reaches the server
+
+`.github/workflows/dependabot-auto-merge.yml` squash-merges a Dependabot pull request once the whole
+check suite on its head commit is green, and only for updates whose failure mode this repository can
+actually SEE. The decision lives in `.github/scripts/dependabot-auto-merge.sh`, shared by every
+trigger, so no path can drift into its own policy.
+
+**Its ceiling is EMPTY, and that is a measured answer rather than an omission** - all three
+candidates were closed by writing the test instead of refusing the update. A ceiling entry is not a
+semver judgement: a break that stops the tree compiling is caught by the suite and merges on its
+own. It is a statement that a TEST IS MISSING, and every entry has to name the test that retires it.
+
+**Three things make it converge rather than merely fire.**
+
+- **A full sweep on every push to `main`, not only a `workflow_run` from one pull request.** A pull
+  request whose checks completed days ago never receives another event, so an event-only automation
+  acts on what it happened to catch and on nothing else. The sweep enumerates every open Dependabot
+  pull request, so the right state is reached from any starting state.
+
+  **This was an hourly cron until 2026-08-31, and a measurement took the job away from it.** Three
+  hours after the cron landed, `event=schedule` had produced ZERO runs of that workflow here or in
+  the three repositories beside it - none a fork, none archived, every workflow `active`, and
+  schedules demonstrably working for other workflows. Scheduled delivery on a public repository is
+  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**. The
+  justification the cron was written with - a clock is fine when a wrong clock costs only latency -
+  does not survive a clock whose failure mode is NOT RUNNING. So the sweep is bound to `CI (Bun)`,
+  which this repository executes on a push to `main`, and the cron keeps its slot as a bonus.
+
+- **A staleness gate.** A green check is evidence about the workflow that PRODUCED it, not about the
+  one `main` carries today, and an absent check is indistinguishable from an inapplicable one. A
+  head not built on current `main` is not merged on its old verdict; its branch is updated instead
+  (at most three per pass, because each is a full CI run).
+- **An explicit `workflow_dispatch` on `deploy.yml` when anything merged.** A squash merge made with
+  `GITHUB_TOKEN` produces a push that triggers NOTHING - GitHub's anti-recursion rule - so without
+  this the merges land on `main` and the server never hears about them. The dispatched deploy runs
+  its `verify` job first, which is the only thing that ever tests a sweep's updates TOGETHER.
+
 **The lockfile stays at `lockfileVersion: 1`** - Dependabot cannot read v2, and bun 1.4.0 writes v2
 for any lockfile it creates from scratch, with no flag to ask for v1. `bun install` and `bun update`
 preserve the version they find, so a plain `bun install` can never break this.
