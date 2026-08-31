@@ -134,10 +134,16 @@ own. It is a statement that a TEST IS MISSING, and every entry has to name the t
   does not survive a clock whose failure mode is NOT RUNNING. So the sweep is bound to `CI (Bun)`,
   which this repository executes on a push to `main`, and the cron keeps its slot as a bonus.
 
-- **A staleness gate.** A green check is evidence about the workflow that PRODUCED it, not about the
-  one `main` carries today, and an absent check is indistinguishable from an inapplicable one. A
-  head not built on current `main` is not merged on its old verdict; its branch is updated instead
-  (at most three per pass, because each is a full CI run).
+- **A staleness gate, and a rebuild Dependabot performs itself.** A green check is evidence about
+  the workflow that PRODUCED it, not about the one `main` carries today, and an absent check is
+  indistinguishable from an inapplicable one. A head not built on current `main` is not merged on
+  its old verdict; the sweep asks Dependabot to rebuild the branch instead (`@dependabot recreate`,
+  at most three per pass, because each is a full CI run). **It must be Dependabot that pushes.**
+  Refreshing the branch with `PUT /pulls/{n}/update-branch` writes a merge commit authored by
+  `github-actions[bot]`, which parks the re-triggered run in `action_required` until a human clicks
+  Approve and makes Dependabot refuse the branch for good - so the step meant to drain the queue
+  filled it instead. The sweep therefore also marks any head Dependabot did not write, whoever wrote
+  it, and detecting the state rather than its cause is what heals a branch already trapped.
 - **An explicit `workflow_dispatch` on `deploy.yml` when anything merged.** A squash merge made with
   `GITHUB_TOKEN` produces a push that triggers NOTHING - GitHub's anti-recursion rule - so without
   this the merges land on `main` and the server never hears about them. The dispatched deploy runs
