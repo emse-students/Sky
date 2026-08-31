@@ -1846,11 +1846,19 @@ export function recalculatePositions(): Promise<PositionsStatus> {
   };
 
   try {
-    const nodeIds = (database.prepare('SELECT id FROM people').all() as { id: string }[]).map(
-      (r) => r.id
-    );
+    // ORDER BY, on both queries, because the layout is only stable for a stable INPUT ORDER.
+    // ForceAtlas2 seeds from insertion order, so the same graph fed in a different order comes back
+    // as the same map ROTATED - every distance preserved, every coordinate different. A bare
+    // `SELECT` has no guaranteed order in SQLite: rowid order is what a table scan happens to give,
+    // and `scripts/rebuild-db.js` is exactly the operation that renumbers rowids. Without this the
+    // whole star map turns on a rebuild, with no data change, and every student's star moves.
+    const nodeIds = (
+      database.prepare('SELECT id FROM people ORDER BY id').all() as { id: string }[]
+    ).map((r) => r.id);
     const nodeSet = new Set(nodeIds);
-    const edgeRows = database.prepare('SELECT source_id, target_id FROM relationships').all() as {
+    const edgeRows = database
+      .prepare('SELECT source_id, target_id FROM relationships ORDER BY source_id, target_id')
+      .all() as {
       source_id: string;
       target_id: string;
     }[];
