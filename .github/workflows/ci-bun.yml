@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+  # Callable, so the deploy workflow's dispatch path can PROVE the checks rather than restate their
+  # steps. An auto-merge made by GITHUB_TOKEN raises no `push` event, so nothing runs this workflow
+  # on the merge commit and `deploy.yml` has no `workflow_run` to listen for - see the comment on
+  # its `verify` job.
+  workflow_call:
 
 jobs:
   build:
@@ -78,6 +83,37 @@ jobs:
         run: bun run test
         env:
           API_BASE_URL: http://localhost:3000
+
+      # THE GATE THAT LETS `@sveltejs/adapter-node` BE UPGRADED WITHOUT A HUMAN.
+      #
+      # `bun run build` proves the adapter PRODUCED something. It does not prove the thing it
+      # produced STARTS, and nothing else here ever ran `build/index.js` - so an adapter major that
+      # changed how the server bootstraps, read its port, or mounted its handler would leave every
+      # check green and fail on the first request in production. A build is not a boot.
+      #
+      # The database is initialised first because the server opens it at startup; `/api/health` is
+      # the same route the production healthcheck uses, so this asks the deployed question.
+      - name: Boot the packaged server
+        run: |
+          set -uo pipefail
+          bun scripts/init-db.js
+
+          PORT=3399 ORIGIN=http://localhost:3399 bun build/index.js > /tmp/boot.log 2>&1 &
+          server=$!
+
+          for _ in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3399/api/health)" = "200" ]; then
+              echo "The packaged server booted and answered /api/health."
+              kill "$server" 2>/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::The packaged server never answered /api/health."
+          kill "$server" 2>/dev/null
+          cat /tmp/boot.log
+          exit 1
 
       - name: Package application
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

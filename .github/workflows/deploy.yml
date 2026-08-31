@@ -7,12 +7,35 @@ on:
       - completed
     branches:
       - main
+  # A MERGE MADE BY `GITHUB_TOKEN` RAISES NO `push` EVENT. That is a GitHub rule against recursive
+  # automation, and it means the trigger above can never fire for a Dependabot pull request the
+  # auto-merge landed: CI does not run on the merge commit, so no `workflow_run` arrives and the
+  # update sits merged and undeployed for ever. `dependabot-auto-merge.yml` dispatches this instead,
+  # once per sweep, and `github.sha` is then main's tip.
+  workflow_dispatch:
 
 jobs:
+  # Under `workflow_run` the proof already exists: the trigger MEANS that CI (Bun) ran on this exact
+  # commit and passed. Under `workflow_dispatch` nothing has run it - so it is run HERE, by calling
+  # the same workflow rather than restating its steps, which is the only way the two paths cannot
+  # drift apart.
+  verify:
+    name: Verify
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/ci-bun.yml
+
   build-image:
     name: Build & Push Image
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    needs: [verify]
+    # `always()` because `verify` is SKIPPED on the workflow_run path, and a skipped dependency
+    # would otherwise skip this job too. The two accepted states are named explicitly: verify
+    # passed, or verify did not need to run because CI already had.
+    if: >-
+      always() &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     permissions:
       contents: read
       packages: write
@@ -20,7 +43,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # Empty under workflow_dispatch, where `github.sha` is main's tip - the merge commit
+          # the sweep just created, or a later one, either of which is the right thing to ship.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -55,7 +80,9 @@ jobs:
     name: Deploy to production
     runs-on: self-hosted
     needs: build-image
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    # `needs: build-image` already carries the verify verdict; this only has to not run when the
+    # image job did not.
+    if: ${{ needs.build-image.result == 'success' }}
     permissions:
       contents: read
       packages: read
@@ -66,7 +93,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # Empty under workflow_dispatch, where `github.sha` is main's tip - the merge commit
+          # the sweep just created, or a later one, either of which is the right thing to ship.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
