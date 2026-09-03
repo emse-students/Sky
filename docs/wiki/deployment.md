@@ -147,6 +147,26 @@ that A TEST IS MISSING, and every entry has to name the test that retires it. Ca
 `dependency-ceiling` job for the classes it genuinely cannot see the failure mode of; this
 repository has none.
 
+### The security pass gained the question it had never asked
+
+`code-analysis.yml` had CodeQL, a secret scan and a quality gate - and **nothing that asks whether a
+dependency this repository already ships has since been found vulnerable.** Canari, MiGallery and
+the portal have audited theirs for months; the gap here was invisible because every other tick was
+green. _A correct mechanism with no report is found by hand, a day late; a question nobody asks is
+never found at all._ The `dependencies` job added on 2026-09-04 audits the tree and guards the
+lockfile version that keeps Dependabot able to read it. It was measured clean before it was turned
+on (`No vulnerabilities found (checked 327 packages)`), so its first red will be a real one.
+
+**An npm outage is not a vulnerability.** `bun audit` exits 1 for
+`POST .../advisories/bulk - 503` exactly as it exits 1 for a real advisory - that walled every merge
+in Canari on 2026-09-03. `.github/scripts/audit-dependencies.sh` classifies once and answers with
+three exit codes: `0` clean, `1` an advisory was named, `2` the registry never answered. What a `2`
+costs is the caller's policy - a pull request tolerates it (a refusal whose only remedy is
+unavailable is a stop, not a gate), the nightly pass fails on it (nothing is queued behind that run,
+and its failure is the report saying this tree has gone a day unaudited). The unknown case fails
+CLOSED, and `audit-dependencies.test.sh` asserts that direction against a fake `bun`, in the same
+run that uses the script.
+
 ### One lesson from the year the sweep ran, kept because it outlives it
 
 **Counting deliveries is the wrong question; read one log.** This repository's sweep was delivered,
