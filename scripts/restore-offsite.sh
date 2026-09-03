@@ -46,7 +46,14 @@ for name in $DATABASES; do
   fi
   rsync -a -e "ssh -o BatchMode=yes" "$OFFSITE_HOST:$latest" "$STAGE/"
   dest="$DB_DIR/${name}.db"
-  [ -f "$dest" ] && cp "$dest" "$dest.before-restore-$(date '+%Y%m%d-%H%M%S')" || true
+  # NOT `[ -f x ] && cp ... || true`, WHICH IS NOT AN IF-THEN-ELSE (SC2015 - the
+  # CI pinned 0.10.0 named it where the workstation's 0.11.0 did not). In that form a FAILING
+  # `cp` also lands in the `|| true`, so a restore that could not preserve the database it is
+  # about to overwrite would continue silently. Losing the previous copy is exactly the thing
+  # this line exists to prevent, so it must stop.
+  if [ -f "$dest" ]; then
+    cp "$dest" "$dest.before-restore-$(date '+%Y%m%d-%H%M%S')"
+  fi
   gunzip -c "$STAGE/$(basename "$latest")" > "$dest"
   log "Restauree -> $dest"
 done
