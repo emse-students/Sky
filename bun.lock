@@ -5,7 +5,7 @@
     "": {
       "name": "sky-sveltekit",
       "dependencies": {
-        "@humanspeak/svelte-markdown": "^1.8.8",
+        "@humanspeak/svelte-markdown": "^1.9.0",
         "@lucide/svelte": "^1.38.0",
         "graphology": "^0.26.0",
         "graphology-components": "^1.5.4",
@@ -62,7 +62,7 @@
 
     "@humanspeak/memory-cache": ["@humanspeak/memory-cache@1.1.2", "", {}, "sha512-6kmeqrCVThw4RYZsJ74l9cOdZQ84XHnGIzrv+Po49CZBNNVDEzi0CGsTx+KKmr/Hb6hY6yDGxeWTiz4VHkdsEg=="],
 
-    "@humanspeak/svelte-markdown": ["@humanspeak/svelte-markdown@1.8.8", "", { "dependencies": { "@humanspeak/memory-cache": "^1.1.2", "github-slugger": "^2.0.0", "htmlparser2": "^12.0.0", "marked": "^18.0.9" }, "peerDependencies": { "katex": ">=0.16.0", "mermaid": ">=10.0.0", "shiki": ">=4.0.0", "svelte": "^5.0.0" }, "optionalPeers": ["katex", "mermaid", "shiki"] }, "sha512-yISXlFjdm9rsiwwOVvH7t6vQLVYF5KyY7A8BRL+qkE2+U2RdGG07SphYBWQ53diysY4URGvP3USoAlCmtOYG6g=="],
+    "@humanspeak/svelte-markdown": ["@humanspeak/svelte-markdown@1.9.0", "", { "dependencies": { "@humanspeak/memory-cache": "^1.1.2", "github-slugger": "^2.0.0", "htmlparser2": "^12.0.0", "marked": "^18.0.9" }, "peerDependencies": { "katex": ">=0.16.0", "mermaid": ">=10.0.0", "shiki": ">=4.0.0", "svelte": "^5.0.0" }, "optionalPeers": ["katex", "mermaid", "shiki"] }, "sha512-WytdiOhUkUjSgXZNs3a7fg8Dwko/4XhKyDVB3lzkpqFEaotaL1Dtg8fz6Rg+ThVJoM2/UDmEtX3avTQON2IxKw=="],
 
     "@inlang/paraglide-js": ["@inlang/paraglide-js@2.25.0", "", { "dependencies": { "@inlang/recommend-sherlock": "^0.2.1", "@inlang/sdk": "^3.0.1", "commander": "11.1.0", "consola": "3.4.0", "jiti": "^2.7.0", "json5": "2.2.3", "unplugin": "^2.1.2", "urlpattern-polyfill": "^10.0.0", "valibot": "^1.4.2" }, "peerDependencies": { "typescript": ">=5.6", "vite": ">=5.0.0" }, "optionalPeers": ["typescript", "vite"], "bin": { "paraglide-js": "bin/run.js" } }, "sha512-a3Gw3md1S3WyJK1rFAP/FwDCsFKnu1b98rJ3k5bUl6nc3cmbglaSYpuK9qq9aLLlUlZhuCtB/Pb1LeKDUaLycg=="],
 
