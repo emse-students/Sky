@@ -28,6 +28,9 @@ TS="$(date '+%Y%m%d-%H%M%S')"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/sky-backup.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 
+# The path is a LOCAL setting and must expand here, not on the remote shell - that is what the
+# single quotes inside the double-quoted command are for.
+# shellcheck disable=SC2029
 ssh "${SSH_OPTS[@]}" "$OFFSITE_HOST" "mkdir -p '$OFFSITE_PATH'"
 
 for db in $DATABASES; do
@@ -44,7 +47,9 @@ for db in $DATABASES; do
   rsync -a --partial "$STAGE/${name}-$TS.db.gz" "$OFFSITE_HOST:$OFFSITE_PATH/"
 done
 
-# Retention offsite.
+# Retention offsite. Same as above: $OFFSITE_PATH and $RETENTION_DAYS are local settings and are
+# meant to reach the remote shell already expanded.
+# shellcheck disable=SC2029
 ssh "${SSH_OPTS[@]}" "$OFFSITE_HOST" \
   "find '$OFFSITE_PATH' -name '*-*.db.gz' -type f -mtime +$RETENTION_DAYS -delete" || true
 
