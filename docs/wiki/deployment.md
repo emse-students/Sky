@@ -108,62 +108,52 @@ meet after pushing. The lockfile is committed and CI installs `--frozen-lockfile
 
 ## Dependency updates, and the merge that reaches the server
 
-`.github/workflows/dependabot-auto-merge.yml` squash-merges a Dependabot pull request once the whole
-check suite on its head commit is green, and only for updates whose failure mode this repository can
-actually SEE. The decision lives in `.github/scripts/dependabot-auto-merge.sh`, shared by every
-trigger, so no path can drift into its own policy.
+Dependabot opens the pull requests (`.github/dependabot.yml`); **from there they are the same as
+anybody's**. `arm-auto-merge.yml` arms GitHub's own auto-merge on every pull request in the
+repository, and GitHub squash-merges each one the moment `CI passed` goes green.
 
-**Its ceiling is EMPTY, and that is a measured answer rather than an omission** - all three
-candidates were closed by writing the test instead of refusing the update. A ceiling entry is not a
-semver judgement: a break that stops the tree compiling is caught by the suite and merges on its
-own. It is a statement that a TEST IS MISSING, and every entry has to name the test that retires it.
+**There is no sweep any more (deleted 2026-09-04).** `dependabot-auto-merge.yml` was ~300 lines on
+an hourly cron: it enumerated the open Dependabot pull requests, decided for ITSELF whether each was
+green, merged them with its own `gh pr merge`, and dispatched the deploy afterwards. Four mechanisms
+where one belongs. It existed because a `pull_request` run raised by Dependabot **gets no secrets** -
+GitHub runs it as if it came from a fork - so no App token can be minted in that context.
+`pull_request_target` runs in the base repository's context, WITH its secrets, for every pull
+request, which is what makes one file enough. It is safe on that trigger for one specific reason:
+**it never checks the pull request out.**
 
-**Three things make it converge rather than merely fire.**
+**The deploy dispatch went with it, and that is a consequence rather than a loss.** A squash merge
+made with `GITHUB_TOKEN` raises no `push` event - GitHub's anti-recursion rule - so `CI (Bun)` never
+ran on the merge commit and `deploy.yml`'s `workflow_run` trigger never fired; the dispatch was the
+compensation. An App-token merge raises the event, so CI runs on `main` and the deploy hears about
+it the ordinary way.
 
-- **A full sweep on every push to `main`, not only a `workflow_run` from one pull request.** A pull
-  request whose checks completed days ago never receives another event, so an event-only automation
-  acts on what it happened to catch and on nothing else. The sweep enumerates every open Dependabot
-  pull request, so the right state is reached from any starting state.
+**What went with the sweep that DID NOT work.** Its staleness gate refused to merge a head whose
+check suite described gates `main` no longer carried, and the only way to lift that refusal was to
+rebuild the branch - which no identity a workflow can mint may do. `PUT /pulls/{n}/update-branch`
+writes a merge commit authored by `github-actions[bot]`, which parks the re-triggered run in
+`action_required` and makes Dependabot refuse the branch for good; and `@dependabot recreate` is
+answered _"Sorry, only users with push access can use that command"_ - **including when the caller
+is a GitHub App**, measured ten times out of ten on emse-students/canari. An App INSTALLATION is not
+an account with push access. _A gate whose only remedy is unavailable is a stop, not a gate._
 
-  **This was an hourly cron until 2026-08-31, and the measurement that demoted it was itself
-  wrong.** It said `event=schedule` had produced ZERO runs, counted three hours after the cron
-  landed. Counted again on 2026-09-01, all four repositories had delivered a scheduled sweep. **A
-  three-hour window is not enough to call a trigger dead**, and a mechanism built on the first quiet
-  interval anybody looked at is built on nothing. What survives is the shape of the delivery,
-  measured over seven days rather than one afternoon: scheduled delivery on a public repository is
-  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**, so the
-  clock is a floor and never a mechanism. The sweep stays bound to the workflow this repository runs
-  on a push to `main`, and the cron keeps its slot as that floor.
+The question it was trying to answer is answered elsewhere and better: `ci-bun.yml` runs on
+`push: main` as well as on `pull_request`, so a merge that breaks the trunk turns `CI passed` red ON
+`main`, where somebody looking at the repository sees it, rather than being predicted per branch.
 
-- **A staleness gate narrow enough to be satisfiable.** A green check is evidence about the workflow
-  that PRODUCED it, not about the one `main` carries today, and an absent check is indistinguishable
-  from an inapplicable one. **But asking whether the head is built on current `main` is far wider
-  than that**, and until 2026-09-01 it made the queue undrainable: every merge moves `main`, so
-  every merge invalidated every remaining pull request at once, and the only exit was a rebuild no
-  workflow holding `GITHUB_TOKEN` may perform. `PUT /pulls/{n}/update-branch` writes a merge commit
-  authored by `github-actions[bot]`, which parks the re-triggered run in `action_required` and makes
-  Dependabot refuse the branch for good; and `@dependabot recreate` is answered _"Sorry, only users
-  with push access can use that command"_ when the caller is `github-actions[bot]`, measured on
-  emse-students/canari#303. A gate whose only remedy is unavailable is a stop, not a gate. The
-  question is now whether `.github/workflows/` or `.github/scripts/` moved between the branch's base
-  and `main` - what decides which jobs run and what each asserts - so one sweep merges everything
-  mergeable, and when the gates really did move the sweep says so on the pull request instead of
-  pretending to fix it. The predicate is in `.github/scripts/lib/gate-moves.sh`, fails closed on a
-  compare it cannot read or one the API truncated at 300, and its self-tests run in the same
-  workflow run that uses it. The scripts are also LINTED before a merge, by a `shellcheck` pinned to
-  a version and a digest rather than taken from the runner image - it was run, and made to fail on a
-  spliced defect, before the gate was turned on. **And until 2026-09-01 none of this had ever
-  executed here**: the script was committed without its executable bit, so every pass answered
-  `Permission denied`, printed `merged 0` and went GREEN - six consecutive passes - because the step
-  swallowed the status alongside the refusals it was meant to survive. The script declines by
-  PRINTING and exits 0 either way, so a non-zero status is now fatal and annotated, and it is
-  invoked through `bash` so a mode bit cannot decide whether the chain runs at all. The sweep still
-  marks any head Dependabot did not write, whoever wrote
-  it: detecting the state rather than its cause is what heals a branch already trapped.
-- **An explicit `workflow_dispatch` on `deploy.yml` when anything merged.** A squash merge made with
-  `GITHUB_TOKEN` produces a push that triggers NOTHING - GitHub's anti-recursion rule - so without
-  this the merges land on `main` and the server never hears about them. The dispatched deploy runs
-  its `verify` job first, which is the only thing that ever tests a sweep's updates TOGETHER.
+**The ceiling was EMPTY here, and that is a measured answer rather than an omission** - all three
+candidates were closed by writing the test instead of refusing the update. A ceiling entry is never
+a semver judgement: a break that stops the tree compiling is caught by the suite. It is a statement
+that A TEST IS MISSING, and every entry has to name the test that retires it. Canari keeps a
+`dependency-ceiling` job for the classes it genuinely cannot see the failure mode of; this
+repository has none.
+
+### One lesson from the year the sweep ran, kept because it outlives it
+
+**Counting deliveries is the wrong question; read one log.** This repository's sweep was delivered,
+ran, went GREEN and had never executed anything: the script landed without its executable bit,
+`Permission denied` on every pull request, `merged 0`, six consecutive green passes. The step
+swallowed a non-zero status by design so one unmergeable branch could not stop the sweep, and it
+swallowed "the script could not run" with it. No count of runs would ever have found that.
 
 **The lockfile stays at `lockfileVersion: 1`** - Dependabot cannot read v2, and bun 1.4.0 writes v2
 for any lockfile it creates from scratch, with no flag to ask for v1. `bun install` and `bun update`

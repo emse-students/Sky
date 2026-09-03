@@ -7,11 +7,12 @@ on:
       - completed
     branches:
       - main
-  # A MERGE MADE BY `GITHUB_TOKEN` RAISES NO `push` EVENT. That is a GitHub rule against recursive
-  # automation, and it means the trigger above can never fire for a Dependabot pull request the
-  # auto-merge landed: CI does not run on the merge commit, so no `workflow_run` arrives and the
-  # update sits merged and undeployed for ever. `dependabot-auto-merge.yml` dispatches this instead,
-  # once per sweep, and `github.sha` is then main's tip.
+  # A HAND RE-DEPLOY, and since 2026-09-04 that is all it is. It used to be load-bearing: a merge
+  # made by `GITHUB_TOKEN` raises no `push` event - GitHub's anti-recursion rule - so `CI (Bun)`
+  # never ran on the merge commit, the trigger above never fired, and every dependency update sat
+  # merged and undeployed until the hourly sweep dispatched this by hand. `arm-auto-merge.yml` arms
+  # with an App token, whose merge DOES raise the push, so the ordinary path works and this is a
+  # convenience again.
   workflow_dispatch:
 
 jobs:
@@ -19,9 +20,18 @@ jobs:
   # commit and passed. Under `workflow_dispatch` nothing has run it - so it is run HERE, by calling
   # the same workflow rather than restating its steps, which is the only way the two paths cannot
   # drift apart.
+  # A CALLED WORKFLOW CANNOT BE GRANTED MORE THAN ITS CALLER GRANTS IT, and exceeding that is a
+  # STARTUP FAILURE - no job runs, no log is produced, and the API returns neither an annotation nor
+  # an error message. `ci-bun.yml` now calls `code-analysis.yml`, whose CodeQL job asks for
+  # `security-events: write`, so this job must grant it or a hand-dispatched deploy dies before its
+  # first line. Derived from what the callees declare, not chosen here.
   verify:
     name: Verify
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: ./.github/workflows/ci-bun.yml
 
   build-image:
