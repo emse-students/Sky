@@ -1,51 +1,40 @@
-name: Deploy to production
+# =================================================================================================
+# DEPLOY THIS REPOSITORY'S ONE ESTATE - A LIBRARY, CALLED ONLY BY `release.yml`
+#
+# NO TRIGGERS OF ITS OWN, AND NO ROW OF ITS OWN IN THE ACTIONS LIST, since 2026-09-04. It used to
+# fire on `workflow_run` after the CI finished on `main`, which made every merge a deployment:
+# production was whatever the last green pull request happened to be, and nobody chose it.
+# **Nothing deploys on a push any more** - `release.yml` is the only caller, in every repository of
+# the ecosystem.
+#
+# IT IS HANDED A COMMIT AND A VERSION rather than working them out. The caller has already put them
+# through the gates; recomputing them here would be a second opinion about what is being shipped,
+# and the two would drift the day one of them changed.
+# =================================================================================================
+name: Deploy
 
 on:
-  workflow_run:
-    workflows: ['CI (Bun)']
-    types:
-      - completed
-    branches:
-      - main
-  # A HAND RE-DEPLOY, and since 2026-09-04 that is all it is. It used to be load-bearing: a merge
-  # made by `GITHUB_TOKEN` raises no `push` event - GitHub's anti-recursion rule - so `CI (Bun)`
-  # never ran on the merge commit, the trigger above never fired, and every dependency update sat
-  # merged and undeployed until the hourly sweep dispatched this by hand. `arm-auto-merge.yml` arms
-  # with an App token, whose merge DOES raise the push, so the ordinary path works and this is a
-  # convenience again.
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      sha:
+        description: 'The commit to build and ship. Resolved and gated by the caller.'
+        required: true
+        type: string
+      version:
+        description: 'The version being released, without a leading `v`. Becomes an image tag.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  # Under `workflow_run` the proof already exists: the trigger MEANS that CI (Bun) ran on this exact
-  # commit and passed. Under `workflow_dispatch` nothing has run it - so it is run HERE, by calling
-  # the same workflow rather than restating its steps, which is the only way the two paths cannot
-  # drift apart.
-  # A CALLED WORKFLOW CANNOT BE GRANTED MORE THAN ITS CALLER GRANTS IT, and exceeding that is a
-  # STARTUP FAILURE - no job runs, no log is produced, and the API returns neither an annotation nor
-  # an error message. `ci-bun.yml` now calls `code-analysis.yml`, whose CodeQL job asks for
-  # `security-events: write`, so this job must grant it or a hand-dispatched deploy dies before its
-  # first line. Derived from what the callees declare, not chosen here.
-  verify:
-    name: Verify
-    if: github.event_name == 'workflow_dispatch'
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/ci-bun.yml
-
   build-image:
     name: Build & Push Image
     runs-on: ubuntu-latest
-    needs: [verify]
-    # `always()` because `verify` is SKIPPED on the workflow_run path, and a skipped dependency
-    # would otherwise skip this job too. The two accepted states are named explicitly: verify
-    # passed, or verify did not need to run because CI already had.
-    if: >-
-      always() &&
-      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
-      (github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    # NO `if:` AT ALL, and that is the point of being a library. Every condition this job used to
+    # carry was about which trigger had fired and whether some other run had gone green; a called
+    # workflow runs because its caller decided it should, and the caller's gates are the condition.
     permissions:
       contents: read
       packages: write
@@ -53,9 +42,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Empty under workflow_dispatch, where `github.sha` is main's tip - the merge commit
-          # the sweep just created, or a later one, either of which is the right thing to ship.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # The commit the caller gated, never `github.sha` - which on a `release` event is the tag
+          # and on a dispatch is whatever the branch happens to be by then.
+          ref: ${{ inputs.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -72,8 +61,13 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/emse-students/sky
+          # THREE TAGS, AND THE VERSION IS THE ONE THAT MATTERS. `latest` is what the deploy
+          # pulls; the sha tag is how a running container is traced back to a tree; and `v<version>`
+          # is how it is traced back to the RELEASE somebody published, which is the only one of
+          # the three a human ever says out loud.
           tags: |
             type=raw,value=latest
+            type=raw,value=v${{ inputs.version }}
             type=sha,prefix=main-
 
       - name: Build and push
@@ -90,9 +84,6 @@ jobs:
     name: Deploy to production
     runs-on: self-hosted
     needs: build-image
-    # `needs: build-image` already carries the verify verdict; this only has to not run when the
-    # image job did not.
-    if: ${{ needs.build-image.result == 'success' }}
     permissions:
       contents: read
       packages: read
@@ -103,9 +94,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Empty under workflow_dispatch, where `github.sha` is main's tip - the merge commit
-          # the sweep just created, or a later one, either of which is the right thing to ship.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # The commit the caller gated, never `github.sha` - which on a `release` event is the tag
+          # and on a dispatch is whatever the branch happens to be by then.
+          ref: ${{ inputs.sha }}
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
