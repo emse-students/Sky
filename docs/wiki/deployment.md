@@ -103,7 +103,7 @@ binaries, and `format` is oxfmt. oxvelte is built from a PINNED revision by
 same binary or with neither.
 
 The Husky pre-commit hook runs all three. It used to run `lint && check` only, which let a commit
-through that `ci-bun.yml` then rejected on formatting - the gate a hook does not run is a gate you
+through that `ci.yml` then rejected on formatting - the gate a hook does not run is a gate you
 meet after pushing. The lockfile is committed and CI installs `--frozen-lockfile`.
 
 ## Dependency updates, and the merge that reaches the server
@@ -136,9 +136,40 @@ answered _"Sorry, only users with push access can use that command"_ - **includi
 is a GitHub App**, measured ten times out of ten on emse-students/canari. An App INSTALLATION is not
 an account with push access. _A gate whose only remedy is unavailable is a stop, not a gate._
 
-The question it was trying to answer is answered elsewhere and better: `ci-bun.yml` runs on
+The question it was trying to answer is answered elsewhere and better: `ci.yml` runs on
 `push: main` as well as on `pull_request`, so a merge that breaks the trunk turns `CI passed` red ON
 `main`, where somebody looking at the repository sees it, rather than being predicted per branch.
+
+## Nothing deploys on a push - the release does
+
+**Since 2026-09-04, and in every repository of the ecosystem** (user: _"Pour tous les repos, le push
+sur main ne doit rien deployer, c'est la release qui le fait."_). A merge to `main` runs the CI and
+stops there. The human gesture that ships is publishing a GitHub release:
+
+```sh
+gh release create v1.2.3 --generate-notes
+```
+
+`release.yml` then asks three questions, all of them in `.github/scripts/release-preflight.sh` so
+they can be tested without a run - and they are, on both sides of every gate:
+
+1. **Is the version a version?** A typo becomes a deployed image tag nobody can find again.
+2. **Is the released commit on `main`?** Everything downstream reads the trunk.
+3. **Did `CI passed` go green ON that commit?** Not "run the tests again" - they already ran on this
+   exact tree, and running them a second time here is a second opinion that would decide a
+   deployment: a flake would ship or block, and a suite that changed since the merge would be
+   judging code it was not written for. **An absent check is refused too** - that is not a failure,
+   it means nothing ever asked, and an absent measurement is not permission.
+
+Only then does it call `deploy.yml`, which since the same day is a **library with no triggers of its
+own** - it used to fire on `workflow_run` after the CI finished on `main`, which made every merge a
+deployment. It is handed the commit the gates approved and the version they read, so what is built
+is what was checked, and the image carries a `v<version>` tag alongside `latest`.
+
+**So a merged fix is not a shipped fix**, and that is the deliberate cost. Dependency updates merge
+themselves and then WAIT; what they wait for is somebody deciding this is the tree that ships. The
+alternative - deploying whatever last merged - means production is whatever the last green pull
+request happened to be, which nobody chose.
 
 **The ceiling was EMPTY here, and that is a measured answer rather than an omission** - all three
 candidates were closed by writing the test instead of refusing the update. A ceiling entry is never

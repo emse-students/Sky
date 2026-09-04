@@ -1,15 +1,15 @@
-name: code-analysis
+name: Code Analysis
 
 # =================================================================================================
 # THE SECURITY PASS - A LIBRARY, CALLED FROM BOTH MOMENTS IT IS WANTED
 #
-# CALLED BY `ci-bun.yml` AND BY `scheduled.yml`, AND BY NOTHING ELSE. It used to carry its own
+# CALLED BY `ci.yml` AND BY `scheduled.yml`, AND BY NOTHING ELSE. It used to carry its own
 # `push`, `pull_request` and `schedule` triggers, which made it a separate row in the Actions list
 # and, worse, put its verdict OUTSIDE the check a merge waits on: CodeQL, the secret scan and the
 # quality gate all ran on every pull request and **could not block a single merge**. A red tick
 # nothing enforces is worse than no tick, because it looks enforced.
 #
-# Since 2026-09-04 it is `workflow_call` only. `ci-bun.yml` calls it as a job feeding `CI passed`,
+# Since 2026-09-04 it is `workflow_call` only. `ci.yml` calls it as a job feeding `CI passed`,
 # so a live secret now stops the merge; `scheduled.yml` calls the same file nightly, which is the
 # half a pull request cannot see - a new advisory lands against code nobody touched.
 # =================================================================================================
@@ -75,11 +75,11 @@ jobs:
           extra_args: --debug --only-verified
 
   # There is no lint job here. The one that used to sit at this spot was named "ESLint Security
-  # Check" for a tool this repository no longer has, ran the same `bun run lint` that ci-bun.yml
+  # Check" for a tool this repository no longer has, ran the same `bun run lint` that ci.yml
   # already runs, and carried `continue-on-error: true` - so it re-linted the same code and threw
-  # the verdict away. It also set `bun-version: latest`, two lines below a comment in ci-bun.yml
+  # the verdict away. It also set `bun-version: latest`, two lines below a comment in ci.yml
   # explaining why nothing here may do that. Removing it removes a duplicate, a lie in a job name
-  # and the only unpinned toolchain in this repository at once. Lint is gated in ci-bun.yml.
+  # and the only unpinned toolchain in this repository at once. Lint is gated in ci.yml.
 
   code-quality:
     name: Code Quality Analysis
