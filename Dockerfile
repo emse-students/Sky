@@ -9,7 +9,12 @@
 # (src/lib/server/positions.ts): no Python at runtime either.
 
 # -- Build ---------------------------------------------------------------------
-FROM oven/bun:1.4.0-alpine AS build
+# NOT A SECOND SOURCE OF TRUTH. `.bun-version` is the one place this repository names a bun
+# version and the image build passes it as `--build-arg BUN_VERSION`; this default exists only so a
+# bare `docker build` with no arguments still produces something. The `-alpine` suffix is NOT in
+# that file and stays here: it is an image variant, not a version.
+ARG BUN_VERSION=1.4.0
+FROM oven/bun:${BUN_VERSION}-alpine AS build
 WORKDIR /app
 ENV HUSKY=0
 # No node-gyp, no python3, no make: nothing native is compiled any more.
@@ -23,7 +28,10 @@ COPY . .
 RUN bun run build
 
 # -- Runtime -------------------------------------------------------------------
-FROM oven/bun:1.4.0-alpine AS runtime
+# Repeated because an ARG declared before a FROM is consumed by it; this brings the same value
+# into the second stage rather than introducing another one.
+ARG BUN_VERSION=1.4.0
+FROM oven/bun:${BUN_VERSION}-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
