@@ -33,7 +33,22 @@ updates:
     # `typescript` reste en 6: le `--tsgo` de `check` passe par `@typescript/native`
     # (npm:typescript@^7), qui est un paquet DISTINCT. Un major sur `typescript` remplacerait le
     # compilateur stable, et l'auto-merge le fusionnerait sans que personne regarde.
+    #
+    # ET `@typescript/native` EST IGNORE PARCE QUE DEPENDABOT NE PEUT PAS LE VOIR DU TOUT - pas
+    # parce que ce depot refuse la mise a jour. C'est un ALIAS npm (`npm:typescript@^7.0.2`), et
+    # Dependabot resout une dependance par le nom sous lequel elle est DECLAREE : il interroge
+    # `registry.npmjs.org/@typescript%2Fnative`, recoit un 404 puisque ce paquet n'existe pas, et
+    # fait echouer TOUT le job de mise a jour dessus. Chaque job `bun` de ce depot etait rouge sur
+    # cette seule ligne depuis au moins le 2026-08-24, a chaque passage, et personne ne regardait -
+    # ce qui est exactement ce qu'achete un job rouge en permanence.
+    #
+    # AUCUNE COUVERTURE N'EST PERDUE, et c'est toute la raison pour laquelle c'est un ignore et non
+    # un correctif. Le 404 signifie que TS 7 derriere l'alias n'a JAMAIS recu de proposition de mise
+    # a jour ; l'ignorer supprime un echec, pas une capacite. Ce qui retire cette entree, c'est la
+    # suppression de l'alias - le jour ou `typescript` lui-meme sera la ligne 7.x.
     ignore:
+      # Voir le paragraphe ci-dessus : un alias npm, 404 sur son nom, jamais mettable a jour.
+      - dependency-name: '@typescript/native'
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
     labels:
