@@ -66,7 +66,7 @@ installs `--frozen`.
 | `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin      |
 | `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://auth.canari-emse.fr`     |
 | `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`         |
-| `CANARI_API_URL`          | no           | Canari base; default `https://canari-emse.fr`             |
+| `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`             |
 | `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
 | `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
