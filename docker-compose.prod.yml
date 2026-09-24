@@ -36,7 +36,7 @@ services:
       MIGALLERY_API_URL: ${MIGALLERY_API_URL:-https://gallery.mitv.fr}
       # API profil public de Canari (bio, associations). La cle doit etre identique
       # a EXTERNAL_API_KEY cote Canari. Vide = pas d enrichissement Canari.
-      CANARI_API_URL: ${CANARI_API_URL:-https://canari-emse.fr}
+      CANARI_API_URL: ${CANARI_API_URL:-https://canari.emse.fr}
       CANARI_API_KEY: ${CANARI_API_KEY:-}
       # Cle de l API publique entrante (Canari lit l arbre de parrainage). Doit
       # etre identique a SKY_API_KEY cote Canari. Vide = endpoint refuse.
