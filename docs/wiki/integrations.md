@@ -82,7 +82,7 @@ null }` on 404). Club logo URLs are resolved to absolute URLs
 `CANARI_URL + path`). The API key stays server-side; the client only ever sees
 the public projection.
 
-Config: `CANARI_API_URL` (default `https://canari-emse.fr`), `CANARI_API_KEY`.
+Config: `CANARI_API_URL` (default `https://canari.emse.fr`), `CANARI_API_KEY`.
 The shapes are typed in `src/lib/types/graph.ts` (`CanariProfile`,
 `CanariAssociation`, `CanariFormerAssociation`, `CanariProfileResponse`).
 
