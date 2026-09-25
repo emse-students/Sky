@@ -121,8 +121,8 @@
   }
 
   function handleImageError(id: string) {
+    // Legacy (non-runes) component: a member assignment already invalidates `imageErrors`.
     imageErrors[id] = true;
-    imageErrors = imageErrors; // Reassign to trigger Svelte reactivity
   }
 
   function handleSearch() {
@@ -257,7 +257,7 @@
         {#if isSearchActive}
           <div class="search-dropdown" transition:fly={{ y: 10, duration: 200 }}>
             {#if searchResults.length > 0}
-              {#each searchResults as result}
+              {#each searchResults as result (result.id)}
                 <button class="search-item" onclick={() => selectResult(result)}>
                   <div class="item-avatar">
                     {#if imageErrors[result.id]}
@@ -876,23 +876,6 @@
     letter-spacing: 1px;
     color: var(--text-dim);
     margin-bottom: 12px;
-  }
-  .link-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .social-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: white;
-    text-decoration: none;
-    font-size: 13px;
   }
   .asso-card {
     display: flex;

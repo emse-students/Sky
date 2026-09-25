@@ -119,7 +119,7 @@
     if (!(await confirmDialog(m.admin_ignore_all_confirm({ count: suggestions.length })))) return;
     suggBusy = true;
     try {
-      for (const s of [...suggestions]) {
+      for (const s of suggestions) {
         await fetch('/api/admin/merge/suggestions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -139,7 +139,7 @@
     }
     suggBusy = true;
     try {
-      for (const s of [...suggestions]) {
+      for (const s of suggestions) {
         await fetch('/api/admin/merge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

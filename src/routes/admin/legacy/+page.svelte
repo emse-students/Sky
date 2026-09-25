@@ -13,6 +13,8 @@
     image_url: string | null;
   }
   interface LegacyRel {
+    /** The relationship row's own id, unique where the person id is not (one person, two link types). */
+    relId: number;
     id: string;
     name: string;
     type: string;
@@ -141,7 +143,7 @@
           {#if relations.parrains.length === 0}
             <div class="muted">{m.legacy_none()}</div>
           {:else}
-            {#each relations.parrains as r}
+            {#each relations.parrains as r (r.relId)}
               <div class="rel">
                 <span class="badge {r.type}">{r.type}</span>
                 {r.name}
@@ -153,7 +155,7 @@
           {#if relations.fillots.length === 0}
             <div class="muted">{m.legacy_none()}</div>
           {:else}
-            {#each relations.fillots as r}
+            {#each relations.fillots as r (r.relId)}
               <div class="rel">
                 <span class="badge {r.type}">{r.type}</span>
                 {r.name}
