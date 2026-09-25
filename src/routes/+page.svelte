@@ -7,6 +7,7 @@
   import { cameraStore } from '$stores/cameraStore';
   import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
   import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
+  import MapControls from '$components/Canvas/MapControls.svelte';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -185,6 +186,30 @@
     }
   }
 
+  // First-visit hint: how to use the map, until the first touch or click anywhere. Remembered per
+  // browser; storage may be unavailable (private window), in which case it simply shows again.
+  const HINT_KEY = 'sky.mapHintSeen';
+  let showHint = false;
+  let coarsePointer = false;
+  onMount(() => {
+    coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    try {
+      showHint = localStorage.getItem(HINT_KEY) !== '1';
+    } catch (e) {
+      console.debug('[Home] hint storage unavailable, showing the hint:', e);
+      showHint = true;
+    }
+  });
+  function dismissHint() {
+    if (!showHint) return;
+    showHint = false;
+    try {
+      localStorage.setItem(HINT_KEY, '1');
+    } catch (e) {
+      console.debug('[Home] hint storage unavailable, not remembering the dismissal:', e);
+    }
+  }
+
   function resetView() {
     selectedPersonId.set(null);
     cameraStore.reset();
@@ -200,12 +225,21 @@
   }}
 />
 
-<svelte:window bind:innerWidth />
+<svelte:window bind:innerWidth onpointerdown={dismissHint} />
 
 <StarfieldCanvas />
 
 {#if isAuthenticated}
   <GraphCanvas />
+  <MapControls
+    onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
+    topInset={72}
+  />
+  {#if showHint && !isLoading}
+    <div class="map-hint" role="status" transition:fade>
+      {coarsePointer ? m.map_hint_touch() : m.map_hint_pointer()}
+    </div>
+  {/if}
 
   <nav class="nav-glass">
     <div class="nav-content">
@@ -911,10 +945,28 @@
     color: var(--text-dim);
   }
 
+  .map-hint {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 800;
+    max-width: calc(100vw - 160px);
+    padding: 10px 16px;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-main);
+    font-size: 14px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  /* Top-right, under the bar: the bottom-right corner belongs to the map controls. */
   .focus-hub {
     position: fixed;
-    bottom: 32px;
-    right: 32px;
+    top: calc(var(--nav-height) + 16px);
+    right: 16px;
     width: 280px;
     background: #1e293b;
     border: 1px solid var(--accent);

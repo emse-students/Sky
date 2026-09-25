@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  BUTTON_ZOOM_FACTOR,
   EMPTY_GRAPH_MIN_ZOOM,
+  FIT_FILL,
+  fitView,
+  SINGLE_STAR_ZOOM,
   MAX_ZOOM,
   MIN_ZOOM_FIT_RATIO,
   wheelZoomFactor,
@@ -108,5 +112,66 @@ describe('zoomBoundsFor', () => {
   it('falls to the empty-graph floor while nothing is positioned, or for a lone star', () => {
     expect(zoomBoundsFor({}, viewport).min).toBe(EMPTY_GRAPH_MIN_ZOOM);
     expect(zoomBoundsFor({ a: { x: 5, y: 5 } }, viewport).min).toBe(EMPTY_GRAPH_MIN_ZOOM);
+  });
+});
+
+describe('fitView', () => {
+  const vp = { width: 400, height: 800 };
+
+  it('returns null for an empty graph', () => {
+    expect(fitView([], vp)).toBeNull();
+  });
+
+  it('centres the graph and fits its larger side with a margin', () => {
+    const view = fitView(
+      [
+        { x: -100, y: 0 },
+        { x: 100, y: 50 },
+      ],
+      vp
+    )!;
+    expect(view.x).toBe(0);
+    expect(view.y).toBe(25);
+    // Width 200 against 400 px is the binding axis.
+    expect(view.zoom).toBeCloseTo((400 * FIT_FILL) / 200);
+  });
+
+  it('centres the graph in the area the insets leave uncovered', () => {
+    const insets = { top: 72, bottom: 240 };
+    const view = fitView(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 1000 },
+      ],
+      vp,
+      insets
+    )!;
+    // The graph centre (world y 500) lands at the centre of the visible band, not of the canvas.
+    const screenY = (500 - view.y) * view.zoom + vp.height / 2;
+    expect(screenY).toBeCloseTo(insets.top + (vp.height - insets.top - insets.bottom) / 2);
+    expect(view.zoom).toBeCloseTo(((800 - 72 - 240) * FIT_FILL) / 1000);
+  });
+
+  it('uses the single-star zoom for one star, and never exceeds MAX_ZOOM', () => {
+    expect(fitView([{ x: 3, y: 4 }], vp)).toEqual({ x: 3, y: 4, zoom: SINGLE_STAR_ZOOM });
+    const tiny = fitView(
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      vp
+    )!;
+    expect(tiny.zoom).toBe(MAX_ZOOM);
+  });
+});
+
+describe('the + / - control', () => {
+  it('doubles or halves the zoom around the screen centre, keeping the centre put', () => {
+    const view: View = { x: 50, y: -20, zoom: 0.4 };
+    const centre = { x: viewport.width / 2, y: viewport.height / 2 };
+    const zoomedIn = zoomAt(view, BUTTON_ZOOM_FACTOR, centre, viewport, wide);
+    expect(zoomedIn).toEqual({ x: 50, y: -20, zoom: 0.8 });
+    const zoomedOut = zoomAt(view, 1 / BUTTON_ZOOM_FACTOR, centre, viewport, wide);
+    expect(zoomedOut.zoom).toBeCloseTo(0.2);
   });
 });

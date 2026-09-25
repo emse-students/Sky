@@ -230,5 +230,20 @@
   "account_fiche_unavailable": "Cette fiche n'est plus disponible (déjà liée ou introuvable).",
   "api_login_failed": "Échec de la connexion",
   "seo_site_description": "La carte des étoiles des ICM de l'École des Mines de Saint-Étienne : l'arbre de parrainage, réservé aux ICM via MiConnect.",
-  "seo_image_alt": "Le logo de Sky : une étoile sur fond de voûte céleste."
+  "seo_image_alt": "Le logo de Sky : une étoile sur fond de voûte céleste.",
+  "map_controls_label": "Contrôles de la carte",
+  "map_zoom_in": "Zoomer",
+  "map_zoom_out": "Dézoomer",
+  "map_fit": "Recentrer la carte",
+  "map_me": "Aller à mon étoile",
+  "map_legend": "Légende",
+  "map_legend_promo": "Couleur = promo",
+  "map_legend_older": "plus ancienne",
+  "map_legend_recent": "plus récente",
+  "map_legend_unknown": "Promo inconnue",
+  "map_legend_selected": "Étoile sélectionnée",
+  "map_legend_parrainage": "Parrainage",
+  "map_legend_adoption": "Adoption",
+  "map_hint_touch": "Pince pour zoomer, touche une étoile pour la voir.",
+  "map_hint_pointer": "Molette pour zoomer, clique sur une étoile pour la voir."
 }

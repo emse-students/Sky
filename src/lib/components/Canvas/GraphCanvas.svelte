@@ -11,6 +11,16 @@
   import { getPersonName } from '$lib/utils/format';
   import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
   import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
+  import {
+    directNeighbours,
+    LabelFader,
+    labelPriority,
+    linkDegree,
+    placeLabels,
+    TextWidthCache,
+    type LabelCandidate,
+  } from '$lib/utils/labels';
+  import type { Person } from '$types/graph';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -37,6 +47,24 @@
   // Promo -> node color bounds, recomputed only when the visible people change.
   // A person's `level` holds their promo (entry year); see promoMatches().
   $: promoBounds = computePromoBounds(people.map((p) => p.level));
+
+  // Label ranking inputs. Degree is read on the WHOLE graph so a star's importance does not change
+  // when focus mode hides part of its family; the neighbours are the selected star's direct links.
+  $: degree = linkDegree($graphStore.relations);
+  $: selectedNeighbours = directNeighbours($selectedPersonId, $graphStore.relations);
+
+  /** Screen font of a star's name: constant whatever the zoom, like a map label. */
+  const LABEL_FONT = '12px "Space Grotesk", sans-serif';
+  /** Gap between a star and the baseline of its name, in screen pixels. */
+  const LABEL_OFFSET = 10;
+  /** Label box above / around the baseline, sized for the 12 px font with its descenders. */
+  const LABEL_ASCENT = 12;
+  const LABEL_HEIGHT = 16;
+
+  // Labels drawn on the last frame (for hit-testing), their fade state, and the name widths.
+  let placedLabels: LabelCandidate[] = [];
+  const fader = new LabelFader();
+  const widths = new TextWidthCache((name) => ctx.measureText(name).width);
 
   // Any change to the visible data triggers a redraw.
   $: {
@@ -120,12 +148,19 @@
     // Load data
     graphStore.load();
 
+    // Names measured before Space Grotesk arrived were measured in the fallback face: once the
+    // font is ready, re-measure so label boxes (and so collisions) match what is drawn.
+    document.fonts?.ready.then(() => {
+      widths.clear();
+      requestRedraw();
+    });
+
     // Animation loop : ne dessine que si la camera bouge ou si un etat a change.
     const animate = () => {
       const moved = cameraStore.updateSmooth();
       if (moved || dirty) {
-        draw();
-        dirty = false;
+        // A label fade in flight asks for the next frame even when nothing else moves.
+        dirty = draw();
       }
       animationFrame = requestAnimationFrame(animate);
     };
@@ -143,8 +178,9 @@
     requestRedraw();
   }
 
-  function draw() {
-    if (!ctx) return;
+  /** Draw one frame. Returns true when another frame is needed (a label is still fading). */
+  function draw(): boolean {
+    if (!ctx) return false;
 
     // Clear with transparency so the starfield background shows through.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -194,7 +230,8 @@
       ctx.setLineDash([]);
     }
 
-    // Draw people (nodes) - viewport culling
+    // Draw people (nodes) - viewport culling. The on-screen ones are then candidates for a label.
+    const visible: Person[] = [];
     people.forEach((person) => {
       if (!person.id) return;
       const pos = positions[person.id];
@@ -222,16 +259,76 @@
       }
       ctx.fill();
 
-      // Label - always shown once zoomed in
-      if (camera.zoom > 0.15) {
-        ctx.fillStyle = isSelected ? '#fbbf24' : isHovered ? '#fff' : 'rgba(255, 255, 255, 0.7)';
-        ctx.font = `${12 / camera.zoom}px "Space Grotesk", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(getPersonName(person), pos.x, pos.y - 10 / camera.zoom);
-      }
+      visible.push(person);
     });
 
     ctx.restore();
+
+    return drawLabels(visible);
+  }
+
+  /**
+   * Name the visible stars the way a map does: rank every candidate label, draw one only where it
+   * collides with none already placed (`placeLabels`), and fade labels in and out as they win or
+   * lose their place rather than popping. Drawn in SCREEN space at a constant size.
+   *
+   * Returns true while a fade is in flight, so the on-demand loop draws another frame.
+   */
+  function drawLabels(visible: Person[]): boolean {
+    const halfW = canvas.width / 2;
+    const halfH = canvas.height / 2;
+    ctx.font = LABEL_FONT;
+    const candidates: LabelCandidate[] = [];
+    const anchors: Record<string, { x: number; y: number; name: string }> = {};
+
+    for (const person of visible) {
+      const pos = positions[person.id];
+      const name = getPersonName(person);
+      const width = widths.get(name);
+      const x = (pos.x - camera.x) * camera.zoom + halfW;
+      const baseline = (pos.y - camera.y) * camera.zoom + halfH - LABEL_OFFSET;
+      anchors[person.id] = { x, y: baseline, name };
+      candidates.push({
+        id: person.id,
+        left: x - width / 2,
+        top: baseline - LABEL_ASCENT,
+        width,
+        height: LABEL_HEIGHT,
+        priority: labelPriority({
+          selected: $selectedPersonId === person.id,
+          hovered: hoveredPerson === person.id,
+          neighbourOfSelected: selectedNeighbours.has(person.id),
+          degree: degree.get(person.id) ?? 0,
+        }),
+      });
+    }
+
+    const placed = placeLabels(candidates);
+    const animating = fader.step(placed);
+    placedLabels = candidates.filter((c) => placed.has(c.id));
+
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(5, 7, 10, 0.85)';
+    for (const [id, alpha] of fader.opacity) {
+      const anchor = anchors[id];
+      // A fading label whose star left the screen has nothing to be drawn at.
+      if (!anchor) continue;
+      ctx.globalAlpha = alpha;
+      // A dark outline keeps a name legible where it crosses a link or another star - the halo
+      // every map draws around its labels, not a decoration.
+      ctx.strokeText(anchor.name, anchor.x, anchor.y);
+      ctx.fillStyle =
+        $selectedPersonId === id
+          ? '#fbbf24'
+          : hoveredPerson === id
+            ? '#fff'
+            : 'rgba(255, 255, 255, 0.8)';
+      ctx.fillText(anchor.name, anchor.x, anchor.y);
+    }
+    ctx.globalAlpha = 1;
+    return animating;
   }
 
   /** Canvas-relative position of a client (viewport) point. */
@@ -333,38 +430,25 @@
     const worldY = (mouseY - canvas.height / 2) / camera.zoom + camera.y;
     const threshold = 40 / camera.zoom; // Increased hit radius for better click sensitivity
 
+    // A drawn name is part of its star's target. Only labels actually on screen count: a name the
+    // placement hid must not capture a tap meant for the star beneath it.
+    for (const label of placedLabels) {
+      if (
+        mouseX >= label.left &&
+        mouseX <= label.left + label.width &&
+        mouseY >= label.top &&
+        mouseY <= label.top + label.height
+      ) {
+        return label.id;
+      }
+    }
+
     for (const person of people) {
       if (!person.id) continue;
       const pos = positions[person.id];
       if (!pos) continue;
 
-      const dist = Math.sqrt((pos.x - worldX) ** 2 + (pos.y - worldY) ** 2);
-      let isHit = dist < threshold;
-
-      if (!isHit && camera.zoom > 0.15 && ctx) {
-        const name = getPersonName(person);
-        const fontSize = 12 / camera.zoom;
-        ctx.font = `${fontSize}px "Space Grotesk", sans-serif`;
-        const textMetrics = ctx.measureText(name);
-        const textWidth = textMetrics.width;
-        const textHeight = fontSize;
-        const textY = pos.y - 10 / camera.zoom; // Baseline
-        const textTop = textY - textHeight;
-        const textLeft = pos.x - textWidth / 2;
-        const textRight = pos.x + textWidth / 2;
-        const padding = 2 / camera.zoom;
-
-        if (
-          worldX >= textLeft - padding &&
-          worldX <= textRight + padding &&
-          worldY >= textTop - padding &&
-          worldY <= textY + padding
-        ) {
-          isHit = true;
-        }
-      }
-
-      if (isHit) return person.id;
+      if (Math.hypot(pos.x - worldX, pos.y - worldY) < threshold) return person.id;
     }
     return null;
   }
