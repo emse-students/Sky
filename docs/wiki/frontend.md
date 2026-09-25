@@ -22,6 +22,9 @@ Svelte stores in `src/lib/stores/`:
   Programmatic moves (`setTarget`, e.g. the auto-zoom on selection) ease toward
   the target; zoom GESTURES call `jumpTo`, which sets current and target at once
   (direct manipulation - an easing view cannot keep the anchor under the fingers).
+  The canvas repaints on every camera notification (#121), so `updateSmooth` writes nothing once
+  settled: a store notifies on every `set` of an object, and a no-op write per frame meant a
+  60 fps redraw of an idle map (pinned in `cameraStore.test.ts`).
 
 ### Zoom gestures
 
