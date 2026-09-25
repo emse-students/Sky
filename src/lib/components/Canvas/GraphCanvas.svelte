@@ -10,6 +10,7 @@
   import { cameraStore } from '$stores/cameraStore';
   import { getPersonName } from '$lib/utils/format';
   import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
+  import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -233,10 +234,29 @@
     ctx.restore();
   }
 
+  /** Canvas-relative position of a client (viewport) point. */
+  function toCanvasPoint(clientX: number, clientY: number): ScreenPoint {
+    const rect = canvas.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  /**
+   * Zoom by `factor` around `anchor`, carrying it to `moveTo` - the single path shared by the
+   * wheel, a trackpad pinch and a two-finger pinch. Bounds come from the WHOLE graph (not the
+   * focus sub-graph), so zooming out always reaches the full map.
+   */
+  function zoomGesture(factor: number, anchor: ScreenPoint, moveTo: ScreenPoint = anchor) {
+    const viewport = { width: canvas.width, height: canvas.height };
+    const bounds = zoomBoundsFor($graphStore.positions, viewport);
+    cameraStore.jumpTo(zoomAt(camera, factor, anchor, viewport, bounds, moveTo));
+  }
+
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    cameraStore.zoom(delta);
+    zoomGesture(
+      wheelZoomFactor(e.deltaY, e.deltaMode, e.ctrlKey),
+      toCanvasPoint(e.clientX, e.clientY)
+    );
   }
 
   // --- MOUSE HANDLING ---
@@ -294,6 +314,15 @@
   let lastTouchX = 0;
   let lastTouchY = 0;
   let lastTouchDistance = 0;
+  let lastTouchMid: ScreenPoint = { x: 0, y: 0 };
+
+  /** Finger spread and midpoint (canvas pixels) of a two-finger touch. */
+  function pinchGeometry(t1: Touch, t2: Touch): { distance: number; mid: ScreenPoint } {
+    return {
+      distance: Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY),
+      mid: toCanvasPoint((t1.clientX + t2.clientX) / 2, (t1.clientY + t2.clientY) / 2),
+    };
+  }
 
   function findNodeAt(clientX: number, clientY: number): string | null {
     if (!canvas) return null;
@@ -350,9 +379,10 @@
     } else if (e.touches.length === 2) {
       isDragging = true;
       hasDragged = true;
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+      const { distance, mid } = pinchGeometry(e.touches[0], e.touches[1]);
+      lastTouchDistance = distance;
+      lastTouchMid = mid;
+      console.debug('[GraphCanvas] pinch start: spread', Math.round(distance), 'px');
     }
   }
 
@@ -375,14 +405,13 @@
       lastTouchX = t.clientX;
       lastTouchY = t.clientY;
     } else if (e.touches.length === 2) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dist = Math.sqrt(
-        Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2)
-      );
-      const delta = (dist - lastTouchDistance) * 0.005;
-      cameraStore.zoom(delta);
-      lastTouchDistance = dist;
+      const { distance, mid } = pinchGeometry(e.touches[0], e.touches[1]);
+      // Two fingers on the same pixel give no ratio; wait for them to separate.
+      if (lastTouchDistance > 0 && distance > 0) {
+        zoomGesture(distance / lastTouchDistance, lastTouchMid, mid);
+      }
+      lastTouchDistance = distance;
+      lastTouchMid = mid;
     }
   }
 
@@ -399,6 +428,11 @@
     }
     if (e.touches.length === 0) {
       isDragging = false;
+    } else if (e.touches.length === 1) {
+      // Pinch -> one finger: pan from where the remaining finger IS, not from where it was when
+      // the pinch began, or the first one-finger move jumps the map by the whole pinch travel.
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
     }
   }
 </script>

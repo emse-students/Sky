@@ -19,6 +19,29 @@ Svelte stores in `src/lib/stores/`:
   (`findNeighborsWithinHops`, BFS over undirected relations).
 - **`cameraStore`** (`cameraStore.ts`) - pan/zoom with smooth interpolation
   toward a target (`targetX/targetY/targetZoom`), plus `calculateMaxPan`.
+  Programmatic moves (`setTarget`, e.g. the auto-zoom on selection) ease toward
+  the target; zoom GESTURES call `jumpTo`, which sets current and target at once
+  (direct manipulation - an easing view cannot keep the anchor under the fingers).
+
+### Zoom gestures
+
+Wheel, trackpad pinch (a wheel event with `ctrlKey`) and two-finger pinch all go
+through ONE pure function, `zoomAt` in `src/lib/utils/camera.ts` (unit-tested in
+`camera.test.ts`), the contract of Google Maps / Figma / d3-zoom:
+
+- **Multiplicative.** A pinch step scales by `distance / lastDistance`, a wheel
+  event by `wheelZoomFactor` - d3-zoom's constants: `2^(-deltaY * 0.002)` in
+  pixels (one 100 px notch = x1.15), `0.05` per line (Firefox), and x10 with
+  `ctrlKey` so a trackpad pinch tracks the fingers. A 2x spread is 2x at every
+  level. (Until 2026-09 the step was ADDITIVE: a 2x spread measured ~x20 on a
+  Mi 9T when zoomed out, x1.3 when zoomed in.)
+- **Anchored.** The world point under the cursor / pinch midpoint stays under
+  it; during a pinch it also follows the midpoint, so one call is scale + pan.
+- **Bounded by the graph.** `zoomBoundsFor` sets the minimum at
+  `MIN_ZOOM_FIT_RATIO` (0.5) of the zoom at which every positioned star fits
+  the viewport, the maximum at `MAX_ZOOM` (5; nodes and labels are drawn at a
+  constant screen size, so closer only means emptier). A view a programmatic
+  move left outside the range is never pushed further out and never snapped.
 - **`themeStore`** (`themeStore.ts`) - light/dark theme, persisted; has a test.
 
 ### Never hide a star
