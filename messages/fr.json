@@ -52,8 +52,6 @@
   "nav_admin": "Administration",
   "nav_logout": "Déconnexion",
   "focus_mode": "Mode Focus",
-  "focus_exit": "Sortir",
-  "focus_depth_label": "Profondeur du réseau",
   "focus_hop": "saut",
   "focus_hops": "sauts",
   "profile_promotion": "Promotion {level}",
@@ -244,7 +242,7 @@
   "map_legend_selected": "Étoile sélectionnée",
   "map_legend_parrainage": "Parrainage",
   "map_legend_adoption": "Adoption",
-  "map_hint_touch": "Pince pour zoomer, touche une étoile. « Voir tout le ciel » est en bas à droite.",
+  "map_hint_touch": "Pince pour zoomer, touche une étoile pour la voir, touche le ciel pour masquer les boutons.",
   "map_hint_pointer": "Molette pour zoomer, clique sur une étoile. « Voir tout le ciel » est en bas à droite.",
   "sheet_expand": "Agrandir la fiche",
   "sheet_collapse": "Réduire la fiche",
@@ -257,5 +255,6 @@
   "home_search_label": "Rechercher une étoile",
   "map_summary_all": "Carte de {people} étoiles reliées par {links} liens de parrainage. Utilise la recherche pour trouver une étoile.",
   "map_summary_focus": "Focus sur {name} : {count} étoiles à {depth} sauts ou moins. Ses liens directs sont listés dans sa fiche.",
-  "nav_account_menu": "Menu du compte"
+  "nav_account_menu": "Menu du compte",
+  "focus_exit_label": "Quitter le mode focus"
 }
