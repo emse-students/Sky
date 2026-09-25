@@ -201,17 +201,3 @@ export function linkDegree(
   }
   return counts;
 }
-
-/** The stars one link away from `id` (its parrains and fillots, any link type). */
-export function directNeighbours(
-  id: string | null,
-  relations: readonly { id1: string; id2: string }[]
-): Set<string> {
-  const out = new Set<string>();
-  if (!id) return out;
-  for (const r of relations) {
-    if (r.id1 === id) out.add(r.id2);
-    else if (r.id2 === id) out.add(r.id1);
-  }
-  return out;
-}

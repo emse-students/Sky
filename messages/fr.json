@@ -245,5 +245,17 @@
   "map_legend_parrainage": "Parrainage",
   "map_legend_adoption": "Adoption",
   "map_hint_touch": "Pince pour zoomer, touche une étoile pour la voir.",
-  "map_hint_pointer": "Molette pour zoomer, clique sur une étoile pour la voir."
+  "map_hint_pointer": "Molette pour zoomer, clique sur une étoile pour la voir.",
+  "sheet_expand": "Agrandir la fiche",
+  "sheet_collapse": "Réduire la fiche",
+  "profile_godparents": "Parrains et marraines",
+  "profile_godchildren": "Fillots et fillotes",
+  "profile_no_links": "Aucun lien de parrainage.",
+  "focus_depth_less": "Réduire la profondeur",
+  "focus_depth_more": "Augmenter la profondeur",
+  "home_search_placeholder_short": "Rechercher",
+  "home_search_label": "Rechercher une étoile",
+  "map_summary_all": "Carte de {people} étoiles reliées par {links} liens de parrainage. Utilise la recherche pour trouver une étoile.",
+  "map_summary_focus": "Focus sur {name} : {count} étoiles à {depth} sauts ou moins. Ses liens directs sont listés dans sa fiche.",
+  "nav_account_menu": "Menu du compte"
 }

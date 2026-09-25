@@ -50,6 +50,27 @@ export function findNeighborsWithinHops(
   return neighbors;
 }
 
+/** A star's direct links, split by direction: an edge `id1 -> id2` is parrain -> fillot. */
+export interface DirectLinks {
+  parrains: Relation[];
+  fillots: Relation[];
+}
+
+/**
+ * The relations touching `personId`, split into those naming its parrains (it is `id2`) and its
+ * fillots (it is `id1`), of any type. Feeds the person sheet's list of links - the accessible way
+ * to walk the graph the canvas draws - and the label ranking (neighbours of the selection first).
+ */
+export function directLinks(personId: string | null, relations: readonly Relation[]): DirectLinks {
+  const links: DirectLinks = { parrains: [], fillots: [] };
+  if (!personId) return links;
+  for (const rel of relations) {
+    if (rel.id2 === personId) links.parrains.push(rel);
+    else if (rel.id1 === personId) links.fillots.push(rel);
+  }
+  return links;
+}
+
 /**
  * Return a positions map covering EVERY person: server positions are kept as-is,
  * and any person without one is placed deterministically on an outer ring
@@ -183,6 +204,13 @@ export const graphStore = createGraphStore();
 export const searchQuery = writable('');
 export const selectedPersonId = writable<string | null>(null);
 export const focusDepth = writable<number>(3); // Default to 3 hops
+
+/**
+ * Bumped when the star that is ALREADY selected is tapped or clicked again. Re-setting
+ * `selectedPersonId` to the same id notifies nobody, so without this a person sheet dismissed on a
+ * phone (the star stays in focus) could not be reopened from the map.
+ */
+export const profileReopenRequests = writable(0);
 
 // Derived store that filters people and relations based on selection and focus depth
 export const filteredGraph = derived(

@@ -33,3 +33,24 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
+
+/**
+ * `Element.prototype.animate` (Web Animations) is absent from jsdom.
+ *
+ * Svelte runs every `transition:` through it, so a component whose root carries a `|global`
+ * transition (the person sheet) throws `element.animate is not a function` on mount. The stand-in
+ * finishes at once - a test DOM has no frames to animate - and fires `onfinish` asynchronously, as
+ * a real animation would, so Svelte's intro/outro bookkeeping completes.
+ */
+if (typeof Element !== 'undefined' && typeof Element.prototype.animate !== 'function') {
+  Element.prototype.animate = function animate() {
+    const animation = {
+      onfinish: null as null | (() => void),
+      cancel: () => {},
+      finished: Promise.resolve(),
+      currentTime: 0,
+    };
+    queueMicrotask(() => animation.onfinish?.());
+    return animation as unknown as Animation;
+  };
+}

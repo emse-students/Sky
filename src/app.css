@@ -33,6 +33,15 @@
   box-sizing: border-box;
 }
 
+/* Form controls do not inherit the page face by default: "Se connecter" was set in the system
+   font (bold Roboto on Android) beside Space Grotesk everywhere else. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 body {
   font-family: 'Space Grotesk', sans-serif;
   background: #000;
