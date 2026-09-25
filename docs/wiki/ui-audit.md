@@ -9,11 +9,11 @@ and Apple HIG for touch, WCAG 2.2 for accessibility. Source locations are from `
 
 ## State: every row has shipped - what is owed is a reading on the phone
 
-| Row                                                            | Shipped in                  | Mechanism                                                           |
-| -------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------- |
-| P1 - zoom additive, unanchored, unbounded                      | #118                        | [frontend.md - Zoom gestures](frontend.md#zoom-gestures)            |
-| P2-2 labels overlap, P2-3 no map controls / legend / hint      | #120                        | [frontend.md - Rendering](frontend.md#rendering)                    |
-| P2-4 sheet covers 80%, P2-5 mobile search, P3-6 to P3-9 (a11y) | the pull request after #120 | [frontend.md - The home page](frontend.md#the-home-page-pagesvelte) |
+| Row                                                            | Shipped in | Mechanism                                                           |
+| -------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| P1 - zoom additive, unanchored, unbounded                      | #118, #121 | [frontend.md - Zoom gestures](frontend.md#zoom-gestures)            |
+| P2-2 labels overlap, P2-3 no map controls / legend / hint      | #120       | [frontend.md - Rendering](frontend.md#rendering)                    |
+| P2-4 sheet covers 80%, P2-5 mobile search, P3-6 to P3-9 (a11y) | #122       | [frontend.md - The home page](frontend.md#the-home-page-pagesvelte) |
 
 Every one of them was verified by unit / component tests and the gates, **none on the Mi 9T**. The
 reading still owed there, in one pass:
