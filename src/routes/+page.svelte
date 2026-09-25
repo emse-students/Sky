@@ -101,7 +101,11 @@
   }
 
   // The selected person's direct links, listed in the sheet: the accessible path through the graph.
-  $: currentLinks = directLinks(currentProfile?.id ?? null, $graphStore.relations);
+  // Read from the two STORES, never from `currentProfile`: that variable is assigned inside
+  // `syncProfile()`, which the `$:` dependency sort cannot see, so on the landing flush this
+  // statement ran before the profile existed and froze the empty list ("no links") until the
+  // next reselection. The sheet is only open while a person is selected, so the two agree.
+  $: currentLinks = directLinks($selectedPersonId, $graphStore.relations);
 
   // The account menu is rendered only while open, so a closed menu is absent from the
   // accessibility tree (it used to be a hover-only CSS fade, present to screen readers throughout).
