@@ -1,6 +1,7 @@
 /**
  * The map controls move the camera TARGET (buttons ease, they are not gestures): + / - compound
- * from the target, and fit frames what is displayed.
+ * from the target, and fit frames what is displayed. Buttons are found by their message, never a
+ * literal: the locale a run resolves is not this file's to assume (CI resolves English).
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
@@ -10,6 +11,7 @@ import MapControls from './MapControls.svelte';
 import { cameraStore } from '$stores/cameraStore';
 import { graphStore, selectedPersonId } from '$stores/graphStore';
 import { FIT_FILL } from '$lib/utils/camera';
+import { m } from '$lib/paraglide/messages';
 
 let host: HTMLElement;
 let component: Record<string, unknown>;
@@ -58,9 +60,9 @@ afterEach(() => {
 describe('MapControls', () => {
   it('+ doubles the target zoom, and two presses compound from the target', () => {
     render();
-    press('Zoomer');
+    press(m.map_zoom_in());
     expect(get(cameraStore).targetZoom).toBe(2);
-    press('Zoomer');
+    press(m.map_zoom_in());
     expect(get(cameraStore).targetZoom).toBe(4);
     // The view itself eases toward it: a button is not a gesture.
     expect(get(cameraStore).zoom).toBe(1);
@@ -69,17 +71,17 @@ describe('MapControls', () => {
   it('- halves the target zoom, and stops at the zoom-out bound of the graph', () => {
     cameraStore.jumpTo({ x: 0, y: 0, zoom: 4 });
     render();
-    press('Dézoomer');
+    press(m.map_zoom_out());
     expect(get(cameraStore).targetZoom).toBe(2);
     // The graph fits at x2 (200 world px on 400 screen px): the floor is half of that.
-    press('Dézoomer');
-    press('Dézoomer');
+    press(m.map_zoom_out());
+    press(m.map_zoom_out());
     expect(get(cameraStore).targetZoom).toBe(1);
   });
 
   it('fit frames every displayed star', () => {
     render();
-    press('Recentrer la carte');
+    press(m.map_fit());
     const cam = get(cameraStore);
     expect(cam.targetX).toBe(0);
     expect(cam.targetZoom).toBeCloseTo((400 * FIT_FILL) / 200);
@@ -87,20 +89,20 @@ describe('MapControls', () => {
 
   it('shows "my star" only when there is one, and runs it', () => {
     render();
-    expect(host.querySelector('button[aria-label="Aller à mon étoile"]')).toBeNull();
+    expect(host.querySelector(`button[aria-label="${m.map_me()}"]`)).toBeNull();
     unmount(component);
     host.remove();
     let called = 0;
     render({ onMe: () => called++ });
-    press('Aller à mon étoile');
+    press(m.map_me());
     expect(called).toBe(1);
   });
 
   it('the legend toggles and reports its state', () => {
     render();
-    const toggle = host.querySelector<HTMLButtonElement>('button[aria-label="Légende"]')!;
+    const toggle = host.querySelector<HTMLButtonElement>(`button[aria-label="${m.map_legend()}"]`)!;
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    press('Légende');
+    press(m.map_legend());
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('#map-legend')).not.toBeNull();
   });
