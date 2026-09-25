@@ -108,4 +108,15 @@ describe('MapControls', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('#map-legend')).not.toBeNull();
   });
+
+  it('shows the filled search disc only when given a search action, and runs it', () => {
+    render();
+    expect(host.querySelector('button.search')).toBeNull();
+    unmount(component);
+    host.remove();
+    let opened = 0;
+    render({ onSearch: () => opened++ });
+    press(m.home_search_label());
+    expect(opened).toBe(1);
+  });
 });

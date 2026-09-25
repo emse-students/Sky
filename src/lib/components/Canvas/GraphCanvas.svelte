@@ -9,6 +9,7 @@
   } from '$stores/graphStore';
   import { cameraStore } from '$stores/cameraStore';
   import { frameStar } from '$stores/mapActions';
+  import { chromeHidden } from '$stores/mapChrome';
   import { getPersonName } from '$lib/utils/format';
   import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
   import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
@@ -492,6 +493,9 @@
 
   function handleTouchEnd(e: TouchEvent) {
     if (!hasDragged && e.changedTouches.length > 0) {
+      // The touch path owns the tap: cancel the compatibility mouse events the browser would
+      // synthesise after it, whose `click` on empty space would otherwise DESELECT (handleClick).
+      if (e.cancelable) e.preventDefault();
       const t = e.changedTouches[0];
       const foundId = findNodeAt(t.clientX, t.clientY);
       // Only a direct hit changes the selection. A tap on empty space does NOT
@@ -499,6 +503,9 @@
       // it. Focus is left via the explicit "Exit" button in the focus hub.
       if (foundId) {
         selectStar(foundId);
+      } else {
+        // A tap on empty sky toggles the controls over the map (immersive, as Sky Map does).
+        chromeHidden.update((hidden) => !hidden);
       }
     }
     if (e.touches.length === 0) {
@@ -522,7 +529,7 @@
   on:click={handleClick}
   on:touchstart|nonpassive={handleTouchStart}
   on:touchmove|nonpassive={handleTouchMove}
-  on:touchend={handleTouchEnd}
+  on:touchend|nonpassive={handleTouchEnd}
   id="graph"
   class="block"
 ></canvas>

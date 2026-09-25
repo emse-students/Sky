@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { page } from '$app/stores';
@@ -17,7 +17,8 @@
   import ProfileSheet from '$components/ProfileSheet.svelte';
   import { sheetLeavesMapUsable } from '$lib/utils/sheet';
   import { decideLanding } from '$lib/utils/landing';
-  import { frameStar, showWholeSky } from '$stores/mapActions';
+  import { frameStar, showWholeSky, TOP_BAR_HEIGHT, PHONE_TOP_INSET } from '$stores/mapActions';
+  import { chromeHidden } from '$stores/mapChrome';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -31,6 +32,7 @@
     Database,
     Network,
     ExternalLink,
+    ArrowLeft,
     Minus,
     Plus,
   } from '@lucide/svelte';
@@ -60,9 +62,25 @@
   // Past half the screen the sheet is being read, not the map: the map chrome (controls and focus
   // hub) steps aside. One predicate for both, so they can never disagree.
   $: showMapChrome = sheetLeavesMapUsable(sheetCovered, innerHeight);
-  // While a sheet is open on a phone the focus hub shrinks to one row, so the two together never
-  // hide the person they are about.
-  $: compactHub = isMobile && isProfileModalOpen;
+  // Immersive mode on a phone (Sky Map): a tap on empty sky hides every control over the map.
+  $: chromeVisible = !isMobile || !$chromeHidden;
+  // Phones have no top bar: only the top-right account disc, so a fitted sky clears ~56 px.
+  $: topInset = isMobile ? PHONE_TOP_INSET : TOP_BAR_HEIGHT;
+
+  // On a phone the search is a disc in the control column that opens the full-screen search.
+  let mobileSearchOpen = false;
+  let searchInput: HTMLInputElement | undefined;
+  async function openMobileSearch() {
+    mobileSearchOpen = true;
+    await tick();
+    searchInput?.focus();
+  }
+  function closeMobileSearch() {
+    mobileSearchOpen = false;
+    isSearchActive = false;
+    searchTerm = '';
+    searchResults = [];
+  }
 
   // The selected person's direct links, listed in the sheet: the accessible path through the graph.
   $: currentLinks = directLinks(currentProfile?.id ?? null, $graphStore.relations);
@@ -204,6 +222,7 @@
     frameStar(person.id);
     searchTerm = '';
     isSearchActive = false;
+    mobileSearchOpen = false;
   }
 
   function closeProfile() {
@@ -255,7 +274,7 @@
 
   /** "Sortir" and the brand: leave focus and show the whole sky, like the fit button. */
   function resetView() {
-    showWholeSky();
+    showWholeSky({ top: topInset, bottom: 0 });
   }
 
   // Land on one's own star once the graph has loaded (decideLanding): selected, its neighbourhood
@@ -305,20 +324,26 @@
 {#if isAuthenticated}
   <GraphCanvas />
   <p class="sr-only" aria-live="polite">{mapSummary}</p>
-  {#if showMapChrome}
+  {#if showMapChrome && chromeVisible}
     <MapControls
       onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
-      topInset={72}
+      onSearch={isMobile ? openMobileSearch : undefined}
+      {topInset}
       bottomInset={sheetCovered}
     />
   {/if}
-  {#if showHint && !isLoading}
+  {#if showHint && !isLoading && chromeVisible}
     <div class="map-hint" role="status" style:--sheet-covered="{sheetCovered}px" transition:fade>
       {coarsePointer ? m.map_hint_touch() : m.map_hint_pointer()}
     </div>
   {/if}
 
-  <nav class="nav-glass">
+  <nav
+    class="nav-glass"
+    class:phone={isMobile}
+    class:searching={isMobile && mobileSearchOpen}
+    class:hidden={!chromeVisible && !mobileSearchOpen}
+  >
     <div class="nav-content">
       <a
         href="/"
@@ -342,10 +367,16 @@
       </a>
 
       <div class="search-container">
+        {#if isMobile}
+          <button class="search-back" onclick={closeMobileSearch} aria-label={m.common_close()}>
+            <ArrowLeft size={20} />
+          </button>
+        {/if}
         <div class="search-box" class:has-focus={isSearchActive}>
           <Search size={18} class="search-icon" aria-hidden="true" />
           <input
             type="search"
+            bind:this={searchInput}
             aria-label={m.home_search_label()}
             onkeydown={(e) => {
               if (e.key === 'Escape') {
@@ -353,6 +384,7 @@
                 e.stopPropagation();
                 isSearchActive = false;
                 (e.currentTarget as HTMLInputElement).blur();
+                if (isMobile) closeMobileSearch();
               }
             }}
             placeholder={isMobile ? m.home_search_placeholder_short() : m.home_search_placeholder()}
@@ -491,57 +523,35 @@
     </div>
   {/if}
 
-  {#if $selectedPersonId && showMapChrome}
+  {#if $selectedPersonId && showMapChrome && chromeVisible}
+    <!-- Focus mode is one compact chip, not a card: depth and exit, as wide as its content. -->
     <div
-      class="focus-hub"
-      class:compact={compactHub}
-      transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
+      class="focus-chip"
+      role="group"
+      aria-label={m.focus_mode()}
+      transition:fade={{ duration: 150 }}
     >
-      {#if compactHub}
-        <!-- One row while a sheet is open on a phone: depth stepper and exit, nothing else. -->
-        <div class="hub-row">
-          <Target size={16} aria-hidden="true" />
-          <div class="depth-stepper" role="group" aria-label={m.focus_depth_label()}>
-            <button
-              onclick={() => ($focusDepth = Math.max(1, $focusDepth - 1))}
-              disabled={$focusDepth <= 1}
-              aria-label={m.focus_depth_less()}
-            >
-              <Minus size={16} />
-            </button>
-            <span class="range-value" aria-live="polite"
-              >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
-            >
-            <button
-              onclick={() => ($focusDepth = Math.min(5, $focusDepth + 1))}
-              disabled={$focusDepth >= 5}
-              aria-label={m.focus_depth_more()}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-          <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
-        </div>
-      {:else}
-        <div class="hub-header">
-          <div class="hub-title">
-            <Target size={16} aria-hidden="true" />
-            <span>{m.focus_mode()}</span>
-          </div>
-          <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
-        </div>
-        <div class="hub-body">
-          <div class="range-group">
-            <div class="range-labels">
-              <label for="fdepth">{m.focus_depth_label()}</label>
-              <span class="range-value"
-                >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
-              >
-            </div>
-            <input id="fdepth" type="range" min="1" max="5" bind:value={$focusDepth} />
-          </div>
-        </div>
-      {/if}
+      <Target size={16} aria-hidden="true" />
+      <span class="chip-depth" aria-live="polite"
+        >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
+      >
+      <button
+        onclick={() => ($focusDepth = Math.max(1, $focusDepth - 1))}
+        disabled={$focusDepth <= 1}
+        aria-label={m.focus_depth_less()}
+      >
+        <Minus size={16} />
+      </button>
+      <button
+        onclick={() => ($focusDepth = Math.min(5, $focusDepth + 1))}
+        disabled={$focusDepth >= 5}
+        aria-label={m.focus_depth_more()}
+      >
+        <Plus size={16} />
+      </button>
+      <button onclick={resetView} aria-label={m.focus_exit_label()}>
+        <X size={16} />
+      </button>
     </div>
   {/if}
 
@@ -1147,61 +1157,33 @@
     pointer-events: none;
   }
 
-  /* Top-right, under the bar: the bottom-right corner belongs to the map controls. */
-  .focus-hub {
+  /* The focus chip: a translucent pill centred at the top, as wide as its content - no border,
+     no shadow. Under the bar on desktop, at the very top on a phone (no bar there). */
+  .focus-chip {
     position: fixed;
-    top: calc(var(--nav-height) + 16px);
-    right: 16px;
-    width: 280px;
-    background: #1e293b;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
+    top: calc(var(--nav-height) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 100;
-  }
-  .hub-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-  .hub-title {
+    height: 40px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    color: var(--accent);
-  }
-  /* Leaving focus is neutral, not destructive: a plain text button, never red. */
-  .hub-reset {
-    min-height: 40px;
-    padding: 0 12px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    gap: 2px;
+    padding: 0 2px 0 14px;
+    background: rgba(15, 23, 42, 0.72);
+    border-radius: 999px;
     color: var(--text-main);
     font-size: 13px;
-    cursor: pointer;
+    white-space: nowrap;
   }
-  .hub-reset:hover {
-    background: rgba(255, 255, 255, 0.06);
+  .chip-depth {
+    margin: 0 6px;
+    font-weight: 600;
   }
-  .hub-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--accent);
-  }
-  .depth-stepper {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    justify-content: center;
-    gap: 4px;
-    font-size: 13px;
-  }
-  .depth-stepper button {
-    width: 44px;
-    height: 44px;
+  .focus-chip button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1210,25 +1192,13 @@
     color: var(--text-main);
     cursor: pointer;
   }
-  .depth-stepper button:disabled {
+  .focus-chip button:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .focus-chip button:disabled {
     color: var(--text-dim);
     opacity: 0.5;
     cursor: default;
-  }
-  .range-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-  .range-value {
-    font-weight: 700;
-    color: white;
   }
 
   .loader-overlay {
@@ -1398,12 +1368,76 @@
     .sidebar-info {
       padding: 0 20px 32px;
     }
-    .focus-hub {
-      left: 16px;
-      width: auto;
+    .focus-chip {
+      top: calc(8px + env(safe-area-inset-top, 0px));
     }
-    .focus-hub.compact {
-      padding: 4px 4px 4px 14px;
+    /* No top bar on the map on a phone (Sky Map): the bar is transparent and lets taps through;
+       only the account disc stays, top-right. The search lives in the control column. */
+    .nav-glass.phone {
+      height: auto;
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      left: auto;
+      right: 12px;
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border: none;
+    }
+    .nav-glass.phone .nav-content {
+      padding: 0;
+    }
+    .nav-glass.phone .brand,
+    .nav-glass.phone .search-container {
+      display: none;
+    }
+    .nav-glass.phone .user-trigger {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.72);
+      border: none;
+    }
+    .nav-glass.phone :global(.chevron) {
+      display: none;
+    }
+    .nav-glass.hidden {
+      display: none;
+    }
+    /* Searching on a phone: the bar comes back as an opaque search row, results full-screen. */
+    .nav-glass.phone.searching {
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--nav-height);
+      background: #0f172a;
+    }
+    .nav-glass.phone.searching .nav-content {
+      padding: 0 12px;
+    }
+    .nav-glass.phone.searching .search-container {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      max-width: none;
+    }
+    .nav-glass.phone.searching .actions {
+      display: none;
+    }
+    .search-container .search-box {
+      flex: 1;
+    }
+    .search-back {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      cursor: pointer;
     }
     /* Full-screen results on a phone, as Maps and Photos: the list below the bar, edge to edge,
        over everything else on the map. The container stops being the positioning context, so

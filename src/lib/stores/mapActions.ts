@@ -8,8 +8,11 @@ import { cameraStore } from './cameraStore';
 import { findNeighborsWithinHops, focusDepth, graphStore, selectedPersonId } from './graphStore';
 import { fitView, focusView, type Insets, type Viewport } from '$lib/utils/camera';
 
-/** Pixels of the top bar: nothing is framed under it. */
+/** Pixels of the desktop top bar: nothing is framed under it. */
 export const TOP_BAR_HEIGHT = 72;
+
+/** A phone has no top bar, only the 40 px account disc 8 px from the top: frame below it. */
+export const PHONE_TOP_INSET = 56;
 
 /** The canvas is the full window. */
 function viewport(): Viewport {
