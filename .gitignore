@@ -26,7 +26,11 @@ Thumbs.db
 database/*.db
 database/*.db-journal
 database/*.db-wal
-database/*.db.backup
+# The admin import writes sky.db.backup-<timestamp> (api/admin/import); without the
+# trailing wildcard one such copy of the people table was committed.
+database/*.db.backup*
+# The pre-database JSON export of the graph (people ids are built from names).
+static/data/
 database/positions.json
 database/backups/
 *.sqlite
