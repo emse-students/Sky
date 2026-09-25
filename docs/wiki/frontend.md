@@ -106,8 +106,14 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
     overview; signed out nothing changes. Decided once per page load, from a `graphStore`
     SUBSCRIPTION: run from a `$:` statement, the selection it wrote never re-ran `syncProfile`
     (a store written inside a reactive statement does not re-run the statements already run in that
-    flush), so the star was in focus and no sheet opened. The landing and "my star" paths are pinned
-    by mounting the real page in `src/routes/page.test.ts`. Selecting goes through `selectStar`
+    flush), so the star was in focus and no sheet opened. The sheet's link list is derived from the
+    STORES (`directLinks($selectedPersonId, $graphStore.relations)`), never from `currentProfile`:
+    that variable is assigned inside `syncProfile()`, which the `$:` sort cannot see, so on the
+    landing flush the list was computed before the profile existed and read "no links" until the
+    next reselection (Mi 9T, #129). The landing (sheet open, star centred, links LISTED) and "my
+    star" paths are pinned by mounting the real page in `src/routes/page.test.ts`, with fresh
+    modules per test (`vi.resetModules`): a graph left loaded by the previous test lands during
+    mount, a different flush, and hid that defect. Selecting goes through `selectStar`
     (`graphStore.ts`): a star already selected asks for its sheet back instead of a silent re-set.
   - **Stars** are a constant 4 CSS px radius at every zoom (`STAR_RADIUS`). Measured on the rig's
     layout at 393 px: at overview the median nearest-neighbour gap is 3.5 px (p25 2.5, p75 6.5),
