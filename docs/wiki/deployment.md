@@ -16,7 +16,7 @@ procedure changes.
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy   |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`         |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron)                    |
+| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)    |
 
 Bun, not Node, is the runtime, and the reason INVERTED on 2026-08-27. It used to be
 Node because `better-sqlite3` was a native module the unbundled maintenance scripts
@@ -78,9 +78,16 @@ is ICM-only; `SKY_ADMIN_SUBS` are the exception (see
 
 ## Backups
 
-A root cron runs `scripts/backup-offsite.sh`, which rsyncs `sky.db` offsite to
-Canari. Restore with `scripts/restore-offsite.sh --yes` (pulls the latest
-`sky.db`). The offsite target and cron line are in
+The same shape as Canari's and le Cercle's backups (2026-09-25). The deploy user's cron runs
+`scripts/backup.sh`, which takes a `VACUUM INTO` snapshot **inside** the container (`bun:sqlite`,
+never a `cp` of the live file), writes `sky-backup-<timestamp>.tar.gz` with a manifest into
+`/srv/sky-backups`, keeps 14 days, then mirrors the archive to the `mitv` NAS
+(`canaribackup@10.0.0.4:/srv/sky-backups`, the account and path shape Canari's own backup uses).
+`sky.db` is the whole state - people, relationships and sessions, so a restore signs nobody out.
+
+`scripts/restore.sh --yes` restores the newest local archive; `--offsite` takes the newest one on
+the mirror and `--archive <path>` a given one. The source is always named on the command line:
+it never falls back from local to offsite on its own. The cron line is in
 [MIGRATION.md](../../MIGRATION.md).
 
 ## Local development

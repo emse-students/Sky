@@ -13,7 +13,7 @@ restoration.
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                       |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy    |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`          |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron)                     |
+| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)     |
 
 > Runtime is Node (not Bun): `better-sqlite3` is used by non-bundled scripts
 > (`init-db.js`, migrations) that Bun cannot load. Graph position computation is
@@ -63,42 +63,44 @@ formation`). All of Sky is restricted to the ICM program; `SKY_ADMIN_SUBS`
 > bypass this restriction. `people` records are linked to an account by (last
 > name, first name, promotion); otherwise a new record is created.
 
-## 3. SSH Access for Offsite Backup
+## 3. SSH Access for the Offsite Mirror
 
-On the server (root, running the cron):
+The deploy user (the runner's) needs a key authorized for `canaribackup@10.0.0.4` on `mitv` - the
+account Canari's backup already uses - and a directory it owns there:
 
 ```bash
-ssh-keyscan -H 10.0.0.3 >> /root/.ssh/known_hosts
+# on mitv
+sudo install -d -m 700 -o canaribackup -g canaribackup /srv/sky-backups
+# on the Sky host, as the deploy user
+ssh -o BatchMode=yes canaribackup@10.0.0.4 'touch /srv/sky-backups/.probe && rm /srv/sky-backups/.probe'
 ```
-
-On canari, authorize root@<server>'s public key in
-`~/.ssh/authorized_keys` of the `canari` user and create `~/sky-offsite/`.
 
 ## 4. First Deployment
 
-Push to `main`: "CI (Bun)" runs, then `deploy.yml` builds the image, pushes it
-to GHCR, generates `.env`, and runs `docker compose up -d` on the server.
+Publish a release: `release.yml` calls `deploy.yml`, which builds the image, pushes it to GHCR,
+generates `.env`, syncs `docker-compose.prod.yml` and `scripts/` into `SKY_DEPLOY_DIR`, and runs
+`docker compose up -d` on the runner named by `SKY_RUNNER_LABEL`.
 
 ## 5. Data Restoration
 
 ```bash
-./scripts/restore-offsite.sh --yes     # latest sky.db from canari
+./scripts/restore.sh --yes             # newest local archive in /srv/sky-backups
+./scripts/restore.sh --yes --offsite   # newest archive on the mitv mirror
 ```
 
 ## 6. Recurring Backups
 
-Root cron on the server:
+The deploy user's crontab on the server (`/srv/sky-backups` owned by that user):
 
 ```cron
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-15 5 * * * /home/mitv/Sky/scripts/backup-offsite.sh >> /var/log/sky-backup.log 2>&1
+45 4 * * * /srv/sky/scripts/backup.sh >> /srv/sky-backups/backup.log 2>&1
 ```
 
 ## Checklist
 
 - [ ] Docker + compose, self-hosted runner (docker group)
 - [ ] GitHub secrets created
-- [ ] SSH server -> canari for offsite
+- [ ] SSH deploy user -> `canaribackup@10.0.0.4` for the offsite mirror, and the cron line above
 - [ ] Green CD (image + deployment)
 - [ ] Databases restored
 - [ ] Backup cron installed
