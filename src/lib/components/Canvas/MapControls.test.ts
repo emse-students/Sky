@@ -1,6 +1,6 @@
 /**
  * The map controls move the camera TARGET (buttons ease, they are not gestures): + / - compound
- * from the target, and fit frames what is displayed. Buttons are found by their message, never a
+ * from the target, and fit leaves focus and shows the whole sky. Buttons are found by their message, never a
  * literal: the locale a run resolves is not this file's to assume (CI resolves English).
  */
 
@@ -79,9 +79,11 @@ describe('MapControls', () => {
     expect(get(cameraStore).targetZoom).toBe(1);
   });
 
-  it('fit frames every displayed star', () => {
+  it('fit leaves focus and frames every star', () => {
+    selectedPersonId.set('a');
     render();
     press(m.map_fit());
+    expect(get(selectedPersonId)).toBeNull();
     const cam = get(cameraStore);
     expect(cam.targetX).toBe(0);
     expect(cam.targetZoom).toBeCloseTo((400 * FIT_FILL) / 200);

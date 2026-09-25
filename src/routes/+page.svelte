@@ -11,12 +11,13 @@
     filteredGraph,
     profileReopenRequests,
   } from '$stores/graphStore';
-  import { cameraStore } from '$stores/cameraStore';
   import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
   import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
   import MapControls from '$components/Canvas/MapControls.svelte';
   import ProfileSheet from '$components/ProfileSheet.svelte';
   import { sheetLeavesMapUsable } from '$lib/utils/sheet';
+  import { decideLanding } from '$lib/utils/landing';
+  import { frameStar, showWholeSky } from '$stores/mapActions';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -200,16 +201,9 @@
 
   function selectResult(person: any) {
     selectedPersonId.set(person.id);
-    centerOnPerson(person.id);
+    frameStar(person.id);
     searchTerm = '';
     isSearchActive = false;
-  }
-
-  function centerOnPerson(id: string) {
-    const pos = $graphStore.positions[id];
-    if (pos) {
-      cameraStore.setTarget(pos.x, pos.y, 0.6);
-    }
   }
 
   function closeProfile() {
@@ -231,7 +225,7 @@
   function goToMyProfile() {
     if (user?.profile_id && peopleMap.has(user.profile_id)) {
       selectedPersonId.set(user.profile_id);
-      centerOnPerson(user.profile_id);
+      frameStar(user.profile_id);
     }
   }
 
@@ -259,9 +253,32 @@
     }
   }
 
+  /** "Sortir" and the brand: leave focus and show the whole sky, like the fit button. */
   function resetView() {
-    selectedPersonId.set(null);
-    cameraStore.reset();
+    showWholeSky();
+  }
+
+  // Land on one's own star once the graph has loaded (decideLanding): selected, its neighbourhood
+  // framed at once rather than flown to from the overview, its sheet at peek. Decided ONCE - a
+  // later reload of the graph must not yank the view back.
+  let landed = false;
+  $: if (!landed && $graphStore.people.length > 0) {
+    landed = true;
+    land();
+  }
+
+  function land() {
+    const profileId = user?.profile_id ?? null;
+    const decision = decideLanding({
+      signedIn: isAuthenticated,
+      profileId,
+      starPositioned: !!profileId && !!$graphStore.positions[profileId],
+      selectedId: $selectedPersonId,
+    });
+    console.debug('[Home] landing:', decision);
+    if (decision.kind !== 'own-star') return;
+    frameStar(decision.id, true);
+    selectedPersonId.set(decision.id);
   }
 </script>
 
@@ -296,7 +313,7 @@
     />
   {/if}
   {#if showHint && !isLoading}
-    <div class="map-hint" role="status" transition:fade>
+    <div class="map-hint" role="status" style:--sheet-covered="{sheetCovered}px" transition:fade>
       {coarsePointer ? m.map_hint_touch() : m.map_hint_pointer()}
     </div>
   {/if}
@@ -558,7 +575,7 @@
         </div>
 
         <div class="hero-actions">
-          <button class="btn-center" onclick={() => centerOnPerson(currentProfile.id)}>
+          <button class="btn-center" onclick={() => frameStar(currentProfile.id)}>
             <Target size={16} />
             {m.profile_center_view()}
           </button>
@@ -1115,7 +1132,8 @@
   .map-hint {
     position: fixed;
     left: 50%;
-    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    /* Above the sheet: on landing the member's own sheet is open at peek. */
+    bottom: calc(24px + var(--sheet-covered, 0px) + env(safe-area-inset-bottom, 0px));
     transform: translateX(-50%);
     z-index: 800;
     max-width: calc(100vw - 160px);

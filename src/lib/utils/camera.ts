@@ -177,3 +177,44 @@ export function fitView(
   const shift = (insets.top - insets.bottom) / 2;
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 - shift / zoom, zoom };
 }
+
+/** Zoom for a star whose neighbourhood has no extent (alone, or no positioned neighbour). */
+export const LONE_STAR_ZOOM = 0.8;
+
+/** Breathing room around a framed neighbourhood: its box fills 1 / FOCUS_MARGIN of the screen. */
+export const FOCUS_MARGIN = 1.5;
+
+/**
+ * Zoom range of a neighbourhood framing: never closer than 1 (a small family is not blown up into
+ * empty space), never further than 0.1 (a huge one still reads as a neighbourhood, not the sky).
+ */
+export const FOCUS_ZOOM_MIN = 0.1;
+export const FOCUS_ZOOM_MAX = 1;
+
+/**
+ * The view that frames a star's neighbourhood: the box of `group` (the star and the stars within
+ * the focus depth) centred, with a margin, its zoom capped to the focus range. With one point or
+ * fewer it centres on `star` at `LONE_STAR_ZOOM`. The ONE framing of a selection - the auto-zoom,
+ * "go to my star" and the landing on one's own star all use it, so they land on the same view.
+ */
+export function focusView(
+  star: { x: number; y: number },
+  group: readonly { x: number; y: number }[],
+  viewport: Viewport
+): View {
+  if (group.length <= 1) return { x: star.x, y: star.y, zoom: LONE_STAR_ZOOM };
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of group) {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  }
+  const zoomX = viewport.width / ((maxX - minX) * FOCUS_MARGIN);
+  const zoomY = viewport.height / ((maxY - minY) * FOCUS_MARGIN);
+  const zoom = Math.min(Math.max(Math.min(zoomX, zoomY), FOCUS_ZOOM_MIN), FOCUS_ZOOM_MAX);
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom };
+}

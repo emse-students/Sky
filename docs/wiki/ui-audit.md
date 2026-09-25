@@ -30,6 +30,13 @@ reading still owed there, in one pass:
   "Rechercher" whole.
 - **Landing**: "Se connecter" is Space Grotesk like the rest.
 
+## The home is my star (user decision, 2026-09-25)
+
+The phone opened on the whole-sky overview: a field of 4 px dots with no name on a 393 px screen. A
+signed-in member with a star now lands on it, selected and framed, its sheet at peek; the fit button
+became "show the whole sky". Mechanism and fallbacks: [frontend.md - Rendering](frontend.md#rendering).
+Owed on the Mi 9T: the landing shows no flight from the overview, and the dots read as crisp dots.
+
 What already meets the bar: the landing page (one clear action, one sentence of context), the search
 itself (fuzzy, finds "BOUTIN" for "boudin"), and the person sheet's CONTENT (associations with logo
 and role).
