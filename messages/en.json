@@ -52,8 +52,6 @@
   "nav_admin": "Administration",
   "nav_logout": "Sign out",
   "focus_mode": "Focus mode",
-  "focus_exit": "Exit",
-  "focus_depth_label": "Network depth",
   "focus_hop": "hop",
   "focus_hops": "hops",
   "profile_promotion": "Class {level}",
@@ -244,7 +242,7 @@
   "map_legend_selected": "Selected star",
   "map_legend_parrainage": "Godparent link",
   "map_legend_adoption": "Adoption",
-  "map_hint_touch": "Pinch to zoom, tap a star. \"Show the whole sky\" is at the bottom right.",
+  "map_hint_touch": "Pinch to zoom, tap a star to see it, tap the sky to hide the buttons.",
   "map_hint_pointer": "Scroll to zoom, click a star. \"Show the whole sky\" is at the bottom right.",
   "sheet_expand": "Expand the panel",
   "sheet_collapse": "Collapse the panel",
@@ -257,5 +255,6 @@
   "home_search_label": "Search for a star",
   "map_summary_all": "Map of {people} stars joined by {links} godparent links. Use the search to find a star.",
   "map_summary_focus": "Focused on {name}: {count} stars within {depth} hops. Their direct links are listed in their panel.",
-  "nav_account_menu": "Account menu"
+  "nav_account_menu": "Account menu",
+  "focus_exit_label": "Leave focus mode"
 }

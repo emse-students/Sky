@@ -81,8 +81,10 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
     A dark 3 px outline (`strokeText`) keeps a name legible over links - a map halo, functional.
     Only a label actually drawn is a hit target. Until 2026-09 every name was drawn once the zoom
     passed 0.15, piling up into unreadable text in dense families.
-  - **Map controls** (`MapControls.svelte`, tested in `MapControls.test.ts`): bottom-right, 48 px
-    targets - zoom in, zoom out (x2 per press, `BUTTON_ZOOM_FACTOR`), **"show the whole sky"**
+  - **Map controls** (`MapControls.svelte`, tested in `MapControls.test.ts`): a right-edge column
+    of round translucent 40 px discs, 8 px apart, no border or shadow (after Google Sky Map, whose
+    measurements are in [ui-audit.md](ui-audit.md)); on a phone the column ends with the search, the
+    one filled (accent) disc, which opens the full-screen search - zoom in, zoom out (x2 per press, `BUTTON_ZOOM_FACTOR`), **"show the whole sky"**
     (`showWholeSky` in `src/lib/stores/mapActions.ts`: leaves focus and fits EVERY star to 85% of
     the area below the top bar), "my star" (when the user has one) and a collapsible legend (promo
     ramp, unknown promo, selected star, solid = parrainage, dashed = adoption). Buttons are not
@@ -114,7 +116,7 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
 ## The home page (`+page.svelte`)
 
 The map page owns the search box, the loading overlay (a random themed message
-from `home_loading_*`), the focus hub and the profile panel.
+from `home_loading_*`), the focus chip and the profile panel.
 
 - **The profile panel** is `ProfileSheet.svelte` (tested in `ProfileSheet.test.ts`): a left
   drawer below the top bar on desktop, and on a phone (<= 768 px) a bottom sheet after the Google
@@ -127,7 +129,7 @@ from `home_loading_*`), the focus hub and the profile panel.
   ArrowDown step. Escape closes the panel on every device; focus moves into it on open (a
   non-modal `role="dialog"` named by the person's name). It reports the pixels it covers
   (`covered`), which the map controls clear. Past half the screen the map controls AND the focus
-  hub step aside (`sheetLeavesMapUsable`, one predicate for both): at full the hub used to show as
+  chip step aside (`sheetLeavesMapUsable`, one predicate for both): at full the old hub used to show as
   a strip between the top bar and the sheet.
   Dismissing it on a phone keeps the star in focus; tapping that star again reopens it
   (`profileReopenRequests` in `graphStore.ts`, since re-setting the same selected id notifies
@@ -136,11 +138,19 @@ from `home_loading_*`), the focus hub and the profile panel.
   `graphStore.ts`, `id1 -> id2` = parrain -> fillot), each a button that selects that star: the
   accessible way to walk the graph the canvas draws. The canvas itself has a visually-hidden,
   `aria-live` one-sentence summary beside it (how many stars and links, or who is in focus).
-- **The focus hub** sits top-right under the bar (the bottom-right corner is the map controls').
-  While a sheet is open on a phone it shrinks to one row: a depth stepper (-, "3 sauts", +) and
-  "Sortir", a neutral button - leaving focus is not destructive.
-- **Search on a phone** opens its results full-screen below the bar, left-aligned, with the short
-  placeholder "Rechercher"; Escape closes them without closing the sheet.
+- **The focus chip**: one translucent pill, 40 px high and as wide as its content, centred at the
+  top (under the bar on desktop, at the very top on a phone): target icon, depth ("3 sauts"), -, +
+  and an x that leaves focus (the whole sky). It replaced a 280 px card the user called "enorme".
+  Past half the screen of sheet it steps aside with the controls.
+- **A phone has no top bar on the map** (Sky Map): the bar is transparent, only the account disc
+  (40 px, translucent, top-right) remains; searching brings it back as an opaque search row with a
+  back arrow, results full-screen. Desktop keeps the bar.
+- **Immersive**: on a phone a tap on EMPTY sky toggles every control over the map (`chromeHidden`
+  in `src/lib/stores/mapChrome.ts`); a tap on a star selects and never toggles, and the sheet stays.
+  The touch path cancels the compatibility mouse events after a tap, whose synthetic `click` on
+  empty space used to DESELECT the focused star.
+- **Search on a phone** (the search disc) opens a search row at the top and full-screen results, left-aligned, the short
+  placeholder "Rechercher"; Escape or the back arrow close it without closing the sheet.
 - **The account menu** is rendered only while open (click, or hover with a mouse; Escape and a
   click outside close it), so a closed menu is absent from the accessibility tree.
 - The logo tiles (top bar, landing) are flat: a solid accent, no glow, no gradient. The search

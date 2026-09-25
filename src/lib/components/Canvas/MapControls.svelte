@@ -1,14 +1,18 @@
 <!--
   @component
-  The map's control stack, bottom-right as on Google Maps: zoom in, zoom out, fit, "my star", and a
-  collapsible legend of what the colours and lines encode. Every button is a 48 px touch target.
+  The map's controls, after Google Sky Map (measured on the Mi 9T, 2026-09-25): a column of round
+  translucent 40 px discs at the right edge - zoom in, zoom out, whole sky, "my star", legend - and,
+  on a phone, the search as the one FILLED disc at the bottom. Flat: no border, no shadow.
+  A right-edge column rather than a bottom row: at 393 px a row of six discs at Sky Map's 52 dp
+  pitch spans ~270 px (69% of the width) and would sit on the peek sheet, across the band where the
+  framed neighbourhood is; the column costs 40 px (10%) at the edge the map uses least.
 
   Buttons are not gestures: their moves go through `cameraStore.setTarget` and EASE, where a pinch
   jumps. Each press starts from the camera's TARGET, so three quick presses compound to x8 instead
   of restarting from the frame in flight.
 -->
 <script lang="ts">
-  import { Plus, Minus, Maximize, LocateFixed, Info, X } from '@lucide/svelte';
+  import { Plus, Minus, Maximize, LocateFixed, Info, X, Search } from '@lucide/svelte';
   import { cameraStore } from '$stores/cameraStore';
   import { graphStore } from '$stores/graphStore';
   import { BUTTON_ZOOM_FACTOR, zoomAt, zoomBoundsFor } from '$lib/utils/camera';
@@ -23,9 +27,11 @@
     topInset?: number;
     /** Screen pixels covered at the bottom (an open sheet): the stack sits above them. */
     bottomInset?: number;
+    /** Show the filled search disc at the bottom (phones, which have no top bar) and run this. */
+    onSearch?: () => void;
   }
 
-  let { onMe, topInset = 0, bottomInset = 0 }: Props = $props();
+  let { onMe, topInset = 0, bottomInset = 0, onSearch }: Props = $props();
 
   let legendOpen = $state(false);
 
@@ -125,55 +131,64 @@
     >
       <Info size={20} />
     </button>
+    {#if onSearch}
+      <button
+        class="search"
+        onclick={onSearch}
+        aria-label={m.home_search_label()}
+        title={m.home_search_label()}
+      >
+        <Search size={20} />
+      </button>
+    {/if}
   </div>
 </div>
 
 <style>
   .map-controls {
     position: fixed;
-    right: 16px;
-    bottom: calc(16px + var(--bottom-inset, 0px) + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    bottom: calc(12px + var(--bottom-inset, 0px) + env(safe-area-inset-bottom, 0px));
     z-index: 900;
     display: flex;
     align-items: flex-end;
     gap: 8px;
     transition: bottom 0.2s ease;
   }
+  /* Round translucent discs, no border, no shadow - Sky Map's controls. 40 px each, 8 px apart. */
   .stack {
     display: flex;
     flex-direction: column;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    overflow: hidden;
+    gap: 8px;
   }
   .stack button {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: rgba(15, 23, 42, 0.72);
     border: none;
     color: #f8fafc;
     cursor: pointer;
   }
-  .stack button + button {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
   .stack button:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(30, 41, 59, 0.85);
+  }
+  /* The one filled disc: the search, in the accent colour. */
+  .stack button.search {
+    background: #3b82f6;
   }
   .stack button:focus-visible,
   .legend-close:focus-visible {
     outline: 2px solid #87cefa;
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
   .legend {
     width: 220px;
     padding: 12px 14px;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.85);
     border-radius: 12px;
     color: #f8fafc;
     font-size: 13px;
