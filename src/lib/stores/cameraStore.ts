@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { CameraState } from '$types/graph';
+import type { View } from '$lib/utils/camera';
 
 const DEFAULT_CAMERA: CameraState = {
   x: 0,
@@ -36,13 +37,22 @@ function createCameraStore() {
         };
       });
     },
-    zoom: (delta: number, _centerX?: number, _centerY?: number) => {
-      update((state) => {
-        const newZoom = Math.max(0.01, Math.min(5, state.targetZoom + delta));
-        return {
-          ...state,
-          targetZoom: newZoom,
-        };
+    /**
+     * Put the camera on `view` at once, current AND target. A zoom gesture is direct
+     * manipulation: the star under the fingers must stay under them on this very frame, which a
+     * view easing toward its target cannot honour (x, y and zoom ease separately, so the anchor
+     * drifts mid-flight). Setting the target alone would also make every pinch step lag the
+     * fingers. Any in-flight animation (e.g. an auto-zoom on selection) is cancelled, and the
+     * gesture continues from what is on screen.
+     */
+    jumpTo: (view: View) => {
+      set({
+        x: view.x,
+        y: view.y,
+        zoom: view.zoom,
+        targetX: view.x,
+        targetY: view.y,
+        targetZoom: view.zoom,
       });
     },
     pan: (dx: number, dy: number) => {
