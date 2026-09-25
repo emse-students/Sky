@@ -61,7 +61,9 @@ log "Restoring from $ARCHIVE"
 # backup.sh archives `-C <stage> .`, so members are `./sky.db.gz` and `./MANIFEST.txt`: extract all
 # of it and check for the two files, rather than naming members whose prefix is an implementation detail.
 tar xzf "$ARCHIVE" -C "$STAGE" || fail "cannot read archive: $ARCHIVE"
-[ -f "$STAGE/sky.db.gz" ] && [ -f "$STAGE/MANIFEST.txt" ] || fail "not a backup.sh archive: $ARCHIVE"
+if [ ! -f "$STAGE/sky.db.gz" ] || [ ! -f "$STAGE/MANIFEST.txt" ]; then
+  fail "not a backup.sh archive: $ARCHIVE"
+fi
 sed 's/^/  /' "$STAGE/MANIFEST.txt"
 gunzip "$STAGE/sky.db.gz"
 
