@@ -10,15 +10,24 @@
     directLinks,
     filteredGraph,
     profileReopenRequests,
+    selectStar,
   } from '$stores/graphStore';
   import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
   import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
   import MapControls from '$components/Canvas/MapControls.svelte';
   import ProfileSheet from '$components/ProfileSheet.svelte';
-  import { sheetLeavesMapUsable } from '$lib/utils/sheet';
+  import { sheetHeight, sheetLeavesMapUsable } from '$lib/utils/sheet';
   import { decideLanding } from '$lib/utils/landing';
-  import { frameStar, showWholeSky, TOP_BAR_HEIGHT, PHONE_TOP_INSET } from '$stores/mapActions';
-  import { chromeHidden } from '$stores/mapChrome';
+  import {
+    frameStar,
+    showWholeSky,
+    TOP_BAR_HEIGHT,
+    PHONE_TOP_INSET,
+    PHONE_CHIP_BOTTOM,
+    DESKTOP_CHIP_BOTTOM,
+    DRAWER_WIDTH,
+  } from '$stores/mapActions';
+  import { chromeHidden, framingInsets } from '$stores/mapChrome';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -66,6 +75,15 @@
   $: chromeVisible = !isMobile || !$chromeHidden;
   // Phones have no top bar: only the top-right account disc, so a fitted sky clears ~56 px.
   $: topInset = isMobile ? PHONE_TOP_INSET : TOP_BAR_HEIGHT;
+  // Where a selected star is centred: between the focus chip's bottom and the peek's top on a
+  // phone, right of the person drawer and below the chip on desktop. A selection always opens the
+  // sheet (at peek), so the framing is for that band - one rule for the landing, "go to my star",
+  // "centre the view" and the auto-zoom (they all go through frameStar).
+  $: framingInsets.set(
+    isMobile
+      ? { top: PHONE_CHIP_BOTTOM, bottom: sheetHeight('peek', innerHeight), left: 0 }
+      : { top: DESKTOP_CHIP_BOTTOM, bottom: 0, left: DRAWER_WIDTH }
+  );
 
   // On a phone the search is a disc in the control column that opens the full-screen search.
   let mobileSearchOpen = false;
@@ -243,7 +261,9 @@
 
   function goToMyProfile() {
     if (user?.profile_id && peopleMap.has(user.profile_id)) {
-      selectedPersonId.set(user.profile_id);
+      // selectStar, not a bare set: when the star is already selected (it is, after the landing)
+      // a bare set notifies nobody and a dismissed sheet stayed closed.
+      selectStar(user.profile_id);
       frameStar(user.profile_id);
     }
   }
@@ -280,11 +300,19 @@
   // Land on one's own star once the graph has loaded (decideLanding): selected, its neighbourhood
   // framed at once rather than flown to from the overview, its sheet at peek. Decided ONCE - a
   // later reload of the graph must not yank the view back.
+  //
+  // From a store SUBSCRIPTION, never a `$:` statement: a store written inside a reactive statement
+  // does not re-run the statements already run in that flush, so the selection landed while
+  // `syncProfile` never saw it - the star was in focus and no sheet ever opened (Mi 9T, 2026-09-25;
+  // pinned in `page.test.ts`).
   let landed = false;
-  $: if (!landed && $graphStore.people.length > 0) {
-    landed = true;
-    land();
-  }
+  onMount(() =>
+    graphStore.subscribe((graph) => {
+      if (landed || graph.people.length === 0) return;
+      landed = true;
+      land();
+    })
+  );
 
   function land() {
     const profileId = user?.profile_id ?? null;
@@ -297,7 +325,7 @@
     console.debug('[Home] landing:', decision);
     if (decision.kind !== 'own-star') return;
     frameStar(decision.id, true);
-    selectedPersonId.set(decision.id);
+    selectStar(decision.id);
   }
 </script>
 
@@ -577,27 +605,29 @@
             />
           {/if}
         </div>
-        <h2 id="profile-name">{getPersonName(currentProfile)}</h2>
-        <div class="badge-promo">
-          {m.profile_promotion({
-            level: currentProfile.level || m.profile_promotion_unknown(),
-          })}
+        <div class="hero-text">
+          <h2 id="profile-name">{getPersonName(currentProfile)}</h2>
+          <span class="hero-promo">{m.common_promo({ level: currentProfile.level || '-' })}</span>
         </div>
-
         <div class="hero-actions">
-          <button class="btn-center" onclick={() => frameStar(currentProfile.id)}>
-            <Target size={16} />
-            {m.profile_center_view()}
+          <button
+            class="round-action"
+            onclick={() => frameStar(currentProfile.id)}
+            aria-label={m.profile_center_view()}
+            title={m.profile_center_view()}
+          >
+            <Target size={20} />
           </button>
           {#if canariProfile?.profile?.sub}
             <a
-              class="btn-profil"
+              class="round-action"
               href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={m.profile_open_canari()}
+              title={m.profile_open_canari()}
             >
-              <ExternalLink size={16} />
-              {m.profile_link()}
+              <ExternalLink size={20} />
             </a>
           {/if}
         </div>
@@ -994,55 +1024,42 @@
     color: white;
   }
   .sidebar-hero h2 {
-    margin: 0 0 8px;
+    margin: 0 0 4px;
     font-size: 24px;
     color: white;
   }
-  .badge-promo {
-    display: inline-block;
-    padding: 4px 12px;
-    background: rgba(59, 130, 246, 0.2);
-    color: var(--accent);
-    border-radius: 99px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 20px;
+  /* The promo is plain muted text, not a filled pill. */
+  .hero-promo {
+    color: var(--text-dim);
+    font-size: 14px;
   }
   .hero-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
-    flex-wrap: wrap;
+    margin-top: 16px;
   }
-  .btn-center {
+  /* Actions are round translucent 40 px icon buttons (the old white "Centrer la vue" button was
+     the most glaring thing on screen). */
+  .round-action {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: white;
-    color: black;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
     border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13px;
+    color: var(--text-main);
     cursor: pointer;
-    transition: transform 0.2s;
   }
-  .btn-profil {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(59, 130, 246, 0.2);
-    color: var(--accent);
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13px;
-    text-decoration: none;
+  .round-action:hover {
+    background: rgba(255, 255, 255, 0.14);
   }
-  .btn-profil:hover {
-    background: rgba(59, 130, 246, 0.3);
+  .round-action:focus-visible {
+    outline: 2px solid #87cefa;
+    outline-offset: 2px;
   }
   .sidebar-info {
     padding: 0 32px 40px;
@@ -1327,46 +1344,56 @@
     .user-label {
       display: none;
     }
-    /* The PEEK of the sheet (~30% of the screen) must name the person and offer the actions:
-       a compact row - avatar left, name and promo beside it, actions below. */
+    /* The PEEK (SHEET_PEEK_PX) is ONE row - 40 px avatar, name over promo, round actions - then the
+       first links heading and the first parent line, all without scrolling. */
     .sidebar-hero {
-      display: grid;
-      grid-template-columns: 56px 1fr;
-      column-gap: 14px;
+      display: flex;
       align-items: center;
-      padding: 0 20px 16px;
+      gap: 12px;
+      padding: 4px 16px 12px;
       text-align: left;
-      background: none;
     }
     .hero-avatar {
-      width: 56px;
-      height: 56px;
+      width: 40px;
+      height: 40px;
       margin: 0;
-      grid-row: span 2;
+      flex-shrink: 0;
     }
     .avatar-ring {
-      inset: -4px;
+      display: none;
     }
     .avatar-initials {
-      font-size: 20px;
+      font-size: 15px;
+    }
+    .hero-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
     .sidebar-hero h2 {
       margin: 0;
-      font-size: 18px;
-      align-self: end;
+      font-size: 16px;
+      line-height: 20px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .badge-promo {
-      margin: 4px 0 0;
-      justify-self: start;
-      align-self: start;
+    .hero-promo {
+      font-size: 13px;
+      line-height: 16px;
     }
     .hero-actions {
-      grid-column: 1 / -1;
-      justify-content: flex-start;
-      margin-top: 14px;
+      margin: 0;
     }
     .sidebar-info {
-      padding: 0 20px 32px;
+      padding: 0 16px 32px;
+    }
+    .info-block {
+      margin-bottom: 20px;
+    }
+    .info-block h3 {
+      margin-bottom: 8px;
     }
     .focus-chip {
       top: calc(8px + env(safe-area-inset-top, 0px));
