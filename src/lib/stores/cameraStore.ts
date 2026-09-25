@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import type { CameraState } from '$types/graph';
 import type { View } from '$lib/utils/camera';
 
@@ -74,40 +74,35 @@ function createCameraStore() {
      * continuous 60 fps, essential on low-power mobile/PC.
      */
     updateSmooth: (): boolean => {
-      let moved = false;
-      update((state) => {
-        const SMOOTH = 0.15;
-        const dx = state.targetX - state.x;
-        const dy = state.targetY - state.y;
-        const dz = state.targetZoom - state.zoom;
-        // At rest when the remaining move is below half a screen pixel.
-        const panRest = Math.abs(dx) < 0.5 / state.zoom && Math.abs(dy) < 0.5 / state.zoom;
-        const zoomRest = Math.abs(dz) < 0.0002;
-        if (panRest && zoomRest) {
-          if (
-            state.x !== state.targetX ||
-            state.y !== state.targetY ||
-            state.zoom !== state.targetZoom
-          ) {
-            moved = true;
-            return {
-              ...state,
-              x: state.targetX,
-              y: state.targetY,
-              zoom: state.targetZoom,
-            };
-          }
-          return state;
+      const state = get({ subscribe });
+      const SMOOTH = 0.15;
+      const dx = state.targetX - state.x;
+      const dy = state.targetY - state.y;
+      const dz = state.targetZoom - state.zoom;
+      // At rest when the remaining move is below half a screen pixel.
+      const panRest = Math.abs(dx) < 0.5 / state.zoom && Math.abs(dy) < 0.5 / state.zoom;
+      const zoomRest = Math.abs(dz) < 0.0002;
+      if (panRest && zoomRest) {
+        if (
+          state.x === state.targetX &&
+          state.y === state.targetY &&
+          state.zoom === state.targetZoom
+        ) {
+          // Settled: write NOTHING. A store notifies on every `set` of an object, and the canvas
+          // repaints on every camera notification - a no-op write here would redraw the map at
+          // 60 fps for ever, exactly the idle work this method exists to avoid.
+          return false;
         }
-        moved = true;
-        return {
-          ...state,
-          x: state.x + dx * SMOOTH,
-          y: state.y + dy * SMOOTH,
-          zoom: state.zoom + dz * SMOOTH,
-        };
+        set({ ...state, x: state.targetX, y: state.targetY, zoom: state.targetZoom });
+        return true;
+      }
+      set({
+        ...state,
+        x: state.x + dx * SMOOTH,
+        y: state.y + dy * SMOOTH,
+        zoom: state.zoom + dz * SMOOTH,
       });
-      return moved;
+      return true;
     },
   };
 }

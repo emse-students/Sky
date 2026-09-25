@@ -7,37 +7,28 @@ and Apple HIG for touch, WCAG 2.2 for accessibility. Source locations are from `
 **Delete each row the day it ships.** The sibling audits: MiGallery `docs/wiki/ui-redesign.md`, Canari
 `docs/wiki/backlog.md`.
 
-## P1 - the zoom cannot be controlled
+## State: every row has shipped - what is owed is a reading on the phone
 
-Two-finger pinch measured with a real multi-touch gesture (uiautomator2): the fingers going from
-300 px to 600 px apart (**2x**) took the graph from a ~50 px blob to more than 900 px across
-(**~20x**). Two pinch-ins shrank the whole graph to a 50 px blob in empty space. Three causes, all read
-in the source:
+| Row                                                            | Shipped in | Mechanism                                                           |
+| -------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| P1 - zoom additive, unanchored, unbounded                      | #118, #121 | [frontend.md - Zoom gestures](frontend.md#zoom-gestures)            |
+| P2-2 labels overlap, P2-3 no map controls / legend / hint      | #120       | [frontend.md - Rendering](frontend.md#rendering)                    |
+| P2-4 sheet covers 80%, P2-5 mobile search, P3-6 to P3-9 (a11y) | #122       | [frontend.md - The home page](frontend.md#the-home-page-pagesvelte) |
 
-| Cause                                                                                                                                                                                                          | Where                                                                                                                     | Fix                                                                                                                                                           |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Zoom is ADDITIVE.** A pinch adds `(distance change in px) * 0.005` to the zoom, the wheel adds `-deltaY * 0.001`. The same gesture is x12 when zoomed out (0.05 -> 0.6) and x1.3 when zoomed in (2 -> 2.55). | `src/lib/components/Canvas/GraphCanvas.svelte:236-240` (wheel), `:373-381` (pinch); `src/lib/stores/cameraStore.ts:39-46` | **Multiplicative**: pinch `zoom *= dist / lastDist`, wheel `zoom *= Math.exp(-deltaY * k)`. Then a 2x spread is a 2x zoom at every level - the Maps contract. |
-| **The zoom centre is thrown away.** `zoom(delta, _centerX, _centerY)` receives it and ignores it, so every zoom is on the screen centre, never between the fingers or under the cursor.                        | `cameraStore.ts:39`                                                                                                       | Keep the world point under the pinch midpoint / cursor fixed: adjust the camera target by the anchor's offset before and after the scale change.              |
-| **The lower bound is 0.01** (100x out), so the graph can be lost.                                                                                                                                              | `cameraStore.ts:41`                                                                                                       | Lower bound = the zoom at which the whole graph fits the viewport; upper bound where a label is ~2x its base size.                                            |
+Every one of them was verified by unit / component tests and the gates, **none on the Mi 9T**. The
+reading still owed there, in one pass:
 
-Pinned by a unit test on `cameraStore`: a 2x pinch at any starting zoom yields 2x, and the anchor's
-world point stays under the anchor.
-
-## P2 - reading the map
-
-| #   | Defect                                                                                                                                                                                                                                                                                         | Where                                         | Change                                                                                                                                                                    |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 4   | **The person sheet covers ~80% of the phone from the start**, with no drag handle and no half state, so the person cannot be seen IN the tree - which is Sky's point. The "Mode Focus" panel stays on top as well: with both, ~75% of the screen is covered and labels vanish under the panel. | the person sheet and the focus hub components | A draggable bottom sheet: peek (~30%, name + promo + actions), half, full (associations). The focus hub shrinks to one row (depth chip + "Sortir") while a sheet is open. |
-| 5   | **Mobile search** drops a list only as wide as the field, over the focus panel; a result whose name wraps is CENTRED while the others are left-aligned; the placeholder is cut ("Rechercher une étoile, une \|").                                                                              | the header search component                   | Full-screen search on a phone (as Maps / Photos), results left-aligned, a shorter placeholder ("Rechercher").                                                             |
-
-## P3 - accessibility and polish
-
-| #   | Defect                                                                                                                                                             | Change                                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| 6   | The CLOSED avatar menu (Mon profil, Mon arbre, Corriger ma liaison, Administration, langue, Déconnexion) is in the accessibility tree.                             | Render it only when open, or `inert` + `hidden`.                                                           |
-| 7   | The graph is canvas-only: nothing in it reaches a screen reader (WCAG 1.1.1). Search compensates for finding a person, not for exploring.                          | A list/tree alternative of the focus neighbourhood beside the canvas (the sheet already holds half of it). |
-| 8   | "Sortir" (leave focus) is red, a destructive colour for a neutral action.                                                                                          | Neutral text button.                                                                                       |
-| 9   | Landing page: "Se connecter" is set in a different face (bold Roboto) from the rest (Space Grotesk). Desktop header: the search icon touches the placeholder text. | Same face; a gap between icon and text.                                                                    |
+- **Labels**: pinch through the whole range on a dense family - no two names ever overlap, names
+  fade rather than pop, the selected star and its direct links are always named, a few hub names
+  show at overview.
+- **Controls**: +, -, fit and "my star" ease; fit in focus mode frames the neighbourhood below the
+  bar and above the sheet; the stack sits above the peek and steps aside past half.
+- **Sheet**: opens at ~30% with name, promo and the two actions visible without scrolling; the map
+  pans and pinches above it; drag to half / full, a flick carries a state, a drag down from the peek
+  dismisses; the focus hub is one row (depth stepper + "Sortir") while it is open.
+- **Search**: the results fill the screen below the bar, left-aligned, the placeholder reads
+  "Rechercher" whole.
+- **Landing**: "Se connecter" is Space Grotesk like the rest.
 
 What already meets the bar: the landing page (one clear action, one sentence of context), the search
 itself (fuzzy, finds "BOUTIN" for "boudin"), and the person sheet's CONTENT (associations with logo

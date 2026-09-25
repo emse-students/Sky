@@ -6,13 +6,14 @@
     graphStore,
     findNeighborsWithinHops,
     focusDepth,
+    directLinks,
+    profileReopenRequests,
   } from '$stores/graphStore';
   import { cameraStore } from '$stores/cameraStore';
   import { getPersonName } from '$lib/utils/format';
   import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
   import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
   import {
-    directNeighbours,
     LabelFader,
     labelPriority,
     linkDegree,
@@ -21,6 +22,7 @@
     type LabelCandidate,
   } from '$lib/utils/labels';
   import type { Person } from '$types/graph';
+  import type { DirectLinks } from '$stores/graphStore';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -59,7 +61,11 @@
   // Label ranking inputs. Degree is read on the WHOLE graph so a star's importance does not change
   // when focus mode hides part of its family; the neighbours are the selected star's direct links.
   $: degree = linkDegree($graphStore.relations);
-  $: selectedNeighbours = directNeighbours($selectedPersonId, $graphStore.relations);
+  $: selectedNeighbours = neighbourIds(directLinks($selectedPersonId, $graphStore.relations));
+
+  function neighbourIds(links: DirectLinks): Set<string> {
+    return new Set([...links.parrains.map((r) => r.id1), ...links.fillots.map((r) => r.id2)]);
+  }
 
   /** Screen font of a star's name: constant whatever the zoom, like a map label. */
   const LABEL_FONT = '12px "Space Grotesk", sans-serif';
@@ -364,6 +370,12 @@
     );
   }
 
+  /** Select a star from the map; the one already selected asks for its panel back instead. */
+  function selectStar(id: string) {
+    if (id === $selectedPersonId) profileReopenRequests.update((n) => n + 1);
+    else selectedPersonId.set(id);
+  }
+
   // --- MOUSE HANDLING ---
 
   function handleMouseDown(e: MouseEvent) {
@@ -405,7 +417,7 @@
 
   function handleClick(e: MouseEvent) {
     if (hoveredPerson) {
-      selectedPersonId.set(hoveredPerson);
+      selectStar(hoveredPerson);
       e.stopPropagation(); // Stop propagation to avoid firing any other events
     } else if (!hasDragged) {
       // Clicked on background without dragging - reset view
@@ -515,7 +527,7 @@
       // exit focus: on touch, imprecise taps next to a star would otherwise drop
       // it. Focus is left via the explicit "Exit" button in the focus hub.
       if (foundId) {
-        selectedPersonId.set(foundId);
+        selectStar(foundId);
       }
     }
     if (e.touches.length === 0) {
