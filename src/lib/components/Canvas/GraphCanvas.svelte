@@ -4,12 +4,11 @@
     filteredGraph,
     selectedPersonId,
     graphStore,
-    findNeighborsWithinHops,
-    focusDepth,
     directLinks,
     profileReopenRequests,
   } from '$stores/graphStore';
   import { cameraStore } from '$stores/cameraStore';
+  import { frameStar } from '$stores/mapActions';
   import { getPersonName } from '$lib/utils/format';
   import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
   import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
@@ -67,6 +66,16 @@
     return new Set([...links.parrains.map((r) => r.id1), ...links.fillots.map((r) => r.id2)]);
   }
 
+  /**
+   * On-screen radius of a star, in CSS px, at EVERY zoom (divided by the zoom inside the world
+   * transform). Measured on the rig's layout at 393 px (2026-09-25): at the overview zoom the median
+   * gap between a star and its nearest neighbour is 3.5 px (p25 2.5, p75 6.5), so a larger dot only
+   * merges more of the overview into blobs, and a smaller one stops reading as a target. The
+   * "dust" seen on the Mi 9T was the 1x backing store upscaled 2.75x, fixed by drawing at the
+   * device pixel ratio, not by the radius.
+   */
+  const STAR_RADIUS = 4;
+
   /** Screen font of a star's name: constant whatever the zoom, like a map label. */
   const LABEL_FONT = '12px "Space Grotesk", sans-serif';
   /** Gap between a star and the baseline of its name, in screen pixels. */
@@ -93,65 +102,14 @@
   $: if ($selectedPersonId && $selectedPersonId !== lastSelectedId) {
     lastSelectedId = $selectedPersonId;
     requestRedraw();
-    autoZoomToSelection($selectedPersonId);
+    // Frame the new selection's neighbourhood - the one framing "go to my star" and the landing
+    // share. The landing has already put the camera there, so this eases nowhere.
+    frameStar($selectedPersonId);
   } else if (!$selectedPersonId && lastSelectedId) {
     lastSelectedId = null;
+    // Deselecting does not move the camera: the caller that wants a view says which one ("Sortir"
+    // and the fit button show the whole sky), and a click on empty space leaves the map where it is.
     requestRedraw();
-    // Reset zoom when deselecting
-    cameraStore.setTarget(0, 0, 0.1);
-  }
-
-  function autoZoomToSelection(personId: string) {
-    const fullGraph = $graphStore;
-    if (!fullGraph.positions[personId]) return;
-
-    // Calculate bounding box of the focus group (family/neighbors)
-    const neighbors = findNeighborsWithinHops(personId, fullGraph.relations, $focusDepth);
-
-    let minX = Infinity,
-      maxX = -Infinity,
-      minY = Infinity,
-      maxY = -Infinity;
-    let count = 0;
-
-    neighbors.forEach((id) => {
-      const pos = fullGraph.positions[id];
-      if (pos) {
-        minX = Math.min(minX, pos.x);
-        maxX = Math.max(maxX, pos.x);
-        minY = Math.min(minY, pos.y);
-        maxY = Math.max(maxY, pos.y);
-        count++;
-      }
-    });
-
-    // If single person or invalid bounds, center on person with default zoom
-    if (count <= 1 || minX === Infinity) {
-      const selectedPos = fullGraph.positions[personId];
-      cameraStore.setTarget(selectedPos.x, selectedPos.y, 0.8);
-      return;
-    }
-
-    // Calculate center of the group
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    // Zoom to fit with margin
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const margin = 1.5; // Good margin for context
-
-    const cWidth = canvas ? canvas.width : window.innerWidth;
-    const cHeight = canvas ? canvas.height : window.innerHeight;
-
-    const zoomX = cWidth / (width * margin);
-    const zoomY = cHeight / (height * margin);
-
-    // Cap zoom (not too close for small groups, not too far for huge ones)
-    let targetZoom = Math.min(zoomX, zoomY);
-    targetZoom = Math.min(Math.max(targetZoom, 0.1), 1.0);
-
-    cameraStore.setTarget(centerX, centerY, targetZoom);
   }
 
   onMount(() => {
@@ -186,9 +144,21 @@
     };
   });
 
+  // CSS size of the canvas (the full window): every position, hit test and camera computation is in
+  // these units. The backing store is `devicePixelRatio` times larger so stars and names are drawn
+  // at the screen's real resolution - at 1x a Mi 9T (DPR 2.75) upscaled every dot into a blur.
+  let viewW = 0;
+  let viewH = 0;
+  let dpr = 1;
+  /** Backing-store ceiling: past 3x the extra pixels cost memory and fill rate for nothing visible. */
+  const MAX_DPR = 3;
+
   function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    viewW = window.innerWidth;
+    viewH = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    canvas.width = Math.round(viewW * dpr);
+    canvas.height = Math.round(viewH * dpr);
     requestRedraw();
   }
 
@@ -197,17 +167,18 @@
     if (!ctx) return false;
 
     // Clear with transparency so the starfield background shows through.
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, viewW, viewH);
 
     // Compute the visible area (viewport culling).
-    const viewLeft = camera.x - canvas.width / 2 / camera.zoom;
-    const viewRight = camera.x + canvas.width / 2 / camera.zoom;
-    const viewTop = camera.y - canvas.height / 2 / camera.zoom;
-    const viewBottom = camera.y + canvas.height / 2 / camera.zoom;
+    const viewLeft = camera.x - viewW / 2 / camera.zoom;
+    const viewRight = camera.x + viewW / 2 / camera.zoom;
+    const viewTop = camera.y - viewH / 2 / camera.zoom;
+    const viewBottom = camera.y + viewH / 2 / camera.zoom;
 
     // Transform
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.translate(viewW / 2, viewH / 2);
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
@@ -261,7 +232,7 @@
 
       // Node circle
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 4 / camera.zoom, 0, Math.PI * 2);
+      ctx.arc(pos.x, pos.y, STAR_RADIUS / camera.zoom, 0, Math.PI * 2);
 
       if (isSelected) {
         ctx.fillStyle = '#fbbf24';
@@ -289,8 +260,8 @@
    * Returns true while a fade is in flight, so the on-demand loop draws another frame.
    */
   function drawLabels(visible: Person[]): boolean {
-    const halfW = canvas.width / 2;
-    const halfH = canvas.height / 2;
+    const halfW = viewW / 2;
+    const halfH = viewH / 2;
     ctx.font = LABEL_FONT;
     const candidates: LabelCandidate[] = [];
     const anchors: Record<string, { x: number; y: number; name: string }> = {};
@@ -357,7 +328,7 @@
    * focus sub-graph), so zooming out always reaches the full map.
    */
   function zoomGesture(factor: number, anchor: ScreenPoint, moveTo: ScreenPoint = anchor) {
-    const viewport = { width: canvas.width, height: canvas.height };
+    const viewport = { width: viewW, height: viewH };
     const bounds = zoomBoundsFor($graphStore.positions, viewport);
     cameraStore.jumpTo(zoomAt(camera, factor, anchor, viewport, bounds, moveTo));
   }
@@ -446,8 +417,8 @@
     const rect = canvas.getBoundingClientRect();
     const mouseX = clientX - rect.left;
     const mouseY = clientY - rect.top;
-    const worldX = (mouseX - canvas.width / 2) / camera.zoom + camera.x;
-    const worldY = (mouseY - canvas.height / 2) / camera.zoom + camera.y;
+    const worldX = (mouseX - viewW / 2) / camera.zoom + camera.x;
+    const worldY = (mouseY - viewH / 2) / camera.zoom + camera.y;
     const threshold = 40 / camera.zoom; // Increased hit radius for better click sensitivity
 
     // A drawn name is part of its star's target. Only labels actually on screen count: a name the
