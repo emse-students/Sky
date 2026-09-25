@@ -39,6 +39,23 @@ jobs:
       contents: read
       packages: write
     steps:
+      # WHICH MACHINE SERVES SKY IS TWO REPOSITORY VARIABLES, NOT LINES IN THIS FILE (2026-09-25),
+      # so moving it - and moving it BACK - is a variable edit rather than a commit that has to go
+      # through a pull request while production waits. `SKY_RUNNER_LABEL` names the runner (each
+      # box's runner carries its own label, because a bare `self-hosted` matches whichever runner
+      # is idle) and `SKY_DEPLOY_DIR` the directory on that box. Checked here, on a hosted runner,
+      # BEFORE anything is built: an empty label would leave `runs-on` matching any self-hosted
+      # runner at all, and there is no default to fall back to - a default is the old box.
+      - name: The deploy target is named
+        env:
+          SKY_RUNNER_LABEL: ${{ vars.SKY_RUNNER_LABEL }}
+          SKY_DEPLOY_DIR: ${{ vars.SKY_DEPLOY_DIR }}
+        run: |
+          for v in SKY_RUNNER_LABEL SKY_DEPLOY_DIR; do
+            if [ -z "${!v}" ]; then echo "::error::Repository variable $v is not set - it names the box Sky deploys to."; exit 1; fi
+          done
+          echo "Deploying to runner '$SKY_RUNNER_LABEL', directory '$SKY_DEPLOY_DIR'"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -93,14 +110,14 @@ jobs:
 
   deploy:
     name: Deploy to production
-    runs-on: self-hosted
+    runs-on: [self-hosted, '${{ vars.SKY_RUNNER_LABEL }}']
     needs: build-image
     permissions:
       contents: read
       packages: read
     env:
-      DEPLOY_DIR: /home/mitv/Sky
-      COMPOSE: docker compose -f /home/mitv/Sky/docker-compose.prod.yml --project-directory /home/mitv/Sky
+      DEPLOY_DIR: ${{ vars.SKY_DEPLOY_DIR }}
+      COMPOSE: docker compose -f ${{ vars.SKY_DEPLOY_DIR }}/docker-compose.prod.yml --project-directory ${{ vars.SKY_DEPLOY_DIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7

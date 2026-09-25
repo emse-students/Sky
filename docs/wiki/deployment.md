@@ -14,7 +14,8 @@ procedure changes.
 | Runtime | Docker container `sky`, Bun, port 3001                                                |
 | Data    | `database/` mounted as a volume: `sky.db` + `schema.sql` + generated `positions.json` |
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
-| CD      | `.github/workflows/deploy.yml` (runs after "CI (Bun)"): build-image -> deploy         |
+| CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy   |
+| Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`         |
 | Backups | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron)                    |
 
 Bun, not Node, is the runtime, and the reason INVERTED on 2026-08-27. It used to be

@@ -11,7 +11,8 @@ restoration.
 | Runtime | `sky` Docker container (SvelteKit adapter-node, Node), port 3001                       |
 | Data    | `database/` mounted as volume: `sky.db` (SQLite, identities + sessions) + `schema.sql` |
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                       |
-| CD      | `.github/workflows/deploy.yml` (workflow_run after "CI (Bun)"): build-image -> deploy  |
+| CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy    |
+| Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`          |
 | Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron)                     |
 
 > Runtime is Node (not Bun): `better-sqlite3` is used by non-bundled scripts
@@ -28,6 +29,13 @@ restoration.
 
 Install a runner (Settings -> Actions -> Runners) as a service; the user must
 be able to run `docker` (`usermod -aG docker <user>` + restart the runner).
+
+**Give it a label of its own** (`--labels sky-<box>`), then point the two repository
+variables at it: `SKY_RUNNER_LABEL` = that label, `SKY_DEPLOY_DIR` = the directory the
+deploy writes `.env` and the compose file into (the runner's user must own it). The
+deploy refuses to start while either is empty. A bare `self-hosted` is never enough:
+it matches whichever self-hosted runner is idle, and moving Sky - or moving it back -
+is exactly the edit of those two variables.
 
 ## 2. GitHub Secrets
 

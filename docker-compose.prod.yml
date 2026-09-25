@@ -13,7 +13,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${SKY_HOST_PORT:-3001}:3001'
+      # Loopback only: the box's own reverse proxy (or tunnel connector) is the one way in. On a
+      # shared host every other tenant is one bind away, and the published port is not a front door.
+      - '127.0.0.1:${SKY_HOST_PORT:-3001}:3001'
     environment:
       PORT: '3001'
       NODE_ENV: production
