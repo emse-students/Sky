@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { Person, Relation, Position, GraphDataFile, JsonRelation } from '$types/graph';
 import { hashString } from '$lib/utils/format';
 
@@ -211,6 +211,16 @@ export const focusDepth = writable<number>(3); // Default to 3 hops
  * phone (the star stays in focus) could not be reopened from the map.
  */
 export const profileReopenRequests = writable(0);
+
+/**
+ * Select a star AND ask for its sheet: a new star is selected; the one already selected asks for
+ * its sheet back instead (see `profileReopenRequests`). The map tap, "go to my star" and the
+ * landing all go through here, so none of them can select without opening.
+ */
+export function selectStar(id: string): void {
+  if (id === get(selectedPersonId)) profileReopenRequests.update((n) => n + 1);
+  else selectedPersonId.set(id);
+}
 
 // Derived store that filters people and relations based on selection and focus depth
 export const filteredGraph = derived(

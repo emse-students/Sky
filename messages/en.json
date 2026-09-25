@@ -54,8 +54,6 @@
   "focus_mode": "Focus mode",
   "focus_hop": "hop",
   "focus_hops": "hops",
-  "profile_promotion": "Class {level}",
-  "profile_promotion_unknown": "Unknown",
   "profile_center_view": "Center view",
   "profile_link": "Profile",
   "profile_bio": "Bio",
@@ -256,5 +254,6 @@
   "map_summary_all": "Map of {people} stars joined by {links} godparent links. Use the search to find a star.",
   "map_summary_focus": "Focused on {name}: {count} stars within {depth} hops. Their direct links are listed in their panel.",
   "nav_account_menu": "Account menu",
-  "focus_exit_label": "Leave focus mode"
+  "focus_exit_label": "Leave focus mode",
+  "profile_open_canari": "View the profile on Canari"
 }

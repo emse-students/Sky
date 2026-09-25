@@ -170,6 +170,7 @@
     top: var(--nav-height, 72px);
     left: 0;
     bottom: 0;
+    /* DRAWER_WIDTH in mapActions.ts: a framed star is centred right of it. */
     width: 400px;
     background: #0f172a;
     border-right: 1px solid rgba(255, 255, 255, 0.1);

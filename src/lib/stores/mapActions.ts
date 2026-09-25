@@ -7,12 +7,22 @@ import { get } from 'svelte/store';
 import { cameraStore } from './cameraStore';
 import { findNeighborsWithinHops, focusDepth, graphStore, selectedPersonId } from './graphStore';
 import { fitView, focusView, type Insets, type Viewport } from '$lib/utils/camera';
+import { framingInsets } from './mapChrome';
 
 /** Pixels of the desktop top bar: nothing is framed under it. */
 export const TOP_BAR_HEIGHT = 72;
 
 /** A phone has no top bar, only the 40 px account disc 8 px from the top: frame below it. */
 export const PHONE_TOP_INSET = 56;
+
+/** Bottom of the focus chip (40 px, 8 px from the top) on a phone: a framed star sits below it. */
+export const PHONE_CHIP_BOTTOM = 48;
+
+/** Bottom of the focus chip on desktop: 12 px under the bar, 40 px high. */
+export const DESKTOP_CHIP_BOTTOM = TOP_BAR_HEIGHT + 12 + 40;
+
+/** Width of the desktop person drawer (ProfileSheet): a framed star sits right of it. */
+export const DRAWER_WIDTH = 400;
 
 /** The canvas is the full window. */
 function viewport(): Viewport {
@@ -34,7 +44,7 @@ export function frameStar(personId: string, instant = false): boolean {
   const group = [...findNeighborsWithinHops(personId, graph.relations, get(focusDepth))]
     .map((id) => graph.positions[id])
     .filter((pos) => pos !== undefined);
-  const view = focusView(star, group, viewport());
+  const view = focusView(star, group, viewport(), get(framingInsets));
   console.debug('[mapActions] frame', personId, instant ? 'instantly' : 'eased', view);
   if (instant) cameraStore.jumpTo(view);
   else cameraStore.setTarget(view.x, view.y, view.zoom);

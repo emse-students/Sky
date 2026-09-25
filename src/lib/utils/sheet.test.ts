@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { settleSheet, sheetHeight, sheetLeavesMapUsable, stepSheet, SHEET_SNAPS } from './sheet';
+import {
+  settleSheet,
+  sheetHeight,
+  sheetLeavesMapUsable,
+  stepSheet,
+  SHEET_PEEK_PX,
+  SHEET_SNAPS,
+} from './sheet';
 
 const vh = 800;
 
 describe('sheetHeight', () => {
-  it('is the state share of the viewport', () => {
-    expect(sheetHeight('peek', vh)).toBe(240);
+  it('is the content height at peek, a share of the viewport at half and full', () => {
+    expect(sheetHeight('peek', vh)).toBe(SHEET_PEEK_PX);
+    // Never more than half a very short screen.
+    expect(sheetHeight('peek', 300)).toBe(150);
     expect(sheetHeight('full', vh)).toBe(Math.round(SHEET_SNAPS.full * vh));
   });
 });

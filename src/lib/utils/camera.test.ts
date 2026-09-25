@@ -183,6 +183,11 @@ describe('the + / - control', () => {
 
 describe('focusView', () => {
   const vp = { width: 400, height: 800 };
+  /** Screen position of a world point under a view. */
+  const onScreen = (v: View, p: { x: number; y: number }) => ({
+    x: (p.x - v.x) * v.zoom + vp.width / 2,
+    y: (p.y - v.y) * v.zoom + vp.height / 2,
+  });
 
   it('centres a lone star at the lone-star zoom', () => {
     expect(focusView({ x: 3, y: 4 }, [{ x: 3, y: 4 }], vp)).toEqual({
@@ -193,15 +198,33 @@ describe('focusView', () => {
     expect(focusView({ x: 3, y: 4 }, [], vp).zoom).toBe(LONE_STAR_ZOOM);
   });
 
-  it('frames the neighbourhood box with the margin', () => {
-    const group = [
-      { x: 0, y: 0 },
-      { x: 600, y: 300 },
-    ];
-    const view = focusView({ x: 0, y: 0 }, group, vp);
-    expect(view.x).toBe(300);
-    expect(view.y).toBe(150);
-    expect(view.zoom).toBeCloseTo(400 / (600 * FOCUS_MARGIN));
+  it('fits the neighbourhood around the star, with the margin', () => {
+    const star = { x: 0, y: 0 };
+    const view = focusView(star, [star, { x: 300, y: 100 }], vp);
+    // Half-extent 300 on x: the band (400 px) holds 2 x 300 x margin.
+    expect(view.zoom).toBeCloseTo(400 / (2 * 300 * FOCUS_MARGIN));
+    expect(onScreen(view, star)).toEqual({ x: 200, y: 400 });
+  });
+
+  it('puts the star at the centre of the free band, not of the screen', () => {
+    // Phone: the chip ends 48 px down, the peek covers the bottom 168 px.
+    const insets = { top: 48, bottom: 168 };
+    const star = { x: 50, y: 50 };
+    const view = focusView(star, [star, { x: 250, y: -150 }, { x: -100, y: 300 }], vp, insets);
+    const at = onScreen(view, star);
+    expect(at.x).toBeCloseTo(200);
+    expect(at.y).toBeCloseTo(48 + (800 - 48 - 168) / 2);
+  });
+
+  it('shifts right of a left drawer (desktop)', () => {
+    const wide = { width: 1440, height: 900 };
+    const star = { x: 0, y: 0 };
+    const view = focusView(star, [star, { x: 100, y: 100 }], wide, {
+      top: 124,
+      bottom: 0,
+      left: 400,
+    });
+    expect((star.x - view.x) * view.zoom + wide.width / 2).toBeCloseTo(400 + (1440 - 400) / 2);
   });
 
   it('caps the zoom to the focus range', () => {

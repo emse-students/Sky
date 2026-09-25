@@ -5,7 +5,7 @@
     selectedPersonId,
     graphStore,
     directLinks,
-    profileReopenRequests,
+    selectStar,
   } from '$stores/graphStore';
   import { cameraStore } from '$stores/cameraStore';
   import { frameStar } from '$stores/mapActions';
@@ -340,12 +340,6 @@
       wheelZoomFactor(e.deltaY, e.deltaMode, e.ctrlKey),
       toCanvasPoint(e.clientX, e.clientY)
     );
-  }
-
-  /** Select a star from the map; the one already selected asks for its panel back instead. */
-  function selectStar(id: string) {
-    if (id === $selectedPersonId) profileReopenRequests.update((n) => n + 1);
-    else selectedPersonId.set(id);
   }
 
   // --- MOUSE HANDLING ---

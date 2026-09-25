@@ -54,8 +54,6 @@
   "focus_mode": "Mode Focus",
   "focus_hop": "saut",
   "focus_hops": "sauts",
-  "profile_promotion": "Promotion {level}",
-  "profile_promotion_unknown": "Inconnue",
   "profile_center_view": "Centrer la vue",
   "profile_link": "Profil",
   "profile_bio": "Bio",
@@ -256,5 +254,6 @@
   "map_summary_all": "Carte de {people} étoiles reliées par {links} liens de parrainage. Utilise la recherche pour trouver une étoile.",
   "map_summary_focus": "Focus sur {name} : {count} étoiles à {depth} sauts ou moins. Ses liens directs sont listés dans sa fiche.",
   "nav_account_menu": "Menu du compte",
-  "focus_exit_label": "Quitter le mode focus"
+  "focus_exit_label": "Quitter le mode focus",
+  "profile_open_canari": "Voir le profil sur Canari"
 }
