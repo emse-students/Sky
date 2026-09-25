@@ -16,6 +16,7 @@
   import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
   import MapControls from '$components/Canvas/MapControls.svelte';
   import ProfileSheet from '$components/ProfileSheet.svelte';
+  import { sheetLeavesMapUsable } from '$lib/utils/sheet';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -55,8 +56,9 @@
   $: isMobile = innerWidth > 0 && innerWidth <= 768;
   let sheetCovered = 0;
   $: if (!isProfileModalOpen) sheetCovered = 0;
-  // Past half the screen the sheet is being read, not the map: the controls step aside.
-  $: showMapControls = sheetCovered <= innerHeight / 2;
+  // Past half the screen the sheet is being read, not the map: the map chrome (controls and focus
+  // hub) steps aside. One predicate for both, so they can never disagree.
+  $: showMapChrome = sheetLeavesMapUsable(sheetCovered, innerHeight);
   // While a sheet is open on a phone the focus hub shrinks to one row, so the two together never
   // hide the person they are about.
   $: compactHub = isMobile && isProfileModalOpen;
@@ -286,7 +288,7 @@
 {#if isAuthenticated}
   <GraphCanvas />
   <p class="sr-only" aria-live="polite">{mapSummary}</p>
-  {#if showMapControls}
+  {#if showMapChrome}
     <MapControls
       onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
       topInset={72}
@@ -472,7 +474,7 @@
     </div>
   {/if}
 
-  {#if $selectedPersonId}
+  {#if $selectedPersonId && showMapChrome}
     <div
       class="focus-hub"
       class:compact={compactHub}
@@ -680,7 +682,6 @@
     --bg-dark: #05070a;
     --glass-bg: rgba(10, 15, 30, 0.85);
     --accent: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.5);
     --text-main: #f8fafc;
     --text-dim: #94a3b8;
     --border: rgba(255, 255, 255, 0.1);
@@ -723,12 +724,11 @@
   .logo-wrapper {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    background: var(--accent);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 15px var(--accent-glow);
   }
   .logo {
     height: 28px;
@@ -938,7 +938,6 @@
   .sidebar-hero {
     padding: 60px 40px 40px;
     text-align: center;
-    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.1), transparent);
   }
   .hero-avatar {
     position: relative;
@@ -1285,11 +1284,10 @@
     width: 72px;
     height: 72px;
     border-radius: 18px;
-    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    background: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 24px var(--accent-glow);
     margin-bottom: 8px;
   }
   .login-logo img {

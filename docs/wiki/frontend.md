@@ -111,7 +111,9 @@ from `home_loading_*`), the focus hub and the profile panel.
   unit-tested). The handle is also a button: a tap or Enter toggles peek / full, ArrowUp /
   ArrowDown step. Escape closes the panel on every device; focus moves into it on open (a
   non-modal `role="dialog"` named by the person's name). It reports the pixels it covers
-  (`covered`), which the map controls clear and past half the screen step aside for.
+  (`covered`), which the map controls clear. Past half the screen the map controls AND the focus
+  hub step aside (`sheetLeavesMapUsable`, one predicate for both): at full the hub used to show as
+  a strip between the top bar and the sheet.
   Dismissing it on a phone keeps the star in focus; tapping that star again reopens it
   (`profileReopenRequests` in `graphStore.ts`, since re-setting the same selected id notifies
   nobody).
@@ -126,6 +128,8 @@ from `home_loading_*`), the focus hub and the profile panel.
   placeholder "Rechercher"; Escape closes them without closing the sheet.
 - **The account menu** is rendered only while open (click, or hover with a mouse; Escape and a
   click outside close it), so a closed menu is absent from the accessibility tree.
+- The logo tiles (top bar, landing) are flat: a solid accent, no glow, no gradient. The search
+  field keeps its focus ring - that is accessibility, not decoration.
 - `app.css` makes form controls inherit the page face (buttons used to render in the system font).
 
 Selecting a star loads its Canari profile

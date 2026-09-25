@@ -65,3 +65,13 @@ export function stepSheet(state: SheetState, direction: 1 | -1): SheetState {
   const i = SHEET_ORDER.indexOf(state) + direction;
   return SHEET_ORDER[Math.max(0, Math.min(SHEET_ORDER.length - 1, i))];
 }
+
+/**
+ * Whether the map is still what the user is looking at while the sheet covers `covered` pixels of a
+ * `viewportHeight`-pixel screen. Past half, the sheet is being read, and the map chrome - the
+ * controls and the focus hub - steps aside: at full the hub would otherwise show as a strip
+ * between the top bar and the sheet (Mi 9T, 2026-09-25).
+ */
+export function sheetLeavesMapUsable(covered: number, viewportHeight: number): boolean {
+  return covered <= viewportHeight / 2;
+}

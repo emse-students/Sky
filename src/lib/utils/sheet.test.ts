@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { settleSheet, sheetHeight, stepSheet, SHEET_SNAPS } from './sheet';
+import { settleSheet, sheetHeight, sheetLeavesMapUsable, stepSheet, SHEET_SNAPS } from './sheet';
 
 const vh = 800;
 
@@ -42,5 +42,15 @@ describe('stepSheet', () => {
     expect(stepSheet('full', 1)).toBe('full');
     expect(stepSheet('half', -1)).toBe('peek');
     expect(stepSheet('peek', -1)).toBe('peek');
+  });
+});
+
+describe('sheetLeavesMapUsable', () => {
+  it('keeps the map chrome at peek and half, and hides it at full', () => {
+    expect(sheetLeavesMapUsable(0, vh)).toBe(true);
+    expect(sheetLeavesMapUsable(sheetHeight('peek', vh), vh)).toBe(true);
+    expect(sheetLeavesMapUsable(vh / 2, vh)).toBe(true);
+    expect(sheetLeavesMapUsable(sheetHeight('half', vh), vh)).toBe(false);
+    expect(sheetLeavesMapUsable(sheetHeight('full', vh), vh)).toBe(false);
   });
 });
