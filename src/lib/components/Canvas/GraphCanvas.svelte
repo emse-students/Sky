@@ -44,6 +44,14 @@
   $: ({ people, relations, positions } = $filteredGraph);
   $: camera = $cameraStore;
 
+  // Every camera change repaints. The animation loop alone only sees an EASED move: a zoom
+  // gesture sets position and target together (`jumpTo`), so `updateSmooth` reports nothing
+  // and the new view stayed undrawn until the next pan - a pinch appeared to do nothing.
+  $: {
+    void camera;
+    requestRedraw();
+  }
+
   // Promo -> node color bounds, recomputed only when the visible people change.
   // A person's `level` holds their promo (entry year); see promoMatches().
   $: promoBounds = computePromoBounds(people.map((p) => p.level));
