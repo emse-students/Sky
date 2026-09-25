@@ -7,7 +7,6 @@ import {
   LabelFader,
   TextWidthCache,
   linkDegree,
-  directNeighbours,
   type LabelCandidate,
 } from './labels';
 
@@ -145,7 +144,7 @@ describe('TextWidthCache', () => {
   });
 });
 
-describe('linkDegree / directNeighbours', () => {
+describe('linkDegree', () => {
   const rels = [
     { id1: 'a', id2: 'b' },
     { id1: 'a', id2: 'c' },
@@ -159,10 +158,5 @@ describe('linkDegree / directNeighbours', () => {
     expect(degree.get('b')).toBe(2);
     expect(degree.get('d')).toBe(1);
     expect(degree.has('z')).toBe(false);
-  });
-
-  it('finds the stars one link away, whichever end the star is on', () => {
-    expect([...directNeighbours('a', rels)].sort()).toEqual(['b', 'c', 'd']);
-    expect(directNeighbours(null, rels).size).toBe(0);
   });
 });

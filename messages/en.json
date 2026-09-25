@@ -245,5 +245,17 @@
   "map_legend_parrainage": "Godparent link",
   "map_legend_adoption": "Adoption",
   "map_hint_touch": "Pinch to zoom, tap a star to see it.",
-  "map_hint_pointer": "Scroll to zoom, click a star to see it."
+  "map_hint_pointer": "Scroll to zoom, click a star to see it.",
+  "sheet_expand": "Expand the panel",
+  "sheet_collapse": "Collapse the panel",
+  "profile_godparents": "Godparents",
+  "profile_godchildren": "Godchildren",
+  "profile_no_links": "No godparent link.",
+  "focus_depth_less": "Less depth",
+  "focus_depth_more": "More depth",
+  "home_search_placeholder_short": "Search",
+  "home_search_label": "Search for a star",
+  "map_summary_all": "Map of {people} stars joined by {links} godparent links. Use the search to find a star.",
+  "map_summary_focus": "Focused on {name}: {count} stars within {depth} hops. Their direct links are listed in their panel.",
+  "nav_account_menu": "Account menu"
 }

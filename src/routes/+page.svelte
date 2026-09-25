@@ -3,11 +3,19 @@
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { page } from '$app/stores';
-  import { graphStore, selectedPersonId, focusDepth } from '$stores/graphStore';
+  import {
+    graphStore,
+    selectedPersonId,
+    focusDepth,
+    directLinks,
+    filteredGraph,
+    profileReopenRequests,
+  } from '$stores/graphStore';
   import { cameraStore } from '$stores/cameraStore';
   import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
   import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
   import MapControls from '$components/Canvas/MapControls.svelte';
+  import ProfileSheet from '$components/ProfileSheet.svelte';
   import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
   import {
     Link,
@@ -21,6 +29,8 @@
     Database,
     Network,
     ExternalLink,
+    Minus,
+    Plus,
   } from '@lucide/svelte';
   import BioMarkdown from '$components/BioMarkdown.svelte';
   import LocaleSwitcher from '$components/LocaleSwitcher.svelte';
@@ -38,12 +48,44 @@
   let isLoading = true;
   let innerWidth = 0;
 
-  // The profile panel is a left drawer on desktop and a bottom sheet on mobile,
-  // so it slides in from the matching edge.
+  let innerHeight = 0;
+
+  // The profile panel is a left drawer on desktop and a draggable bottom sheet on a phone
+  // (ProfileSheet); `sheetCovered` is how much of the screen bottom the sheet takes.
   $: isMobile = innerWidth > 0 && innerWidth <= 768;
-  $: sidebarTransition = isMobile
-    ? { y: 400, duration: 400, easing: cubicOut }
-    : { x: -400, duration: 400, easing: cubicOut };
+  let sheetCovered = 0;
+  $: if (!isProfileModalOpen) sheetCovered = 0;
+  // Past half the screen the sheet is being read, not the map: the controls step aside.
+  $: showMapControls = sheetCovered <= innerHeight / 2;
+  // While a sheet is open on a phone the focus hub shrinks to one row, so the two together never
+  // hide the person they are about.
+  $: compactHub = isMobile && isProfileModalOpen;
+
+  // The selected person's direct links, listed in the sheet: the accessible path through the graph.
+  $: currentLinks = directLinks(currentProfile?.id ?? null, $graphStore.relations);
+
+  // The account menu is rendered only while open, so a closed menu is absent from the
+  // accessibility tree (it used to be a hover-only CSS fade, present to screen readers throughout).
+  let menuOpen = false;
+  function openMenuOnHover(e: PointerEvent) {
+    if (e.pointerType === 'mouse') menuOpen = true;
+  }
+  function closeMenuOnLeave(e: PointerEvent) {
+    if (e.pointerType === 'mouse') menuOpen = false;
+  }
+  function closeMenuOnOutside(e: PointerEvent) {
+    if (menuOpen && !(e.target as Element).closest?.('.user-dropdown-container')) menuOpen = false;
+  }
+
+  // Text alternative of the canvas (WCAG 1.1.1): what the map shows, in one sentence.
+  $: mapSummary =
+    $selectedPersonId && currentProfile
+      ? m.map_summary_focus({
+          name: getPersonName(currentProfile),
+          count: $filteredGraph.people.length,
+          depth: $focusDepth,
+        })
+      : m.map_summary_all({ people: people.length, links: $graphStore.relations.length });
 
   const loadingMessages = [
     m.home_loading_vault(),
@@ -65,15 +107,20 @@
   // Create a map for efficient lookups by ID
   $: peopleMap = new Map(people.map((p) => [p.id, p]));
 
-  // Watch for selection changes
-  $: if ($selectedPersonId) {
-    const person = peopleMap.get($selectedPersonId);
+  // Open the panel of the selected person - on a new selection, and on a tap on the star already
+  // selected, which reopens a panel dismissed on a phone (the star stays in focus).
+  $: syncProfile($selectedPersonId, $profileReopenRequests, peopleMap);
+
+  function syncProfile(id: string | null, _reopenRequests: number, byId: Map<string, any>) {
+    if (!id) {
+      isProfileModalOpen = false;
+      return;
+    }
+    const person = byId.get(id);
     if (person) {
       currentProfile = person;
       isProfileModalOpen = true;
     }
-  } else {
-    isProfileModalOpen = false;
   }
 
   // Canari profile (bio, clubs) of the selected person: the source of truth for
@@ -225,16 +272,27 @@
   }}
 />
 
-<svelte:window bind:innerWidth onpointerdown={dismissHint} />
+<svelte:window
+  bind:innerWidth
+  bind:innerHeight
+  onpointerdown={(e) => {
+    dismissHint();
+    closeMenuOnOutside(e);
+  }}
+/>
 
 <StarfieldCanvas />
 
 {#if isAuthenticated}
   <GraphCanvas />
-  <MapControls
-    onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
-    topInset={72}
-  />
+  <p class="sr-only" aria-live="polite">{mapSummary}</p>
+  {#if showMapControls}
+    <MapControls
+      onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
+      topInset={72}
+      bottomInset={sheetCovered}
+    />
+  {/if}
   {#if showHint && !isLoading}
     <div class="map-hint" role="status" transition:fade>
       {coarsePointer ? m.map_hint_touch() : m.map_hint_pointer()}
@@ -266,10 +324,19 @@
 
       <div class="search-container">
         <div class="search-box" class:has-focus={isSearchActive}>
-          <Search size={18} class="search-icon" />
+          <Search size={18} class="search-icon" aria-hidden="true" />
           <input
-            type="text"
-            placeholder={m.home_search_placeholder()}
+            type="search"
+            aria-label={m.home_search_label()}
+            onkeydown={(e) => {
+              if (e.key === 'Escape') {
+                // Close the results only: the window-level Escape would also close the sheet.
+                e.stopPropagation();
+                isSearchActive = false;
+                (e.currentTarget as HTMLInputElement).blur();
+              }
+            }}
+            placeholder={isMobile ? m.home_search_placeholder_short() : m.home_search_placeholder()}
             bind:value={searchTerm}
             oninput={handleSearch}
             onfocus={() => searchTerm && (isSearchActive = true)}
@@ -278,6 +345,7 @@
           {#if searchTerm}
             <button
               class="clear-search"
+              aria-label={m.common_close()}
               onclick={() => {
                 searchTerm = '';
                 handleSearch();
@@ -323,8 +391,23 @@
             {m.nav_login()}
           </button>
         {:else}
-          <div class="user-dropdown-container">
-            <button class="user-trigger">
+          <div
+            class="user-dropdown-container"
+            role="presentation"
+            onpointerenter={openMenuOnHover}
+            onpointerleave={closeMenuOnLeave}
+          >
+            <button
+              class="user-trigger"
+              aria-expanded={menuOpen}
+              onclick={() => (menuOpen = !menuOpen)}
+              onkeydown={(e) => {
+                if (e.key === 'Escape' && menuOpen) {
+                  e.stopPropagation();
+                  menuOpen = false;
+                }
+              }}
+            >
               <div class="user-avatar-small">
                 <img
                   src={getAvatarUrl(user?.profile_id || user?.id)}
@@ -338,39 +421,42 @@
               <span class="user-label">
                 {user?.profile_id ? peopleMap.get(user.profile_id)?.prenom || user.name : user.name}
               </span>
-              <ChevronDown size={14} class="chevron" />
+              <span class="sr-only">{m.nav_account_menu()}</span>
+              <ChevronDown size={14} class="chevron" aria-hidden="true" />
             </button>
 
-            <div class="dropdown-menu">
-              <button onclick={goToMyProfile} class="menu-item">
-                <User size={16} />
-                {m.nav_my_profile()}
-              </button>
-              <a href="/tree" class="menu-item">
-                <Network size={16} />
-                {m.nav_my_tree()}
-              </a>
-              <a href="/account" class="menu-item">
-                <Link size={16} />
-                {m.nav_fix_link()}
-              </a>
-              {#if user?.role === 'admin'}
-                <div class="menu-divider"></div>
-                <a href="/admin" class="menu-item">
-                  <Database size={16} />
-                  {m.nav_admin()}
+            {#if menuOpen}
+              <div class="dropdown-menu">
+                <button onclick={goToMyProfile} class="menu-item">
+                  <User size={16} />
+                  {m.nav_my_profile()}
+                </button>
+                <a href="/tree" class="menu-item">
+                  <Network size={16} />
+                  {m.nav_my_tree()}
                 </a>
-              {/if}
-              <div class="menu-divider"></div>
-              <div class="menu-item locale-row">
-                <LocaleSwitcher />
+                <a href="/account" class="menu-item">
+                  <Link size={16} />
+                  {m.nav_fix_link()}
+                </a>
+                {#if user?.role === 'admin'}
+                  <div class="menu-divider"></div>
+                  <a href="/admin" class="menu-item">
+                    <Database size={16} />
+                    {m.nav_admin()}
+                  </a>
+                {/if}
+                <div class="menu-divider"></div>
+                <div class="menu-item locale-row">
+                  <LocaleSwitcher />
+                </div>
+                <div class="menu-divider"></div>
+                <button onclick={handleLogout} class="menu-item logout">
+                  <LogOut size={16} />
+                  {m.nav_logout()}
+                </button>
               </div>
-              <div class="menu-divider"></div>
-              <button onclick={handleLogout} class="menu-item logout">
-                <LogOut size={16} />
-                {m.nav_logout()}
-              </button>
-            </div>
+            {/if}
           </div>
         {/if}
       </div>
@@ -387,128 +473,186 @@
   {/if}
 
   {#if $selectedPersonId}
-    <div class="focus-hub" transition:fly={{ y: 50, duration: 400, easing: cubicOut }}>
-      <div class="hub-header">
-        <div class="hub-title">
-          <Target size={16} />
-          <span>{m.focus_mode()}</span>
-        </div>
-        <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
-      </div>
-      <div class="hub-body">
-        <div class="range-group">
-          <div class="range-labels">
-            <label for="fdepth">{m.focus_depth_label()}</label>
-            <span class="range-value"
+    <div
+      class="focus-hub"
+      class:compact={compactHub}
+      transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
+    >
+      {#if compactHub}
+        <!-- One row while a sheet is open on a phone: depth stepper and exit, nothing else. -->
+        <div class="hub-row">
+          <Target size={16} aria-hidden="true" />
+          <div class="depth-stepper" role="group" aria-label={m.focus_depth_label()}>
+            <button
+              onclick={() => ($focusDepth = Math.max(1, $focusDepth - 1))}
+              disabled={$focusDepth <= 1}
+              aria-label={m.focus_depth_less()}
+            >
+              <Minus size={16} />
+            </button>
+            <span class="range-value" aria-live="polite"
               >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
             >
+            <button
+              onclick={() => ($focusDepth = Math.min(5, $focusDepth + 1))}
+              disabled={$focusDepth >= 5}
+              aria-label={m.focus_depth_more()}
+            >
+              <Plus size={16} />
+            </button>
           </div>
-          <input id="fdepth" type="range" min="1" max="5" bind:value={$focusDepth} />
+          <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
         </div>
-      </div>
+      {:else}
+        <div class="hub-header">
+          <div class="hub-title">
+            <Target size={16} aria-hidden="true" />
+            <span>{m.focus_mode()}</span>
+          </div>
+          <button class="hub-reset" onclick={resetView}>{m.focus_exit()}</button>
+        </div>
+        <div class="hub-body">
+          <div class="range-group">
+            <div class="range-labels">
+              <label for="fdepth">{m.focus_depth_label()}</label>
+              <span class="range-value"
+                >{$focusDepth} {$focusDepth > 1 ? m.focus_hops() : m.focus_hop()}</span
+              >
+            </div>
+            <input id="fdepth" type="range" min="1" max="5" bind:value={$focusDepth} />
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 
   {#if isProfileModalOpen && currentProfile}
-    <aside class="profile-sidebar" transition:fly={sidebarTransition}>
-      <button class="close-sidebar" onclick={closeProfile} aria-label={m.common_close()}>
-        <X size={24} />
-      </button>
-
-      <div class="sidebar-scroll">
-        <header class="sidebar-hero">
-          <div class="hero-avatar">
-            <div class="avatar-ring"></div>
-            {#if imageErrors[currentProfile.id]}
-              <div class="avatar-initials">
-                {getPersonInitials(currentProfile)}
-              </div>
-            {:else}
-              <img
-                src={getAvatarUrl(currentProfile.id)}
-                alt=""
-                onerror={() => handleImageError(currentProfile.id)}
-              />
-            {/if}
-          </div>
-          <h2>{getPersonName(currentProfile)}</h2>
-          <div class="badge-promo">
-            {m.profile_promotion({
-              level: currentProfile.level || m.profile_promotion_unknown(),
-            })}
-          </div>
-
-          <div class="hero-actions">
-            <button class="btn-center" onclick={() => centerOnPerson(currentProfile.id)}>
-              <Target size={16} />
-              {m.profile_center_view()}
-            </button>
-            {#if canariProfile?.profile?.sub}
-              <a
-                class="btn-profil"
-                href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink size={16} />
-                {m.profile_link()}
-              </a>
-            {/if}
-          </div>
-        </header>
-
-        <section class="sidebar-info">
-          {#if canariProfile?.profile?.bio}
-            <div class="info-block">
-              <h3>{m.profile_bio()}</h3>
-              <BioMarkdown source={canariProfile.profile.bio} />
+    <ProfileSheet
+      mobile={isMobile}
+      onClose={closeProfile}
+      labelledBy="profile-name"
+      bind:covered={sheetCovered}
+    >
+      <header class="sidebar-hero">
+        <div class="hero-avatar">
+          <div class="avatar-ring"></div>
+          {#if imageErrors[currentProfile.id]}
+            <div class="avatar-initials">
+              {getPersonInitials(currentProfile)}
             </div>
+          {:else}
+            <img
+              src={getAvatarUrl(currentProfile.id)}
+              alt=""
+              onerror={() => handleImageError(currentProfile.id)}
+            />
           {/if}
+        </div>
+        <h2 id="profile-name">{getPersonName(currentProfile)}</h2>
+        <div class="badge-promo">
+          {m.profile_promotion({
+            level: currentProfile.level || m.profile_promotion_unknown(),
+          })}
+        </div>
 
-          {#if canariProfile?.profile?.associations?.length}
-            <div class="info-block">
-              <h3>{m.profile_associations()}</h3>
-              <div class="asso-list">
-                {#each canariProfile.profile.associations as asso (asso.slug)}
-                  <div class="asso-card">
-                    {#if asso.logo}
-                      <img class="asso-logo" src={asso.logo} alt="" />
-                    {/if}
-                    <div class="asso-meta">
-                      <span class="asso-n">{asso.name}</span>
-                      <span class="asso-r">{asso.role}</span>
-                    </div>
-                  </div>
+        <div class="hero-actions">
+          <button class="btn-center" onclick={() => centerOnPerson(currentProfile.id)}>
+            <Target size={16} />
+            {m.profile_center_view()}
+          </button>
+          {#if canariProfile?.profile?.sub}
+            <a
+              class="btn-profil"
+              href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={16} />
+              {m.profile_link()}
+            </a>
+          {/if}
+        </div>
+      </header>
+
+      <section class="sidebar-info">
+        <div class="info-block">
+          {#if currentLinks.parrains.length === 0 && currentLinks.fillots.length === 0}
+            <p class="links-empty">{m.profile_no_links()}</p>
+          {/if}
+          {#each [{ title: m.profile_godparents(), rels: currentLinks.parrains, end: 'id1' as const }, { title: m.profile_godchildren(), rels: currentLinks.fillots, end: 'id2' as const }] as group (group.end)}
+            {#if group.rels.length}
+              <h3>{group.title}</h3>
+              <ul class="link-list">
+                {#each group.rels as rel (rel[group.end])}
+                  {@const other = peopleMap.get(rel[group.end])}
+                  {#if other}
+                    <li>
+                      <button class="link-item" onclick={() => selectResult(other)}>
+                        <span class="link-name">{getPersonName(other)}</span>
+                        <span class="link-sub"
+                          >{m.common_promo({ level: other.level || '-' })}{rel.type === 'adoption'
+                            ? ` - ${m.tree_kind_adoption()}`
+                            : ''}</span
+                        >
+                      </button>
+                    </li>
+                  {/if}
                 {/each}
-              </div>
-            </div>
-          {/if}
+              </ul>
+            {/if}
+          {/each}
+        </div>
 
-          {#if canariProfile?.profile?.formerAssociations?.length}
-            <div class="info-block">
-              <h3>{m.profile_former_associations()}</h3>
-              <div class="asso-list">
-                {#each canariProfile.profile.formerAssociations as asso, i (i)}
-                  <div class="asso-card">
-                    {#if asso.logo}
-                      <img class="asso-logo" src={asso.logo} alt="" />
-                    {/if}
-                    <div class="asso-meta">
-                      <span class="asso-n">{asso.name}</span>
-                      <span class="asso-r"
-                        >{asso.role}{asso.startYear
-                          ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ''})`
-                          : ''}</span
-                      >
-                    </div>
+        {#if canariProfile?.profile?.bio}
+          <div class="info-block">
+            <h3>{m.profile_bio()}</h3>
+            <BioMarkdown source={canariProfile.profile.bio} />
+          </div>
+        {/if}
+
+        {#if canariProfile?.profile?.associations?.length}
+          <div class="info-block">
+            <h3>{m.profile_associations()}</h3>
+            <div class="asso-list">
+              {#each canariProfile.profile.associations as asso (asso.slug)}
+                <div class="asso-card">
+                  {#if asso.logo}
+                    <img class="asso-logo" src={asso.logo} alt="" />
+                  {/if}
+                  <div class="asso-meta">
+                    <span class="asso-n">{asso.name}</span>
+                    <span class="asso-r">{asso.role}</span>
                   </div>
-                {/each}
-              </div>
+                </div>
+              {/each}
             </div>
-          {/if}
-        </section>
-      </div>
-    </aside>
+          </div>
+        {/if}
+
+        {#if canariProfile?.profile?.formerAssociations?.length}
+          <div class="info-block">
+            <h3>{m.profile_former_associations()}</h3>
+            <div class="asso-list">
+              {#each canariProfile.profile.formerAssociations as asso, i (i)}
+                <div class="asso-card">
+                  {#if asso.logo}
+                    <img class="asso-logo" src={asso.logo} alt="" />
+                  {/if}
+                  <div class="asso-meta">
+                    <span class="asso-n">{asso.name}</span>
+                    <span class="asso-r"
+                      >{asso.role}{asso.startYear
+                        ? ` (${asso.startYear}${asso.endYear ? `-${asso.endYear}` : ''})`
+                        : ''}</span
+                    >
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </section>
+    </ProfileSheet>
   {/if}
 {:else}
   <div class="login-landing" transition:fade>
@@ -549,7 +693,8 @@
     left: 0;
     right: 0;
     height: var(--nav-height);
-    z-index: 1000;
+    /* Above the person sheet: search results and the account menu must never open under it. */
+    z-index: 1200;
     background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -608,6 +753,7 @@
     border: 1px solid var(--border);
     border-radius: 99px;
     padding: 0 16px;
+    gap: 10px;
     height: 44px;
     transition: all 0.2s ease;
   }
@@ -621,8 +767,15 @@
     border: none;
     color: white;
     width: 100%;
+    min-width: 0;
     outline: none;
     font-size: 15px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  /* The field has its own clear button; the native one of type=search would double it. */
+  .search-box input::-webkit-search-cancel-button {
+    display: none;
   }
   .clear-search {
     background: rgba(255, 255, 255, 0.1);
@@ -652,6 +805,7 @@
     width: 100%;
     display: flex;
     align-items: center;
+    text-align: left;
     padding: 12px 16px;
     gap: 12px;
     background: transparent;
@@ -664,6 +818,7 @@
     background: rgba(59, 130, 246, 0.1);
   }
   .item-avatar {
+    flex-shrink: 0;
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -685,6 +840,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    min-width: 0;
   }
   .item-name {
     color: white;
@@ -740,10 +896,6 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 6px;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(10px);
-    transition: all 0.2s;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
   /* Invisible bridge covering the gap between the trigger and the menu, so
@@ -755,11 +907,6 @@
     right: 0;
     top: -10px;
     height: 10px;
-  }
-  .user-dropdown-container:hover .dropdown-menu {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
   }
   .menu-item {
     width: 100%;
@@ -788,33 +935,6 @@
     margin: 6px 0;
   }
 
-  .profile-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 400px;
-    background: #0f172a;
-    border-right: 1px solid var(--border);
-    z-index: 1100;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
-  }
-  .close-sidebar {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    z-index: 10;
-  }
-  .sidebar-scroll {
-    overflow-y: auto;
-    flex: 1;
-  }
   .sidebar-hero {
     padding: 60px 40px 40px;
     text-align: center;
@@ -911,6 +1031,54 @@
     color: var(--text-dim);
     margin-bottom: 12px;
   }
+  .links-empty {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .link-list {
+    list-style: none;
+    margin-bottom: 16px;
+  }
+  .link-item {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    text-align: left;
+    color: white;
+    cursor: pointer;
+  }
+  .link-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .link-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .link-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .asso-card {
     display: flex;
     align-items: center;
@@ -969,11 +1137,10 @@
     right: 16px;
     width: 280px;
     background: #1e293b;
-    border: 1px solid var(--accent);
-    border-radius: 16px;
-    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
     z-index: 100;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   }
   .hub-header {
     display: flex;
@@ -987,12 +1154,49 @@
     font-weight: 600;
     color: var(--accent);
   }
+  /* Leaving focus is neutral, not destructive: a plain text button, never red. */
   .hub-reset {
+    min-height: 40px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .hub-reset:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .hub-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+  }
+  .depth-stepper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .depth-stepper button {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
-    color: #f87171;
-    font-size: 12px;
+    color: var(--text-main);
     cursor: pointer;
+  }
+  .depth-stepper button:disabled {
+    color: var(--text-dim);
+    opacity: 0.5;
+    cursor: default;
   }
   .range-group {
     display: flex;
@@ -1137,33 +1341,67 @@
     .user-label {
       display: none;
     }
-    /* Profile as a bottom sheet: anchored to the bottom, leaving the top of the
-       map pannable, with a rounded top edge and safe-area padding. */
-    .profile-sidebar {
-      width: 100%;
-      height: auto;
-      max-height: 78vh;
-      top: auto;
-      bottom: 0;
-      border-right: none;
-      border-top: 1px solid var(--border);
-      border-radius: 24px 24px 0 0;
-      box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.5);
-    }
-    .sidebar-scroll {
-      padding-bottom: env(safe-area-inset-bottom, 0);
-    }
+    /* The PEEK of the sheet (~30% of the screen) must name the person and offer the actions:
+       a compact row - avatar left, name and promo beside it, actions below. */
     .sidebar-hero {
-      padding: 32px 24px 24px;
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      column-gap: 14px;
+      align-items: center;
+      padding: 0 20px 16px;
+      text-align: left;
+      background: none;
     }
-    /* Move the focus panel above the sheet so the two bottom controls do not
-       stack and block navigation. */
+    .hero-avatar {
+      width: 56px;
+      height: 56px;
+      margin: 0;
+      grid-row: span 2;
+    }
+    .avatar-ring {
+      inset: -4px;
+    }
+    .avatar-initials {
+      font-size: 20px;
+    }
+    .sidebar-hero h2 {
+      margin: 0;
+      font-size: 18px;
+      align-self: end;
+    }
+    .badge-promo {
+      margin: 4px 0 0;
+      justify-self: start;
+      align-self: start;
+    }
+    .hero-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      margin-top: 14px;
+    }
+    .sidebar-info {
+      padding: 0 20px 32px;
+    }
     .focus-hub {
-      top: calc(var(--nav-height) + 12px);
-      bottom: auto;
-      left: 20px;
-      right: 20px;
+      left: 16px;
       width: auto;
+    }
+    .focus-hub.compact {
+      padding: 4px 4px 4px 14px;
+    }
+    /* Full-screen results on a phone, as Maps and Photos: the list below the bar, edge to edge,
+       over everything else on the map. The container stops being the positioning context, so
+       the list is placed against the (fixed) bar. */
+    .search-container {
+      position: static;
+    }
+    .search-dropdown {
+      top: 100%;
+      height: calc(100dvh - var(--nav-height));
+      border: none;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      overflow-y: auto;
     }
   }
 </style>

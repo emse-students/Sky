@@ -96,9 +96,36 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
 ## The home page (`+page.svelte`)
 
 The map page owns the search box, the loading overlay (a random themed message
-from `home_loading_*`), and the profile panel. The profile panel is a **left
-drawer on desktop and a bottom sheet on mobile** (breakpoint 768px), sliding in
-from the matching edge. Selecting a star loads its Canari profile
+from `home_loading_*`), the focus hub and the profile panel.
+
+- **The profile panel** is `ProfileSheet.svelte` (tested in `ProfileSheet.test.ts`): a left
+  drawer below the top bar on desktop, and on a phone (<= 768 px) a bottom sheet after the Google
+  Maps place sheet. It opens at a **peek** (30% of the height: avatar, name, promo, the two
+  actions in a compact row) so the map stays usable above it, and snaps to **half** (60%) and
+  **full** (88%, short of the 72 px bar, which stays above it). Dragging is on the handle only
+  (`touch-action: none`), the release projected 180 ms along its velocity and snapped to the
+  nearest state, or dismissed below 60% of the peek (`settleSheet` in `src/lib/utils/sheet.ts`,
+  unit-tested). The handle is also a button: a tap or Enter toggles peek / full, ArrowUp /
+  ArrowDown step. Escape closes the panel on every device; focus moves into it on open (a
+  non-modal `role="dialog"` named by the person's name). It reports the pixels it covers
+  (`covered`), which the map controls clear and past half the screen step aside for.
+  Dismissing it on a phone keeps the star in focus; tapping that star again reopens it
+  (`profileReopenRequests` in `graphStore.ts`, since re-setting the same selected id notifies
+  nobody).
+- The panel lists the person's **direct links** (godparents and godchildren, from `directLinks` in
+  `graphStore.ts`, `id1 -> id2` = parrain -> fillot), each a button that selects that star: the
+  accessible way to walk the graph the canvas draws. The canvas itself has a visually-hidden,
+  `aria-live` one-sentence summary beside it (how many stars and links, or who is in focus).
+- **The focus hub** sits top-right under the bar (the bottom-right corner is the map controls').
+  While a sheet is open on a phone it shrinks to one row: a depth stepper (-, "3 sauts", +) and
+  "Sortir", a neutral button - leaving focus is not destructive.
+- **Search on a phone** opens its results full-screen below the bar, left-aligned, with the short
+  placeholder "Rechercher"; Escape closes them without closing the sheet.
+- **The account menu** is rendered only while open (click, or hover with a mouse; Escape and a
+  click outside close it), so a closed menu is absent from the accessibility tree.
+- `app.css` makes form controls inherit the page face (buttons used to render in the system font).
+
+Selecting a star loads its Canari profile
 (`GET /api/canari/{id}`, see [integrations.md](integrations.md)) to show bio and
 clubs; a "View on Canari" link points at `<canariUrl>/profile/<sub>` (the
 `canariUrl` comes from `+layout.server.ts`).
