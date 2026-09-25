@@ -230,5 +230,20 @@
   "account_fiche_unavailable": "This record is no longer available (already linked or not found).",
   "api_login_failed": "Sign-in failed",
   "seo_site_description": "The star map of the ICM students of Ecole des Mines de Saint-Etienne: the godparent tree, reserved for ICM students via MiConnect.",
-  "seo_image_alt": "The Sky logo: a star against the night sky."
+  "seo_image_alt": "The Sky logo: a star against the night sky.",
+  "map_controls_label": "Map controls",
+  "map_zoom_in": "Zoom in",
+  "map_zoom_out": "Zoom out",
+  "map_fit": "Fit the map",
+  "map_me": "Go to my star",
+  "map_legend": "Legend",
+  "map_legend_promo": "Colour = promo",
+  "map_legend_older": "older",
+  "map_legend_recent": "more recent",
+  "map_legend_unknown": "Unknown promo",
+  "map_legend_selected": "Selected star",
+  "map_legend_parrainage": "Godparent link",
+  "map_legend_adoption": "Adoption",
+  "map_hint_touch": "Pinch to zoom, tap a star to see it.",
+  "map_hint_pointer": "Scroll to zoom, click a star to see it."
 }
