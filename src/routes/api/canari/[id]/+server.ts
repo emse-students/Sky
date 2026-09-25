@@ -5,7 +5,7 @@ import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 import type { CanariProfile } from '$types/graph';
 
 // Canari public URL and external-profile API key (server-side only).
-const CANARI_API_URL = (process.env.CANARI_API_URL || 'https://canari-emse.fr').replace(/\/+$/, '');
+const CANARI_API_URL = (process.env.CANARI_API_URL || 'https://canari.emse.fr').replace(/\/+$/, '');
 const CANARI_API_KEY = process.env.CANARI_API_KEY;
 
 /** Resolves a club logo to an absolute URL (relative path -> Canari domain). */
