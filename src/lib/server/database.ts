@@ -1049,10 +1049,14 @@ export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
   return rows;
 }
 
-/** Relations (incoming parrains, outgoing fillots) of a legacy record. */
+/**
+ * Relations (incoming parrains, outgoing fillots) of a legacy record. `relId` is the relationship
+ * row's `rowid` - the one key unique per row whatever the snapshot's schema declares, since the
+ * same person can be linked twice (once per type) and the page keys its list on it.
+ */
 export function getLegacyPersonRelations(id: string): {
-  parrains: { id: string; name: string; type: string }[];
-  fillots: { id: string; name: string; type: string }[];
+  parrains: { relId: number; id: string; name: string; type: string }[];
+  fillots: { relId: number; id: string; name: string; type: string }[];
 } {
   const ldb = getLegacyDatabase();
   if (!ldb) {
@@ -1061,18 +1065,18 @@ export function getLegacyPersonRelations(id: string): {
   // source = parrain -> target = fillot. Parrains of P: target_id = P.
   const parrains = ldb
     .prepare(
-      `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
+      `SELECT r.rowid AS relId, p.id, p.last_name || ' ' || p.first_name AS name, r.type
        FROM relationships r JOIN people p ON p.id = r.source_id
        WHERE r.target_id = ? ORDER BY r.type`
     )
-    .all(id) as { id: string; name: string; type: string }[];
+    .all(id) as { relId: number; id: string; name: string; type: string }[];
   const fillots = ldb
     .prepare(
-      `SELECT p.id, p.last_name || ' ' || p.first_name AS name, r.type
+      `SELECT r.rowid AS relId, p.id, p.last_name || ' ' || p.first_name AS name, r.type
        FROM relationships r JOIN people p ON p.id = r.target_id
        WHERE r.source_id = ? ORDER BY r.type`
     )
-    .all(id) as { id: string; name: string; type: string }[];
+    .all(id) as { relId: number; id: string; name: string; type: string }[];
   return { parrains, fillots };
 }
 
