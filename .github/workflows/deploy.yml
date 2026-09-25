@@ -162,8 +162,8 @@ jobs:
         run: |
           cp docker-compose.prod.yml "$DEPLOY_DIR/"
           mkdir -p "$DEPLOY_DIR/scripts"
-          cp scripts/backup-offsite.sh scripts/restore-offsite.sh "$DEPLOY_DIR/scripts/"
-          chmod +x "$DEPLOY_DIR/scripts/backup-offsite.sh" "$DEPLOY_DIR/scripts/restore-offsite.sh"
+          cp scripts/backup.sh scripts/restore.sh "$DEPLOY_DIR/scripts/"
+          chmod +x "$DEPLOY_DIR/scripts/backup.sh" "$DEPLOY_DIR/scripts/restore.sh"
 
       - name: Pull image
         run: $COMPOSE pull
