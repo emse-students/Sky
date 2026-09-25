@@ -14,13 +14,13 @@
   let {
     a,
     b,
-    /** Side whose values are pre-selected (the fiche that will survive). */
     survivor,
     onResolve,
     onCancel,
   }: {
     a: MergeIdentity;
     b: MergeIdentity;
+    /** Side whose values are pre-selected (the fiche that will survive). */
     survivor: 'a' | 'b';
     onResolve: (identity: MergeIdentity) => void;
     onCancel: () => void;

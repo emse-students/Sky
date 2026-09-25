@@ -267,10 +267,10 @@
     <div class="tree" in:fade>
       <!-- Ascendants (godparents) -->
       <div class="row ascendants">
-        {#each slots(data.parrains, 'parrainage', data.maxParrains.parrainage) as s}
+        {#each slots(data.parrains, 'parrainage', data.maxParrains.parrainage) as s, i (s.member?.relId ?? `empty-${i}`)}
           {@render slotCard(s.member, 'parrain', 'parrainage')}
         {/each}
-        {#each slots(data.parrains, 'adoption', data.maxParrains.adoption) as s}
+        {#each slots(data.parrains, 'adoption', data.maxParrains.adoption) as s, i (s.member?.relId ?? `empty-${i}`)}
           {@render slotCard(s.member, 'parrain', 'adoption')}
         {/each}
       </div>
@@ -300,10 +300,10 @@
 
       <!-- Descendants (godchildren) -->
       <div class="row descendants">
-        {#each slots(data.fillots, 'parrainage', data.maxFillots.parrainage) as s}
+        {#each slots(data.fillots, 'parrainage', data.maxFillots.parrainage) as s, i (s.member?.relId ?? `empty-${i}`)}
           {@render slotCard(s.member, 'fillot', 'parrainage')}
         {/each}
-        {#each slots(data.fillots, 'adoption', data.maxFillots.adoption) as s}
+        {#each slots(data.fillots, 'adoption', data.maxFillots.adoption) as s, i (s.member?.relId ?? `empty-${i}`)}
           {@render slotCard(s.member, 'fillot', 'adoption')}
         {/each}
       </div>

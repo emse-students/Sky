@@ -96,7 +96,7 @@ export function levenshtein(a: string, b: string): number {
   }
 
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  let curr = new Array<number>(b.length + 1);
+  let curr = Array.from({ length: b.length + 1 }, () => 0);
 
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i;
@@ -134,9 +134,9 @@ export function editDistance(a: string, b: string): number {
   }
 
   // Three rows, because a transposition looks two rows and two columns back.
-  let two = new Array<number>(b.length + 1).fill(0);
+  let two = Array.from({ length: b.length + 1 }, () => 0);
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  let curr = new Array<number>(b.length + 1);
+  let curr = Array.from({ length: b.length + 1 }, () => 0);
 
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i;
