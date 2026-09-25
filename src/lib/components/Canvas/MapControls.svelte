@@ -10,8 +10,9 @@
 <script lang="ts">
   import { Plus, Minus, Maximize, LocateFixed, Info, X } from '@lucide/svelte';
   import { cameraStore } from '$stores/cameraStore';
-  import { filteredGraph, graphStore } from '$stores/graphStore';
-  import { BUTTON_ZOOM_FACTOR, fitView, zoomAt, zoomBoundsFor } from '$lib/utils/camera';
+  import { graphStore } from '$stores/graphStore';
+  import { BUTTON_ZOOM_FACTOR, zoomAt, zoomBoundsFor } from '$lib/utils/camera';
+  import { showWholeSky } from '$stores/mapActions';
   import { promoColor } from '$lib/utils/promoColor';
   import { m } from '$lib/paraglide/messages';
 
@@ -51,17 +52,12 @@
     cameraStore.setTarget(target.x, target.y, target.zoom);
   }
 
-  /** Fit what is displayed: the focus neighbourhood in focus mode, else the whole map. */
+  /**
+   * Show the whole sky (user decision, 2026-09-25: the map opens on one's own star, and this
+   * button is the way out to everything). It leaves focus mode, so every star is drawn.
+   */
   function fit() {
-    const { people, positions } = $filteredGraph;
-    const points = people.map((p) => positions[p.id]).filter((pos) => pos !== undefined);
-    const view = fitView(points, viewport(), { top: topInset, bottom: bottomInset });
-    if (!view) {
-      console.debug('[MapControls] fit: nothing positioned yet');
-      return;
-    }
-    console.debug('[MapControls] fit', points.length, 'stars at zoom', view.zoom.toFixed(3));
-    cameraStore.setTarget(view.x, view.y, view.zoom);
+    showWholeSky({ top: topInset, bottom: 0 });
   }
 </script>
 

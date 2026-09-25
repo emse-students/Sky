@@ -4,6 +4,11 @@ import {
   EMPTY_GRAPH_MIN_ZOOM,
   FIT_FILL,
   fitView,
+  focusView,
+  FOCUS_MARGIN,
+  FOCUS_ZOOM_MAX,
+  FOCUS_ZOOM_MIN,
+  LONE_STAR_ZOOM,
   SINGLE_STAR_ZOOM,
   MAX_ZOOM,
   MIN_ZOOM_FIT_RATIO,
@@ -173,5 +178,50 @@ describe('the + / - control', () => {
     expect(zoomedIn).toEqual({ x: 50, y: -20, zoom: 0.8 });
     const zoomedOut = zoomAt(view, 1 / BUTTON_ZOOM_FACTOR, centre, viewport, wide);
     expect(zoomedOut.zoom).toBeCloseTo(0.2);
+  });
+});
+
+describe('focusView', () => {
+  const vp = { width: 400, height: 800 };
+
+  it('centres a lone star at the lone-star zoom', () => {
+    expect(focusView({ x: 3, y: 4 }, [{ x: 3, y: 4 }], vp)).toEqual({
+      x: 3,
+      y: 4,
+      zoom: LONE_STAR_ZOOM,
+    });
+    expect(focusView({ x: 3, y: 4 }, [], vp).zoom).toBe(LONE_STAR_ZOOM);
+  });
+
+  it('frames the neighbourhood box with the margin', () => {
+    const group = [
+      { x: 0, y: 0 },
+      { x: 600, y: 300 },
+    ];
+    const view = focusView({ x: 0, y: 0 }, group, vp);
+    expect(view.x).toBe(300);
+    expect(view.y).toBe(150);
+    expect(view.zoom).toBeCloseTo(400 / (600 * FOCUS_MARGIN));
+  });
+
+  it('caps the zoom to the focus range', () => {
+    const huge = focusView(
+      { x: 0, y: 0 },
+      [
+        { x: 0, y: 0 },
+        { x: 1e6, y: 0 },
+      ],
+      vp
+    );
+    expect(huge.zoom).toBe(FOCUS_ZOOM_MIN);
+    const tiny = focusView(
+      { x: 0, y: 0 },
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      vp
+    );
+    expect(tiny.zoom).toBe(FOCUS_ZOOM_MAX);
   });
 });

@@ -82,16 +82,31 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
     Only a label actually drawn is a hit target. Until 2026-09 every name was drawn once the zoom
     passed 0.15, piling up into unreadable text in dense families.
   - **Map controls** (`MapControls.svelte`, tested in `MapControls.test.ts`): bottom-right, 48 px
-    targets - zoom in, zoom out (x2 per press, `BUTTON_ZOOM_FACTOR`), fit (`fitView`: what is
-    displayed, i.e. the focus neighbourhood in focus mode, fitted to 85% of the area the top bar
-    and any bottom sheet leave uncovered), "my star" (when the user has one) and a collapsible
-    legend (promo ramp, unknown promo, selected star, solid = parrainage, dashed = adoption).
-    Buttons are not gestures: they call `setTarget` and EASE, and each press starts from the
-    camera TARGET so quick presses compound. The focus hub moved to the top-right to leave that
-    corner to the controls.
-  - **First-visit hint**: "pinch / scroll to zoom, tap / click a star", until the first pointer
-    down anywhere; remembered in `localStorage` (`sky.mapHintSeen`), shown again if storage is
-    unavailable.
+    targets - zoom in, zoom out (x2 per press, `BUTTON_ZOOM_FACTOR`), **"show the whole sky"**
+    (`showWholeSky` in `src/lib/stores/mapActions.ts`: leaves focus and fits EVERY star to 85% of
+    the area below the top bar), "my star" (when the user has one) and a collapsible legend (promo
+    ramp, unknown promo, selected star, solid = parrainage, dashed = adoption). Buttons are not
+    gestures: they call `setTarget` and EASE, and each press starts from the camera TARGET so
+    quick presses compound. "Sortir" and the brand show the whole sky the same way; deselecting
+    by itself (a click on empty space) no longer moves the camera.
+  - **One framing of a star** (`focusView` in `camera.ts`, `frameStar` in `mapActions.ts`): its
+    neighbourhood within the focus depth, boxed with a 1.5 margin, zoom capped to [0.1, 1], a lone
+    star at 0.8. The auto-zoom on selection, "my star", the sheet's "centre" button and the landing
+    all use it, so they land on the same view.
+  - **The landing** (user decision, 2026-09-25; `decideLanding` in `src/lib/utils/landing.ts`,
+    unit-tested): once the graph has loaded, a signed-in member whose account has a positioned star
+    lands ON it - selected (so its sheet opens at peek with the card, godparents and godchildren)
+    and framed INSTANTLY (`jumpTo`, no flight from the overview; the selection's auto-zoom then
+    targets the same view and eases nowhere). A selection already made wins; no star keeps the
+    overview; signed out nothing changes. Decided once per page load.
+  - **Stars** are a constant 4 CSS px radius at every zoom (`STAR_RADIUS`). Measured on the rig's
+    layout at 393 px: at overview the median nearest-neighbour gap is 3.5 px (p25 2.5, p75 6.5),
+    so a bigger dot only merges more of the overview. The "dust" seen on the Mi 9T came from the
+    canvas being drawn at 1x and upscaled 2.75x: the backing store is now `devicePixelRatio`
+    times the CSS size (capped at 3), all geometry staying in CSS px.
+  - **First-visit hint**: "pinch / scroll to zoom, tap / click a star; the whole sky is at the
+    bottom right", above any open sheet, until the first pointer down anywhere; remembered in
+    `localStorage` (`sky.mapHintSeen`), shown again if storage is unavailable.
 - **`StarfieldCanvas.svelte`** is the animated background.
 - Avatars are `<img>` pointing at `/api/avatar/{id}`; on load error the UI falls
   back to initials (`getPersonInitials`). A per-id `imageErrors` flag tracks this.
