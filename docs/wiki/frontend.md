@@ -91,16 +91,24 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
     gestures: they call `setTarget` and EASE, and each press starts from the camera TARGET so
     quick presses compound. "Sortir" and the brand show the whole sky the same way; deselecting
     by itself (a click on empty space) no longer moves the camera.
-  - **One framing of a star** (`focusView` in `camera.ts`, `frameStar` in `mapActions.ts`): its
-    neighbourhood within the focus depth, boxed with a 1.5 margin, zoom capped to [0.1, 1], a lone
-    star at 0.8. The auto-zoom on selection, "my star", the sheet's "centre" button and the landing
-    all use it, so they land on the same view.
+  - **One framing of a star** (`focusView` in `camera.ts`, `frameStar` in `mapActions.ts`): the
+    STAR at the centre of the band the chrome leaves free (`framingInsets`, set by the page: below
+    the focus chip and above the peek on a phone, below the chip and right of the 400 px drawer on
+    desktop), zoomed so its neighbourhood within the focus depth fits that band with a 1.5 margin,
+    capped to [0.1, 1], a lone star at 0.8. Centring the neighbourhood's BOX instead put the star at
+    59% of the Mi 9T's height, half under the sheet. The auto-zoom on selection, "my star", the
+    sheet's "centre" button and the landing all use it, so they land on the same view.
   - **The landing** (user decision, 2026-09-25; `decideLanding` in `src/lib/utils/landing.ts`,
     unit-tested): once the graph has loaded, a signed-in member whose account has a positioned star
     lands ON it - selected (so its sheet opens at peek with the card, godparents and godchildren)
     and framed INSTANTLY (`jumpTo`, no flight from the overview; the selection's auto-zoom then
     targets the same view and eases nowhere). A selection already made wins; no star keeps the
-    overview; signed out nothing changes. Decided once per page load.
+    overview; signed out nothing changes. Decided once per page load, from a `graphStore`
+    SUBSCRIPTION: run from a `$:` statement, the selection it wrote never re-ran `syncProfile`
+    (a store written inside a reactive statement does not re-run the statements already run in that
+    flush), so the star was in focus and no sheet opened. The landing and "my star" paths are pinned
+    by mounting the real page in `src/routes/page.test.ts`. Selecting goes through `selectStar`
+    (`graphStore.ts`): a star already selected asks for its sheet back instead of a silent re-set.
   - **Stars** are a constant 4 CSS px radius at every zoom (`STAR_RADIUS`). Measured on the rig's
     layout at 393 px: at overview the median nearest-neighbour gap is 3.5 px (p25 2.5, p75 6.5),
     so a bigger dot only merges more of the overview. The "dust" seen on the Mi 9T came from the
@@ -120,9 +128,11 @@ from `home_loading_*`), the focus chip and the profile panel.
 
 - **The profile panel** is `ProfileSheet.svelte` (tested in `ProfileSheet.test.ts`): a left
   drawer below the top bar on desktop, and on a phone (<= 768 px) a bottom sheet after the Google
-  Maps place sheet. It opens at a **peek** (30% of the height: avatar, name, promo, the two
-  actions in a compact row) so the map stays usable above it, and snaps to **half** (60%) and
-  **full** (88%, short of the 72 px bar, which stays above it). Dragging is on the handle only
+  Maps place sheet. It opens at a **peek** of exactly its content, `SHEET_PEEK_PX` = 176 CSS px
+  (196 dp on the Mi 9T): the handle, ONE row (40 px avatar, name over "Promo 2024" as plain muted
+  text, round translucent 40 px icon actions - centre the view, Canari profile), the first links
+  heading and the first parent line, without scrolling. It snaps to **half** (60%) and **full**
+  (88%). Dragging is on the handle only
   (`touch-action: none`), the release projected 180 ms along its velocity and snapped to the
   nearest state, or dismissed below 60% of the peek (`settleSheet` in `src/lib/utils/sheet.ts`,
   unit-tested). The handle is also a button: a tap or Enter toggles peek / full, ArrowUp /

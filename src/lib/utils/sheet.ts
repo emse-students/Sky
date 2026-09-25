@@ -8,10 +8,20 @@
 export type SheetState = 'peek' | 'half' | 'full';
 
 /**
- * Height of each state as a share of the viewport height. Full stops short of the 72 px top bar
- * (which stays above the sheet, search included) on any phone taller than 600 px.
+ * Height of the half and full states as a share of the viewport height. Full stops short of the
+ * top of the screen, where the account disc and the search row live.
  */
-export const SHEET_SNAPS: Record<SheetState, number> = { peek: 0.3, half: 0.6, full: 0.88 };
+export const SHEET_SNAPS: Record<'half' | 'full', number> = { half: 0.6, full: 0.88 };
+
+/**
+ * Height of the PEEK in CSS px: exactly its content - the 36 px handle, the one-row card (40 px
+ * avatar, name over promo, the round actions; 56 px with its padding), the first links heading and
+ * the first parent line (48 px), with a little air: 176 px, 196 dp on the Mi 9T (2.75 device px
+ * per CSS px, 2.475 per dp). It was 30% of the height (228 px there) with a 140 px avatar row that
+ * never showed a parent without scrolling - heavy next to Sky Map's result chip. Never more than
+ * half a (very short) screen.
+ */
+export const SHEET_PEEK_PX = 176;
 
 /** The states from lowest to highest. */
 export const SHEET_ORDER: readonly SheetState[] = ['peek', 'half', 'full'];
@@ -29,6 +39,7 @@ export const SHEET_DISMISS_RATIO = 0.6;
 
 /** Pixel height of `state` in a viewport `viewportHeight` pixels tall. */
 export function sheetHeight(state: SheetState, viewportHeight: number): number {
+  if (state === 'peek') return Math.min(SHEET_PEEK_PX, Math.round(viewportHeight / 2));
   return Math.round(SHEET_SNAPS[state] * viewportHeight);
 }
 

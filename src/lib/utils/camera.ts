@@ -143,6 +143,8 @@ export const SINGLE_STAR_ZOOM = 0.8;
 export interface Insets {
   top: number;
   bottom: number;
+  /** Covered on the left (the desktop person drawer); 0 when omitted. */
+  left?: number;
 }
 
 /**
@@ -192,29 +194,50 @@ export const FOCUS_ZOOM_MIN = 0.1;
 export const FOCUS_ZOOM_MAX = 1;
 
 /**
- * The view that frames a star's neighbourhood: the box of `group` (the star and the stars within
- * the focus depth) centred, with a margin, its zoom capped to the focus range. With one point or
- * fewer it centres on `star` at `LONE_STAR_ZOOM`. The ONE framing of a selection - the auto-zoom,
- * "go to my star" and the landing on one's own star all use it, so they land on the same view.
+ * The view that frames a star's neighbourhood: the STAR at the centre of the band the chrome leaves
+ * free (`insets`: the focus chip above, the peek sheet below, the desktop drawer on the left), zoomed
+ * so every star of `group` (the stars within the focus depth) is inside that band with a margin,
+ * the zoom capped to the focus range. A star with no neighbour at a distance gets `LONE_STAR_ZOOM`.
+ *
+ * Centring the star, not the neighbourhood's box, is the point: the box's centre put the selected
+ * star at 59% of the screen height on the Mi 9T, half hidden by the sheet, with the upper half of
+ * the screen empty sky. The ONE framing of a selection - the auto-zoom, "go to my star", "centre the
+ * view" and the landing all use it, so they land on the same view.
  */
 export function focusView(
   star: { x: number; y: number },
   group: readonly { x: number; y: number }[],
-  viewport: Viewport
+  viewport: Viewport,
+  insets: Insets = { top: 0, bottom: 0 }
 ): View {
-  if (group.length <= 1) return { x: star.x, y: star.y, zoom: LONE_STAR_ZOOM };
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
+  const left = insets.left ?? 0;
+  const bandW = Math.max(1, viewport.width - left);
+  const bandH = Math.max(1, viewport.height - insets.top - insets.bottom);
+
+  // Half-extent of the neighbourhood around the STAR, on each axis.
+  let halfW = 0;
+  let halfH = 0;
   for (const p of group) {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
+    halfW = Math.max(halfW, Math.abs(p.x - star.x));
+    halfH = Math.max(halfH, Math.abs(p.y - star.y));
   }
-  const zoomX = viewport.width / ((maxX - minX) * FOCUS_MARGIN);
-  const zoomY = viewport.height / ((maxY - minY) * FOCUS_MARGIN);
-  const zoom = Math.min(Math.max(Math.min(zoomX, zoomY), FOCUS_ZOOM_MIN), FOCUS_ZOOM_MAX);
-  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom };
+  const zoom =
+    halfW === 0 && halfH === 0
+      ? LONE_STAR_ZOOM
+      : Math.min(
+          Math.max(
+            Math.min(bandW / (2 * halfW * FOCUS_MARGIN), bandH / (2 * halfH * FOCUS_MARGIN)),
+            FOCUS_ZOOM_MIN
+          ),
+          FOCUS_ZOOM_MAX
+        );
+
+  // The camera names the world point at the SCREEN centre; the star must sit at the BAND centre.
+  const bandCx = left + bandW / 2;
+  const bandCy = insets.top + bandH / 2;
+  return {
+    x: star.x - (bandCx - viewport.width / 2) / zoom,
+    y: star.y - (bandCy - viewport.height / 2) / zoom,
+    zoom,
+  };
 }

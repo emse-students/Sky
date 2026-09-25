@@ -37,6 +37,14 @@ signed-in member with a star now lands on it, selected and framed, its sheet at 
 became "show the whole sky". Mechanism and fallbacks: [frontend.md - Rendering](frontend.md#rendering).
 Owed on the Mi 9T: the landing shows no flight from the overview, and the dots read as crisp dots.
 
+Measured there on #125/#126 (2026-09-25), three defects, fixed together: **no sheet opened on load or
+from "my star"** (the landing ran from a `$:` statement whose store write never re-ran the sheet's
+statement - now a subscription, pinned by a test that mounts the real page); **the star sat at 59%
+of the height** (the framing centred the neighbourhood's box - now the star is centred in the band
+between the chip and the peek); **the peek was heavy** - it is now 176 CSS px (196 dp, was 228 px /
+253 dp): one row with a 40 px avatar, the promo as muted text, round 40 px icon actions, then the
+first parent line.
+
 ## The phone chrome follows Google Sky Map (user decision, 2026-09-25)
 
 The user asked for Sky Map's look and called the focus panel "enorme". Sky Map was measured on the Mi
