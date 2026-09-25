@@ -65,6 +65,30 @@ a positions recompute. The scatter mirrors the server's `scatterIsolated`.
     currently displayed nodes, so the full ramp is used whatever the span;
     unknown promos get a neutral tint. Selected (amber) and hovered (light blue)
     nodes keep their highlight color.
+  - **Labels are placed, not all drawn** (`src/lib/utils/labels.ts`, unit-tested in
+    `labels.test.ts`), the way a map does it. Every on-screen star is a candidate with a
+    screen-space box (names are drawn at a constant 12 px, so collisions are a screen question
+    whatever the zoom) and a rank from `labelPriority`: selected > hovered > direct neighbour of
+    the selected star > the rest, and within a tier the higher link DEGREE on the whole graph (a
+    hub names its family). `placeLabels` walks the candidates in rank order (ties by id, so a
+    scene always yields the same labels) and keeps one only if its box, padded by 3 px, overlaps
+    none already kept - an occupancy grid of 64 px cells keeps it near-linear. Labels fade in and
+    out over ~150 ms (`LabelFader`) instead of popping; while a fade is in flight the on-demand
+    loop keeps drawing. There is no zoom threshold any more: at overview only the hubs are named.
+    A dark 3 px outline (`strokeText`) keeps a name legible over links - a map halo, functional.
+    Only a label actually drawn is a hit target. Until 2026-09 every name was drawn once the zoom
+    passed 0.15, piling up into unreadable text in dense families.
+  - **Map controls** (`MapControls.svelte`, tested in `MapControls.test.ts`): bottom-right, 48 px
+    targets - zoom in, zoom out (x2 per press, `BUTTON_ZOOM_FACTOR`), fit (`fitView`: what is
+    displayed, i.e. the focus neighbourhood in focus mode, fitted to 85% of the area the top bar
+    and any bottom sheet leave uncovered), "my star" (when the user has one) and a collapsible
+    legend (promo ramp, unknown promo, selected star, solid = parrainage, dashed = adoption).
+    Buttons are not gestures: they call `setTarget` and EASE, and each press starts from the
+    camera TARGET so quick presses compound. The focus hub moved to the top-right to leave that
+    corner to the controls.
+  - **First-visit hint**: "pinch / scroll to zoom, tap / click a star", until the first pointer
+    down anywhere; remembered in `localStorage` (`sky.mapHintSeen`), shown again if storage is
+    unavailable.
 - **`StarfieldCanvas.svelte`** is the animated background.
 - Avatars are `<img>` pointing at `/api/avatar/{id}`; on load error the UI falls
   back to initials (`getPersonInitials`). A per-id `imageErrors` flag tracks this.

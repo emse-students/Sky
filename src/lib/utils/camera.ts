@@ -125,3 +125,55 @@ export function zoomBoundsFor(
 
   return { min: Math.min(fit * MIN_ZOOM_FIT_RATIO, MAX_ZOOM), max: MAX_ZOOM };
 }
+
+/**
+ * Zoom factor of one press on the + / - map control: x2, one "zoom level" of Google Maps. A
+ * button is not a gesture - its move eases toward the target - so presses in quick succession
+ * compound from the TARGET, not from the frame in flight.
+ */
+export const BUTTON_ZOOM_FACTOR = 2;
+
+/** Share of the visible area a fitted graph fills, leaving a margin so no star sits on an edge. */
+export const FIT_FILL = 0.85;
+
+/** Zoom used to "fit" a single star, which has no extent to fit (the same as a lone selection). */
+export const SINGLE_STAR_ZOOM = 0.8;
+
+/** Screen pixels covered by chrome on an edge (the top bar, a bottom sheet), where nothing fits. */
+export interface Insets {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The view that fits every point of `positions` inside the part of the viewport `insets` leaves
+ * uncovered, centred in it - the "recentre" control. Returns null when there is nothing to fit.
+ */
+export function fitView(
+  positions: Iterable<{ x: number; y: number }>,
+  viewport: Viewport,
+  insets: Insets = { top: 0, bottom: 0 }
+): View | null {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const pos of positions) {
+    minX = Math.min(minX, pos.x);
+    maxX = Math.max(maxX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxY = Math.max(maxY, pos.y);
+  }
+  if (minX === Infinity) return null;
+
+  const visibleHeight = Math.max(1, viewport.height - insets.top - insets.bottom);
+  const fitX = maxX > minX ? (viewport.width * FIT_FILL) / (maxX - minX) : Infinity;
+  const fitY = maxY > minY ? (visibleHeight * FIT_FILL) / (maxY - minY) : Infinity;
+  const fit = Math.min(fitX, fitY);
+  const zoom = fit === Infinity ? SINGLE_STAR_ZOOM : Math.min(fit, MAX_ZOOM);
+
+  // The camera names the world point at the SCREEN centre; the graph's centre must land on the
+  // centre of the uncovered area instead, which sits (top - bottom) / 2 below it.
+  const shift = (insets.top - insets.bottom) / 2;
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 - shift / zoom, zoom };
+}
