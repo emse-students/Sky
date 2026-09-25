@@ -23,19 +23,20 @@ disagree, the code wins and the page is a bug.
 
 ## Map of the wiki
 
-| Page                                             | What it covers                                                               |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [architecture.md](architecture.md)               | Request lifecycle, hook sequence, route map, repo layout                     |
-| [authentication.md](authentication.md)           | OIDC flow, the ICM gate, sessions, admin roles                               |
-| [identity-model.md](identity-model.md)           | Placeholder vs account records, login linking, relink/unlink/merge           |
-| [data-model.md](data-model.md)                   | SQLite schema, FTS, `positions.json`, the legacy snapshot                    |
-| [godparent-graph.md](godparent-graph.md)         | Relations, the 1/1/3/2 rules, cycles, families, the entourage editor, layout |
-| [matching-and-search.md](matching-and-search.md) | Tolerant name matching and search ranking                                    |
-| [frontend.md](frontend.md)                       | Stores, canvas rendering, focus mode, the profile panel, i18n                |
-| [integrations.md](integrations.md)               | MiGallery avatars, Canari profile, the outbound entourage API                |
-| [api-reference.md](api-reference.md)             | Every HTTP endpoint, its auth and its shape                                  |
-| [seo.md](seo.md)                                 | The head of the one public page, robots.txt, and why there is no sitemap     |
-| [deployment.md](deployment.md)                   | Docker, CD, secrets, migrations, backups                                     |
+| Page                                             | What it covers                                                                    |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)               | Request lifecycle, hook sequence, route map, repo layout                          |
+| [authentication.md](authentication.md)           | OIDC flow, the ICM gate, sessions, admin roles                                    |
+| [identity-model.md](identity-model.md)           | Placeholder vs account records, login linking, relink/unlink/merge                |
+| [data-model.md](data-model.md)                   | SQLite schema, FTS, `positions.json`, the legacy snapshot                         |
+| [godparent-graph.md](godparent-graph.md)         | Relations, the 1/1/3/2 rules, cycles, families, the entourage editor, layout      |
+| [ui-audit.md](ui-audit.md)                       | The 2026-09-25 UI audit: the uncontrollable zoom, the map controls, the work list |
+| [matching-and-search.md](matching-and-search.md) | Tolerant name matching and search ranking                                         |
+| [frontend.md](frontend.md)                       | Stores, canvas rendering, focus mode, the profile panel, i18n                     |
+| [integrations.md](integrations.md)               | MiGallery avatars, Canari profile, the outbound entourage API                     |
+| [api-reference.md](api-reference.md)             | Every HTTP endpoint, its auth and its shape                                       |
+| [seo.md](seo.md)                                 | The head of the one public page, robots.txt, and why there is no sitemap          |
+| [deployment.md](deployment.md)                   | Docker, CD, secrets, migrations, backups                                          |
 
 ## Conventions used in Sky code
 
