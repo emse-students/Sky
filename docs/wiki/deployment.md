@@ -95,6 +95,21 @@ the mirror and `--archive <path>` a given one. The source is always named on the
 it never falls back from local to offsite on its own. The cron line is in
 [MIGRATION.md](../../MIGRATION.md).
 
+### The history was rewritten on 2026-09-27 - reclone rather than pull
+
+Four SQLite files had been committed at some point and deleted later, so they were still in the
+history of a PUBLIC repository: `auth.db`, `database/sky.db`, `database/sky.db.backup` and
+`database/sky.db.backup-1769986797277`. They were removed from every commit with
+`git filter-repo --invert-paths`, and every branch and tag was force-pushed while the `main`
+ruleset was disabled for that one push; it was re-enabled right after, identical to before.
+Main's tree did not change (same tree hash, same 264 commits), but **every SHA did**, so a clone
+older than that day diverges from `origin` and must be recloned, never merged: a push from it
+would bring the files back. `.gitignore` already covers all four names.
+
+GitHub keeps the old commits reachable through the `refs/pull/*` refs of the 134 past pull
+requests until its Support runs a garbage collection on request. The server holds no checkout
+(it runs images), so nothing on it changed.
+
 ## Local development
 
 ```bash
