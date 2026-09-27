@@ -90,10 +90,13 @@ generates `.env`, syncs `docker-compose.prod.yml` and `scripts/` into `SKY_DEPLO
 
 ## 6. Recurring Backups
 
-The deploy user's crontab on the server (`/srv/sky-backups` owned by that user):
+The deploy user's crontab on the server (`/srv/sky-backups` owned by that user). **`BACKUP_DIR` is
+set ON THE LINE**: that crontab is shared with Canari's backups and sets `BACKUP_DIR=/srv/canari-backups`
+at its top, which every job inherits - without the prefix Sky's archives would land in Canari's
+directory and under its retention (found installing it, 2026-09-27; le Cercle's line does the same).
 
 ```cron
-45 4 * * * /srv/sky/scripts/backup.sh >> /srv/sky-backups/backup.log 2>&1
+45 4 * * * BACKUP_DIR=/srv/sky-backups /srv/sky/scripts/backup.sh >> /srv/sky-backups/backup.log 2>&1
 ```
 
 ## Checklist
