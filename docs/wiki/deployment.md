@@ -83,7 +83,12 @@ The same shape as Canari's and le Cercle's backups (2026-09-25). The deploy user
 never a `cp` of the live file), writes `sky-backup-<timestamp>.tar.gz` with a manifest into
 `/srv/sky-backups`, keeps 14 days, then mirrors the archive to the `mitv` NAS
 (`canaribackup@10.0.0.4:/srv/sky-backups`, the account and path shape Canari's own backup uses).
-`sky.db` is the whole state - people, relationships and sessions, so a restore signs nobody out.
+The archive carries **three** files, and `sky.db` alone is NOT the whole state: `sky.db` (people,
+relationships, sessions - a restore signs nobody out), `sky-legacy.db` (the pre-rebuild snapshot
+`/admin/legacy` reads; `scripts/rebuild-db.js` writes it once, whenever it is absent, so a copy
+without it silently regenerates it from the wrong data - measured on the School host's first start,
+2026-09-25) and `positions.json` (the star map's layout, recomputed on a mutation, never at start).
+`restore.sh` refuses an archive without `sky-legacy.db`.
 
 `scripts/restore.sh --yes` restores the newest local archive; `--offsite` takes the newest one on
 the mirror and `--archive <path>` a given one. The source is always named on the command line:
