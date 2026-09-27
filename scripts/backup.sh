@@ -20,7 +20,7 @@ BACKUP_DIR="${BACKUP_DIR:-/srv/sky-backups}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 # compose names it <project>-<service>-1, and the project is the deploy directory's name (`sky`).
 SKY_CONTAINER="${SKY_CONTAINER:-sky-sky-1}"
-DB_IN_CONTAINER="${DB_IN_CONTAINER:-/app/database/sky.db}"
+DB_DIR_IN_CONTAINER="${DB_DIR_IN_CONTAINER:-/app/database}"
 # Offsite mirror: the mitv NAS, over the School network - the same account and path shape
 # Canari's own backup uses every night. An EMPTY BACKUP_SSH_HOST disables it, and that is the only
 # gesture that does - hence `-` and not `:-` below: `:-` treats empty as unset and puts the default
@@ -37,23 +37,43 @@ docker inspect "$SKY_CONTAINER" >/dev/null 2>&1 || fail "container ${SKY_CONTAIN
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/sky-backup.XXXXXX")"
 ARCHIVE_PATH="${BACKUP_DIR}/sky-backup-${TIMESTAMP}.tar.gz"
-SNAPSHOT_IN_CONTAINER="/tmp/sky-backup-${TIMESTAMP}.db"
-trap 'rm -rf "$STAGE"; docker exec "$SKY_CONTAINER" rm -f "$SNAPSHOT_IN_CONTAINER" >/dev/null 2>&1 || true' EXIT
+SNAPSHOT_PREFIX="/tmp/sky-backup-${TIMESTAMP}"
+trap 'rm -rf "$STAGE"; docker exec "$SKY_CONTAINER" sh -c "rm -f ${SNAPSHOT_PREFIX}-*" >/dev/null 2>&1 || true' EXIT
 
 mkdir -p "$BACKUP_DIR"
 log "Starting backup -> $ARCHIVE_PATH"
 
-# -- 1. Consistent snapshot ---------------------------------------------------
+# -- 1. Consistent snapshots --------------------------------------------------
 # VACUUM INTO is the documented-safe way to copy a live SQLite database; a `cp` while the app
-# writes is how a backup ends up subtly corrupt. The snapshot carries the sessions too, so a
-# restore signs nobody out.
-log "VACUUM INTO a consistent snapshot..."
-docker exec "$SKY_CONTAINER" bun -e "
-  const { Database } = require('bun:sqlite');
-  new Database('${DB_IN_CONTAINER}', { readonly: true }).exec(\"VACUUM INTO '${SNAPSHOT_IN_CONTAINER}'\");
-" || fail "VACUUM INTO failed"
-docker cp "${SKY_CONTAINER}:${SNAPSHOT_IN_CONTAINER}" "$STAGE/sky.db" || fail "docker cp of the snapshot failed"
-gzip "$STAGE/sky.db"
+# writes is how a backup ends up subtly corrupt. sky.db carries the sessions too, so a restore
+# signs nobody out.
+#
+# sky-legacy.db is state too, and it cannot be regenerated: scripts/rebuild-db.js writes it ONCE,
+# whenever it is absent, as the pre-rebuild snapshot /admin/legacy reads. A restore without it gets
+# a fresh copy of TODAY's data at the next start - which is what the first start on the School
+# host did (2026-09-25). The container always has it, since that script runs before the server.
+snapshot() {
+  local name="$1"
+  log "VACUUM INTO a consistent snapshot of ${name}..."
+  docker exec "$SKY_CONTAINER" bun -e "
+    const { Database } = require('bun:sqlite');
+    new Database('${DB_DIR_IN_CONTAINER}/${name}', { readonly: true }).exec(\"VACUUM INTO '${SNAPSHOT_PREFIX}-${name}'\");
+  " || fail "VACUUM INTO of ${name} failed"
+  docker cp "${SKY_CONTAINER}:${SNAPSHOT_PREFIX}-${name}" "$STAGE/${name}" || fail "docker cp of ${name} failed"
+  gzip "$STAGE/${name}"
+}
+snapshot sky.db
+snapshot sky-legacy.db
+
+# positions.json is the star map's layout. It is recomputed on a mutation, never at start, so a
+# restore without it shows a clumped map until the next edit. A database that has never been laid
+# out has none, and the manifest says so rather than the archive pretending otherwise.
+if docker exec "$SKY_CONTAINER" test -f "${DB_DIR_IN_CONTAINER}/positions.json"; then
+  docker cp "${SKY_CONTAINER}:${DB_DIR_IN_CONTAINER}/positions.json" "$STAGE/positions.json" \
+    || fail "docker cp of positions.json failed"
+else
+  log "positions.json absent in the container - never laid out, archived without it"
+fi
 
 # -- 2. Manifest, derived from what was actually produced --------------------
 MEMBERS=""
@@ -68,8 +88,9 @@ created_by: $(whoami)@$(hostname)
 container: ${SKY_CONTAINER}
 content (listed from what was actually archived):
 ${MEMBERS}
-sky.db is the whole of Sky's state - people, relationships and sessions. positions.json is
-recomputed from it and is not archived; auth.db has had no writer since 2026-02 and is not either.
+sky.db holds people, relationships and sessions; sky-legacy.db is the pre-rebuild snapshot
+/admin/legacy reads, written once and never regenerable; positions.json is the star map's layout,
+recomputed only on a mutation. auth.db has had no writer since 2026-02 and is not archived.
 EOF
 
 tar czf "$ARCHIVE_PATH" -C "$STAGE" .

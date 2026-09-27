@@ -6,14 +6,14 @@ restoration.
 
 ## Deployment Architecture
 
-| Element | Detail                                                                                 |
-| ------- | -------------------------------------------------------------------------------------- |
-| Runtime | `sky` Docker container (SvelteKit adapter-node, Node), port 3001                       |
-| Data    | `database/` mounted as volume: `sky.db` (SQLite, identities + sessions) + `schema.sql` |
-| Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                       |
-| CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy    |
-| Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`          |
-| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)     |
+| Element | Detail                                                                                                                                                    |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime | `sky` Docker container (SvelteKit adapter-node, Node), port 3001                                                                                          |
+| Data    | `database/` mounted as volume: `sky.db` (identities + sessions), `sky-legacy.db` (pre-rebuild snapshot, not regenerable), `positions.json` + `schema.sql` |
+| Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                                                                                          |
+| CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy                                                                       |
+| Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`                                                                             |
+| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)                                                                        |
 
 > Runtime is Node (not Bun): `better-sqlite3` is used by non-bundled scripts
 > (`init-db.js`, migrations) that Bun cannot load. Graph position computation is
