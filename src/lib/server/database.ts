@@ -64,10 +64,6 @@ export function closeDatabase(): void {
     db.close();
     db = null;
   }
-  if (legacyDb) {
-    legacyDb.close();
-    legacyDb = null;
-  }
 }
 
 export function getDatabase(): Database {
@@ -965,119 +961,6 @@ export function generatePersonId(
     idx += 1;
   }
   return `${stem}.${idx}`;
-}
-
-// ============================================
-// LEGACY DB (lecture seule, fenetre /admin/legacy)
-// ============================================
-
-const LEGACY_DB_PATH = path.join(process.cwd(), 'database', 'sky-legacy.db');
-let legacyDb: Database | null = null;
-
-/** True if the legacy snapshot (frozen old database) exists. */
-export function legacyExists(): boolean {
-  return fs.existsSync(LEGACY_DB_PATH);
-}
-
-/** Lazily open the legacy database read-only, else null. */
-function getLegacyDatabase(): Database | null {
-  if (!legacyExists()) {
-    return null;
-  }
-  if (!legacyDb) {
-    legacyDb = new Database(LEGACY_DB_PATH, { readonly: true });
-  }
-  return legacyDb;
-}
-
-/** A record from the old database (schema v3: no SSO). */
-export interface LegacyPerson {
-  id: string;
-  first_name: string;
-  last_name: string;
-  level: number | null;
-  bio: string | null;
-  image_url: string | null;
-}
-
-/** Entity counts of the old database. */
-export function getLegacyCounts(): {
-  people: number;
-  relationships: number;
-  links: number;
-} {
-  const ldb = getLegacyDatabase();
-  if (!ldb) {
-    return { people: 0, relationships: 0, links: 0 };
-  }
-  const count = (sql: string): number => {
-    try {
-      return (ldb.prepare(sql).get() as { c: number }).c;
-    } catch {
-      return 0;
-    }
-  };
-  return {
-    people: count('SELECT count(*) c FROM people'),
-    relationships: count('SELECT count(*) c FROM relationships'),
-    links: count('SELECT count(*) c FROM external_links'),
-  };
-}
-
-/** Search the old database (last name, first name, id, class). */
-export function getLegacyPeople(search: string, limit = 200): LegacyPerson[] {
-  const ldb = getLegacyDatabase();
-  if (!ldb) {
-    return [];
-  }
-  const q = search.trim().toLowerCase();
-  const rows = q
-    ? (ldb
-        .prepare(
-          `SELECT id, first_name, last_name, level, bio, image_url FROM people
-           WHERE lower(first_name) LIKE ? OR lower(last_name) LIKE ?
-              OR lower(id) LIKE ? OR CAST(level AS TEXT) LIKE ?
-           ORDER BY last_name, first_name LIMIT ?`
-        )
-        .all(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, limit) as LegacyPerson[])
-    : (ldb
-        .prepare(
-          `SELECT id, first_name, last_name, level, bio, image_url FROM people
-           ORDER BY last_name, first_name LIMIT ?`
-        )
-        .all(limit) as LegacyPerson[]);
-  return rows;
-}
-
-/**
- * Relations (incoming parrains, outgoing fillots) of a legacy record. `relId` is the relationship
- * row's `rowid` - the one key unique per row whatever the snapshot's schema declares, since the
- * same person can be linked twice (once per type) and the page keys its list on it.
- */
-export function getLegacyPersonRelations(id: string): {
-  parrains: { relId: number; id: string; name: string; type: string }[];
-  fillots: { relId: number; id: string; name: string; type: string }[];
-} {
-  const ldb = getLegacyDatabase();
-  if (!ldb) {
-    return { parrains: [], fillots: [] };
-  }
-  // source = parrain -> target = fillot. Parrains of P: target_id = P.
-  const parrains = ldb
-    .prepare(
-      `SELECT r.rowid AS relId, p.id, p.last_name || ' ' || p.first_name AS name, r.type
-       FROM relationships r JOIN people p ON p.id = r.source_id
-       WHERE r.target_id = ? ORDER BY r.type`
-    )
-    .all(id) as { relId: number; id: string; name: string; type: string }[];
-  const fillots = ldb
-    .prepare(
-      `SELECT r.rowid AS relId, p.id, p.last_name || ' ' || p.first_name AS name, r.type
-       FROM relationships r JOIN people p ON p.id = r.target_id
-       WHERE r.source_id = ? ORDER BY r.type`
-    )
-    .all(id) as { relId: number; id: string; name: string; type: string }[];
-  return { parrains, fillots };
 }
 
 // ============================================

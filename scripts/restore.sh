@@ -6,7 +6,7 @@
 #   /srv/sky/scripts/restore.sh --yes --offsite           # the newest archive on the offsite mirror
 #   /srv/sky/scripts/restore.sh --yes --archive <path>    # that archive
 #
-# DESTRUCTIVE: replaces database/sky.db, sky-legacy.db and positions.json. Requires --yes. Each
+# DESTRUCTIVE: replaces database/sky.db and positions.json. Requires --yes. Each
 # file it replaces is kept beside it as <name>.before-restore-<timestamp>. Where the archive comes from is always NAMED on the
 # command line - it never falls back from local to offsite, because a restore that silently took
 # an older copy from elsewhere is one nobody can reason about afterwards.
@@ -64,14 +64,8 @@ tar xzf "$ARCHIVE" -C "$STAGE" || fail "cannot read archive: $ARCHIVE"
 if [ ! -f "$STAGE/sky.db.gz" ] || [ ! -f "$STAGE/MANIFEST.txt" ]; then
   fail "not a backup.sh archive: $ARCHIVE"
 fi
-# An archive written before sky-legacy.db was carried cannot restore it, and restoring the rest
-# would leave the next start to regenerate it from the RESTORED data - a wrong /admin/legacy that
-# looks right. Refuse, and name the way through.
-if [ ! -f "$STAGE/sky-legacy.db.gz" ]; then
-  fail "archive has no sky-legacy.db (written before 2026-09-27): take a later one, or copy sky-legacy.db by hand first"
-fi
 sed 's/^/  /' "$STAGE/MANIFEST.txt"
-gunzip "$STAGE/sky.db.gz" "$STAGE/sky-legacy.db.gz"
+gunzip "$STAGE/sky.db.gz"
 
 log "Stopping Sky..."
 $COMPOSE stop sky
@@ -86,7 +80,6 @@ put() {
   log "Restored -> $dest"
 }
 put sky.db
-put sky-legacy.db
 if [ -f "$STAGE/positions.json" ]; then
   put positions.json
 else

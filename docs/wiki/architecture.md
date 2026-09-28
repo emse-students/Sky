@@ -60,7 +60,7 @@ src/routes/
 │   ├── logout/+server.ts    # GET/POST -> delete session + cookie
 │   └── link/                # disambiguation screen (choose which record is you)
 ├── account/                 # self-service "fix my link" (relink)
-├── admin/                   # dashboard, people manager, legacy browser (admin only)
+├── admin/                   # dashboard, people manager (admin only)
 └── api/                     # REST endpoints (see api-reference.md)
 ```
 
