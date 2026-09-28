@@ -90,7 +90,7 @@ pattern is what has to change.
 ## Deployment topology
 
 Production runs as a single Docker container (`adapter-node`, Node runtime) on
-port `3001`, behind a reverse proxy that terminates TLS for `sky.mitv.fr`. The
+port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 `database/` directory is a mounted volume holding `sky.db`, `schema.sql`, and the
 generated `positions.json`. See [deployment.md](deployment.md) for the full
 picture.
