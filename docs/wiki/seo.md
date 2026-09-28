@@ -17,7 +17,7 @@ the JavaScript.
 Measured on prod on 2026-08-19, before any change:
 
 ```
-curl https://sky.mitv.fr/
+curl https://sky.emse.fr/
   -> <head> with charset, icon, viewport, two font preconnects, a stylesheet
      and <title>Sky - Cartographie ICM</title>. Nothing else.
 ```
@@ -59,7 +59,7 @@ Under `adapter-node` that origin comes from the request, and without `ORIGIN` th
 adapter derives it from the `Host` header: the right hostname, but the scheme the
 reverse proxy spoke, which is `http`. A preview image at `http://` is one no
 unfurler will fetch. `docker-compose.prod.yml` therefore sets
-`ORIGIN=${SKY_ORIGIN:-https://sky.mitv.fr}`, which is also the origin
+`ORIGIN=${SKY_ORIGIN:-https://sky.emse.fr}`, which is also the origin
 `adapter-node` compares against for its CSRF check.
 
 ### Escaping is the part that will matter later

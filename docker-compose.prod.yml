@@ -25,7 +25,7 @@ services:
       # the head (og:url, og:image, canonical) is built from `url.origin`, so a
       # preview pointing at http:// is one no unfurler can fetch. It is also the
       # origin adapter-node compares against for its CSRF check.
-      ORIGIN: ${SKY_ORIGIN:-https://sky.mitv.fr}
+      ORIGIN: ${SKY_ORIGIN:-https://sky.emse.fr}
       # SSO Authentik (miconnect). Base non secrete (defaut ci-dessous) ; les
       # endpoints sont a /application/o/<endpoint>/ (globaux, sans slug, comme Canari).
       MICONNECT_BASE_URL: ${MICONNECT_BASE_URL:-https://auth.canari-emse.fr}

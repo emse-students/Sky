@@ -1,7 +1,7 @@
 # Deployment
 
 Sky runs as a single Docker container (SvelteKit `adapter-node`, Node runtime) on
-port `3001`, behind a reverse proxy that terminates TLS for `sky.mitv.fr`. The
+port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 image is built and published to GHCR by the CD. This page is the operational
 summary; [MIGRATION.md](../../MIGRATION.md) is the authoritative, checklist-style
 runbook for cloning Sky onto a new server and must be kept in sync when the
@@ -63,14 +63,15 @@ in `docker-compose.prod.yml`.
 | `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`                                                                                                                                                                                                                                                                            |
 | `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                                                                                                                                                                                                                                                                                      |
 | `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it)                                                                                                                                                                                                                                                                |
-| `SKY_ORIGIN`              | no           | Public origin; default `https://sky.mitv.fr`. Sets `ORIGIN` for `adapter-node`: without it the origin is derived from the `Host` header, which keeps the hostname and loses the scheme, and every absolute URL in the head is built from it (see [seo.md](seo.md)). It is also the origin `adapter-node` checks for CSRF |
+| `SKY_ORIGIN`              | no           | Public origin; default `https://sky.emse.fr`. Sets `ORIGIN` for `adapter-node`: without it the origin is derived from the `Host` header, which keeps the hostname and loses the scheme, and every absolute URL in the head is built from it (see [seo.md](seo.md)). It is also the origin `adapter-node` checks for CSRF |
 
 The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
 
 ### Authentik app requirements
 
 The Sky app in Authentik must register the redirect URI
-`https://sky.mitv.fr/auth/callback` and expose the claims used by the login flow
+`https://sky.emse.fr/auth/callback` (and, while the old name still redirects, `https://sky.mitv.fr/auth/callback`
+beside it - both registered since 2026-09-28) and expose the claims used by the login flow
 (`given_name`/`family_name` or the camelCase `firstName`/`lastName`, `email`,
 `promo`, `formation`) via scopes `openid profile promo name formation`. All of Sky
 is ICM-only; `SKY_ADMIN_SUBS` are the exception (see

@@ -1,4 +1,4 @@
-# Sky - https://sky.mitv.fr
+# Sky - https://sky.emse.fr
 #
 # Sky is not a public site. `src/hooks.server.ts` reserves everything except `/`
 # and `/unauthorized` to a signed-in ICM student and redirects the rest to the
