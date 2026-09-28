@@ -42,20 +42,19 @@ duplicate `newPerson`, `409 { error, code }` on a `RelationError`, or
 
 All require `requireAdmin` (403 otherwise).
 
-| Method | Path                           | Purpose                                                     |
-| ------ | ------------------------------ | ----------------------------------------------------------- |
-| GET    | `/api/admin/people`            | List people (admin view)                                    |
-| POST   | `/api/admin/people`            | Create a person                                             |
-| PUT    | `/api/admin/people/[id]`       | Update a person                                             |
-| PATCH  | `/api/admin/people/[id]`       | Partial update (e.g. role, link/unlink)                     |
-| DELETE | `/api/admin/people/[id]`       | Delete a person                                             |
-| POST   | `/api/admin/merge`             | Merge two records (`mergePeople`)                           |
-| GET    | `/api/admin/merge/suggestions` | Likely-duplicate pairs                                      |
-| POST   | `/api/admin/merge/suggestions` | Ignore a suggested pair                                     |
-| GET    | `/api/admin/legacy`            | Browse `sky-legacy.db` (`?id=` for relations, `?q=` filter) |
-| POST   | `/api/admin/positions/recalc`  | Recompute `positions.json`                                  |
-| GET    | `/api/admin/export`            | Download a copy of the database                             |
-| POST   | `/api/admin/import`            | Replace the database from a backup                          |
+| Method | Path                           | Purpose                                 |
+| ------ | ------------------------------ | --------------------------------------- |
+| GET    | `/api/admin/people`            | List people (admin view)                |
+| POST   | `/api/admin/people`            | Create a person                         |
+| PUT    | `/api/admin/people/[id]`       | Update a person                         |
+| PATCH  | `/api/admin/people/[id]`       | Partial update (e.g. role, link/unlink) |
+| DELETE | `/api/admin/people/[id]`       | Delete a person                         |
+| POST   | `/api/admin/merge`             | Merge two records (`mergePeople`)       |
+| GET    | `/api/admin/merge/suggestions` | Likely-duplicate pairs                  |
+| POST   | `/api/admin/merge/suggestions` | Ignore a suggested pair                 |
+| POST   | `/api/admin/positions/recalc`  | Recompute `positions.json`              |
+| GET    | `/api/admin/export`            | Download a copy of the database         |
+| POST   | `/api/admin/import`            | Replace the database from a backup      |
 
 ## Auth (form/redirect, not JSON)
 

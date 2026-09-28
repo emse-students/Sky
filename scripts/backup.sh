@@ -47,11 +47,6 @@ log "Starting backup -> $ARCHIVE_PATH"
 # VACUUM INTO is the documented-safe way to copy a live SQLite database; a `cp` while the app
 # writes is how a backup ends up subtly corrupt. sky.db carries the sessions too, so a restore
 # signs nobody out.
-#
-# sky-legacy.db is state too, and it cannot be regenerated: scripts/rebuild-db.js writes it ONCE,
-# whenever it is absent, as the pre-rebuild snapshot /admin/legacy reads. A restore without it gets
-# a fresh copy of TODAY's data at the next start - which is what the first start on the School
-# host did (2026-09-25). The container always has it, since that script runs before the server.
 snapshot() {
   local name="$1"
   log "VACUUM INTO a consistent snapshot of ${name}..."
@@ -63,7 +58,6 @@ snapshot() {
   gzip "$STAGE/${name}"
 }
 snapshot sky.db
-snapshot sky-legacy.db
 
 # positions.json is the star map's layout. It is recomputed on a mutation, never at start, so a
 # restore without it shows a clumped map until the next edit. A database that has never been laid
@@ -88,8 +82,7 @@ created_by: $(whoami)@$(hostname)
 container: ${SKY_CONTAINER}
 content (listed from what was actually archived):
 ${MEMBERS}
-sky.db holds people, relationships and sessions; sky-legacy.db is the pre-rebuild snapshot
-/admin/legacy reads, written once and never regenerable; positions.json is the star map's layout,
+sky.db holds people, relationships and sessions; positions.json is the star map's layout,
 recomputed only on a mutation. auth.db has had no writer since 2026-02 and is not archived.
 EOF
 

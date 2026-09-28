@@ -7,7 +7,6 @@
     Link2,
     Download,
     Upload,
-    Archive,
     CircleAlert,
     ChevronRight,
     RefreshCw,
@@ -407,11 +406,6 @@
             hidden
           />
         </label>
-      </div>
-      <div class="tool">
-        <h3><Archive size={18} /> {m.admin_legacy()}</h3>
-        <p>{m.admin_legacy_desc()}</p>
-        <button class="btn" onclick={() => goto('/admin/legacy')}>{m.admin_consult()}</button>
       </div>
       <div class="tool">
         <h3><RefreshCw size={18} /> {m.admin_positions()}</h3>

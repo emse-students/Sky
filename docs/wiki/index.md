@@ -28,7 +28,7 @@ disagree, the code wins and the page is a bug.
 | [architecture.md](architecture.md)               | Request lifecycle, hook sequence, route map, repo layout                     |
 | [authentication.md](authentication.md)           | OIDC flow, the ICM gate, sessions, admin roles                               |
 | [identity-model.md](identity-model.md)           | Placeholder vs account records, login linking, relink/unlink/merge           |
-| [data-model.md](data-model.md)                   | SQLite schema, FTS, `positions.json`, the legacy snapshot                    |
+| [data-model.md](data-model.md)                   | SQLite schema, FTS, `positions.json`                                         |
 | [godparent-graph.md](godparent-graph.md)         | Relations, the 1/1/3/2 rules, cycles, families, the entourage editor, layout |
 | [ui-audit.md](ui-audit.md)                       | The 2026-09-25 UI audit: every row shipped, the Mi 9T reading still owed     |
 | [matching-and-search.md](matching-and-search.md) | Tolerant name matching and search ranking                                    |

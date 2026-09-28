@@ -85,8 +85,7 @@ DROPPED on 2026-08-26 by `scripts/migrate-drop-profile-columns.js`, after
 measuring the production base: 0 non-empty `bio` out of 725, 0 row in
 `external_links`, and 725/725 `image_url` holding the same literal
 `"default.jpg"` that no read path could ever use (the only reader required
-`startsWith("http")`). The pre-rebuild values survive in the read-only
-`sky-legacy.db` snapshot.
+`startsWith("http")`).
 
 ## `positions.json`
 
@@ -96,15 +95,6 @@ The star-map layout is not in SQLite. `recalculatePositions()` computes a
 `database/positions.json`. The frontend fetches it via `GET /api/positions`; any
 person missing from it is scattered deterministically client-side so no star is
 ever hidden.
-
-## The legacy snapshot
-
-`sky-legacy.db` is a **read-only** SQLite snapshot of the pre-rebuild data,
-opened lazily with `{ readonly: true }`. It exists so admins can rebuild data by
-hand after the schema-4.0 clean rebuild. It is browsed through
-`GET /api/admin/legacy` and the `/admin/legacy` page: `legacyExists`,
-`getLegacyCounts`, `getLegacyPeople(search)`, `getLegacyPersonRelations(id)`.
-Nothing writes to it.
 
 ## Maintenance scripts
 
