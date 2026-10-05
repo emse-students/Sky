@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@humanspeak/svelte-markdown": "^1.9.2",
-    "@lucide/svelte": "^1.48.0",
+    "@lucide/svelte": "^1.50.0",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout": "^0.6.1",
