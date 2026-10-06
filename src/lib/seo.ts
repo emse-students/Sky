@@ -120,3 +120,16 @@ export function siteNode(origin: string): Record<string, unknown> {
     publisher: { '@id': INSTITUTION_ID },
   };
 }
+
+/** The `X-Robots-Tag` value every response but the home page carries. */
+export const NOINDEX_HEADER = 'noindex, nofollow';
+
+/**
+ * Whether a path may be indexed: ONLY the home page. Everything else - the tree, the account, the
+ * admin, the API, the login redirect chain, the refusal page - is personal data or a doorway to it, so
+ * the hook stamps {@link NOINDEX_HEADER} on it. An allowlist of one: a new route is un-indexable until
+ * someone decides otherwise.
+ */
+export function isIndexable(pathname: string): boolean {
+  return pathname === '/';
+}
