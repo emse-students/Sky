@@ -1,5 +1,14 @@
 # Sky - https://sky.emse.fr
 #
+# Sky is not a public site: ONLY `/` may be indexed (a title and a description, nothing about anyone).
+# `Allow: /# Sky - https://sky.emse.fr
+#
+ matches the root alone (`# Sky - https://sky.emse.fr
+#
+ anchors the end) and the longer rule wins over `Disallow: /`
+# in Google's matching, so every other path - listed here or not - is refused: an allowlist of one,
+# where the old list of named prefixes would have let a NEW route through.
+#
 # Sky is not a public site. `src/hooks.server.ts` reserves everything except `/`
 # and `/unauthorized` to a signed-in ICM student and redirects the rest to the
 # login flow, so a crawler cannot reach any of it. These rules say the same thing
@@ -14,11 +23,5 @@
 # and lost its whole detail half to it).
 
 User-agent: *
-Disallow: /tree
-Disallow: /account
-Disallow: /admin
-Disallow: /link
-Disallow: /unauthorized
-Disallow: /auth/
-Disallow: /api/
-Allow: /
+Allow: /$
+Disallow: /

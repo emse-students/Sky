@@ -1,9 +1,10 @@
-import { redirect, json, type Handle } from '@sveltejs/kit';
+import { redirect, json, isRedirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { getSessionPerson } from '$server/database';
 import { SESSION_COOKIE_NAME } from '$server/session';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { m } from '$lib/paraglide/messages';
+import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
 
 /**
  * Binds the request locale (resolved from the cookie / Accept-Language header,
@@ -61,6 +62,32 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 };
 
 /**
+ * Tells a search engine that nothing but the home page may be indexed - the login redirect chain and
+ * the refusal page included, which a crawler DOES reach. `robots.txt` says the same up front; this is
+ * the second voice, for an engine that never fetched the file or already knows a URL.
+ */
+const robotsHandler: Handle = async ({ event, resolve }) => {
+  let response: Response;
+  try {
+    response = await resolve(event);
+  } catch (thrown) {
+    // `throw redirect()` in the gate does not come back through `resolve`: it travels up as an
+    // exception. Turn it into the response it would have become, so the header reaches it too.
+    if (!isRedirect(thrown)) {
+      throw thrown;
+    }
+    response = new Response(null, {
+      status: thrown.status,
+      headers: { location: thrown.location },
+    });
+  }
+  if (!isIndexable(event.url.pathname)) {
+    response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
+  }
+  return response;
+};
+
+/**
  * Global gate: all of Sky is reserved for ICM. No session -> redirect to login
  * (or 401 on an API route). Non-ICM, non-admin session -> refusal page (defense
  * in depth: the OIDC callback already gates at login).
@@ -89,4 +116,4 @@ const gateHandler: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle = sequence(paraglideHandler, sessionHandler, gateHandler);
+export const handle = sequence(robotsHandler, paraglideHandler, sessionHandler, gateHandler);

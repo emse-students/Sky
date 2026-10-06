@@ -4,6 +4,7 @@ import {
   canonicalUrl,
   defaultImage,
   institutionNode,
+  isIndexable,
   jsonLdScript,
   prune,
   serializeJsonLd,
@@ -96,5 +97,26 @@ describe('graph nodes', () => {
     expect(node.url).toBe('http://localhost:5173/');
     expect(typeof node.description).toBe('string');
     expect(node.description).not.toBe('');
+  });
+});
+
+describe('isIndexable', () => {
+  it('allows the home page and nothing else', () => {
+    expect(isIndexable('/')).toBe(true);
+  });
+
+  it('refuses the tree, the account, the admin, the API, the login chain and the refusal page', () => {
+    for (const path of [
+      '/tree',
+      '/account',
+      '/admin',
+      '/link',
+      '/auth/login',
+      '/api/graph',
+      '/unauthorized',
+      '/new-route',
+    ]) {
+      expect(isIndexable(path)).toBe(false);
+    }
   });
 });
