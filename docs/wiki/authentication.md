@@ -29,7 +29,7 @@ route handlers `auth/login` and `auth/callback` (orchestration).
 
 ### Endpoints and base URL
 
-`getBaseUrl()` reads `MICONNECT_BASE_URL` (default `https://auth.canari-emse.fr`)
+`getBaseUrl()` reads `MICONNECT_BASE_URL` (default `https://miconnect.emse.fr`)
 and strips the trailing slash. As on Canari, the endpoints are at a global path,
 not under the app slug:
 

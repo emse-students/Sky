@@ -47,7 +47,7 @@ The CD generates `.env` from repo secrets:
 | `MICONNECT_CLIENT_SECRET` | Associated OIDC secret                                           |
 | `MIGALLERY_API_KEY`       | MiGallery API access (avatars)                                   |
 | `SKY_ADMIN_SUBS`          | (optional) Authentik admin subs, comma-separated                 |
-| `MICONNECT_BASE_URL`      | (optional) Authentik base; default `https://auth.canari-emse.fr` |
+| `MICONNECT_BASE_URL`      | (optional) Authentik base; default `https://miconnect.emse.fr`   |
 | `MIGALLERY_API_URL`       | (optional) MiGallery API base; default `https://gallery.mitv.fr` |
 
 The first three are mandatory (CD fails if missing). Non-secret values (PORT

@@ -24,7 +24,7 @@ unreachable.
 ## Authentik (miconnect) - identity
 
 The OIDC provider. Covered in full in [authentication.md](authentication.md).
-Config: `MICONNECT_BASE_URL` (default `https://auth.canari-emse.fr`),
+Config: `MICONNECT_BASE_URL` (default `https://miconnect.emse.fr`),
 `MICONNECT_CLIENT_ID`, `MICONNECT_CLIENT_SECRET`. Endpoints are global
 (`/application/o/{authorize,token,userinfo}/`), the app slug lives only in the
 token issuer.
