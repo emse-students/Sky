@@ -55,7 +55,7 @@ export interface OidcClaims {
 }
 
 /**
- * Authentik base without trailing slash (e.g. https://auth.canari-emse.fr). As
+ * Authentik base without trailing slash (e.g. https://miconnect.emse.fr). As
  * in Canari, endpoints live at a global path `/application/o/<endpoint>/`: the
  * app slug only appears in the token issuer, not in the endpoint URLs (a slugged
  * path `/o/<slug>/authorize/` returns 404 under Authentik).
