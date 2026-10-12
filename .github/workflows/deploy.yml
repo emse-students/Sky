@@ -73,11 +73,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The image is named after the repository, never spelled out a second time. GHCR wants lower case.
+      - name: The image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/emse-students/sky
+          images: ${{ steps.image.outputs.name }}
           # THREE TAGS, AND THE VERSION IS THE ONE THAT MATTERS. `latest` is what the deploy
           # pulls; the sha tag is how a running container is traced back to a tree; and `v<version>`
           # is how it is traced back to the RELEASE somebody published, which is the only one of
@@ -165,20 +170,26 @@ jobs:
           cp scripts/backup.sh scripts/restore.sh "$DEPLOY_DIR/scripts/"
           chmod +x "$DEPLOY_DIR/scripts/backup.sh" "$DEPLOY_DIR/scripts/restore.sh"
 
+      # The compose file reads IMAGE_PREFIX, so the deploy names the same image the build pushed.
+      - name: The image name
+        run: echo "IMAGE_PREFIX=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Pull image
         run: $COMPOSE pull
 
       - name: Deploy
         run: $COMPOSE up -d --remove-orphans
 
+      # The container's own HEALTHCHECK is the verdict, so no port is repeated here.
       - name: Health check
         run: |
+          cid=$($COMPOSE ps -q sky)
           for i in $(seq 1 20); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || true)
-            if [ "$code" = "200" ]; then echo "✅ Sky healthy"; exit 0; fi
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" || true)
+            if [ "$status" = "healthy" ]; then echo "Sky healthy"; exit 0; fi
             sleep 3
           done
-          echo "::error::Health check KO apres deploiement"
+          echo "::error::Container is '$status' after deploy"
           $COMPOSE logs --tail 50
           exit 1
 
