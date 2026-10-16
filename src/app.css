@@ -9,7 +9,14 @@
    `@import "tailwindcss/preflight.css" layer(base);` is the whole switch. */
 @layer theme, base, components, utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;600&display=swap');
+/* Self-hosted (@fontsource, latin subset): no request leaves for Google, so a visitor's IP is
+   never sent to a third party just to draw the text. */
+@import '@fontsource/orbitron/latin-400.css';
+@import '@fontsource/orbitron/latin-700.css';
+@import '@fontsource/orbitron/latin-900.css';
+@import '@fontsource/space-grotesk/latin-300.css';
+@import '@fontsource/space-grotesk/latin-400.css';
+@import '@fontsource/space-grotesk/latin-600.css';
 @import './lib/styles/utilities.css';
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);

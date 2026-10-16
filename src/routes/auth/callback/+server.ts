@@ -79,7 +79,6 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
       firstName: claims.firstName,
       lastName: claims.lastName,
       level: claims.promo,
-      email: claims.email,
       formation: claims.formation,
       role,
     };

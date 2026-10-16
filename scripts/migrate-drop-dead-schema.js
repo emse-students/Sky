@@ -106,6 +106,23 @@ if (schemaObjectExists('table', 'external_links')) {
   changed += 1;
 }
 
+// --- 3. L'e-mail que Sky ne lit plus ---------------------------------------
+// Minimisation (RGPD) : plus rien n'ecrit ni ne lit `people.email` ni `pending_links.email`. On
+// vide les valeurs deja stockees mais on GARDE les colonnes (pas de DROP COLUMN : le schema et
+// les sauvegardes restent compatibles dans les deux sens). Idempotent : ne touche que les lignes
+// non nulles, et le compte est journalise.
+for (const table of ['people', 'pending_links']) {
+  if (columnsOf(table).includes('email')) {
+    const { changes } = db
+      .prepare(`UPDATE ${table} SET email = NULL WHERE email IS NOT NULL`)
+      .run();
+    if (changes > 0) {
+      console.log(`[migrate-drop-dead-schema] ${table}.email vide sur ${changes} ligne(s)`);
+      changed += 1;
+    }
+  }
+}
+
 console.log(
   changed === 0
     ? '[migrate-drop-dead-schema] rien a faire, schema deja a jour'
