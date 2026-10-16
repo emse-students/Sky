@@ -114,6 +114,7 @@ describe('isIndexable', () => {
       '/auth/login',
       '/api/graph',
       '/unauthorized',
+      '/confidentialite',
       '/new-route',
     ]) {
       expect(isIndexable(path)).toBe(false);

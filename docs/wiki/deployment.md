@@ -37,7 +37,7 @@ launching the server:
 bun scripts/init-db.js                    # apply schema if the DB is empty
 bun scripts/migrate-auth.js               # auth_sub/email/formation/role/last_login + sessions/pending_links
 bun scripts/rebuild-db.js
-bun scripts/migrate-drop-dead-schema.js   # drop bio/image_url/external_links
+bun scripts/migrate-drop-dead-schema.js   # drop bio/image_url/external_links, null the legacy email columns
 bun build/index.js
 ```
 
@@ -72,7 +72,7 @@ The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
 The Sky app in Authentik must register the redirect URI
 `https://sky.emse.fr/auth/callback` (and, while the old name still redirects, `https://sky.mitv.fr/auth/callback`
 beside it - both registered since 2026-09-28) and expose the claims used by the login flow
-(`given_name`/`family_name` or the camelCase `firstName`/`lastName`, `email`,
+(`given_name`/`family_name` or the camelCase `firstName`/`lastName`,
 `promo`, `formation`) via scopes `openid profile promo name formation`. All of Sky
 is ICM-only; `SKY_ADMIN_SUBS` are the exception (see
 [authentication.md](authentication.md)).

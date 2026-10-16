@@ -21,13 +21,13 @@ const paraglideHandler: Handle = ({ event, resolve }) =>
 
 /**
  * Routes reachable without a session. `/` (the landing with the Login button) and
- * `/unauthorized` are public on an EXACT match; the others are prefixes (login
+ * `/unauthorized` and `/confidentialite` (the privacy notice, which people without an account must be able to read) are public on an EXACT match; the others are prefixes (login
  * flow, health probe, avatar proxy called by <img>). Static files (_app, assets)
  * are served before the hook. Like Canari, the public landing avoids the silent
  * re-login loop after logout (the Authentik SSO session is not killed: one-click
  * reconnect).
  */
-const PUBLIC_EXACT = new Set(['/', '/unauthorized']);
+const PUBLIC_EXACT = new Set(['/', '/unauthorized', '/confidentialite']);
 // `/api/external/` is protected by its own key (SKY_API_KEY), not the ICM
 // session: it is consumed by Canari (server to server).
 const PUBLIC_PREFIXES = ['/auth/', '/api/health', '/api/avatar/', '/api/external/'];
@@ -50,7 +50,6 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
       profile_id: person.id,
       auth_sub: person.auth_sub,
       name: `${person.nom.toUpperCase()} ${person.prenom}`.trim(),
-      email: person.email,
       role: person.role === 'admin' ? 'admin' : 'user',
       formation: person.formation,
       promo: person.level,

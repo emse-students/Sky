@@ -59,7 +59,7 @@ Canari).
 > Authentik: the Sky app must have the redirect URI
 > `https://sky.emse.fr/auth/callback` (the old `https://sky.mitv.fr/auth/callback` stays beside
 > it while that name redirects) and expose the claims `given_name`,
-> `family_name`, `email`, `promo`, `formation` (scopes `openid profile promo name
+> `family_name`, `promo`, `formation` (scopes `openid profile promo name
 formation`). All of Sky is restricted to the ICM program; `SKY_ADMIN_SUBS`
 > bypass this restriction. `people` records are linked to an account by (last
 > name, first name, promotion); otherwise a new record is created.

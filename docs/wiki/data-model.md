@@ -18,7 +18,8 @@ One row per person, whether or not they have an account (see
 | `first_name`, `last_name`  | display form "Prenom" / "NOM"                                         |
 | `level` INTEGER            | promotion = year of entry (SSO `promo` claim); nullable               |
 | `auth_sub` TEXT            | Authentik sub; `NULL` for placeholders                                |
-| `email`, `formation`       | from the SSO; `formation` drives the ICM gate                         |
+| `email`                    | LEGACY, always NULL: no longer requested, written or read (2026-10)   |
+| `formation`                | from the SSO; drives the ICM gate                                     |
 | `role` TEXT                | `'user'` \| `'admin'`, default `'user'`                               |
 | `last_login` INTEGER       | epoch of last SSO login                                               |
 | `created_by` TEXT          | id of the person who created a placeholder                            |

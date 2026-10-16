@@ -21,7 +21,7 @@ route handlers `auth/login` and `auth/callback` (orchestration).
    - Validate `code` and `state` (the latter against the `__oidc_state` cookie).
    - `completeOIDCFlow(code, callbackUrl)` exchanges the code for tokens, calls
      `/userinfo/`, and returns `OidcClaims`
-     (`sub, firstName, lastName, email, promo, formation`).
+     (`sub, firstName, lastName, promo, formation`).
    - Apply the **ICM gate** (below).
    - Resolve the identity to a `people` record (see
      [identity-model.md](identity-model.md)).
@@ -61,8 +61,9 @@ may live only in the id_token, so both the userinfo profile and the decoded
 id_token are consulted.
 
 MiConnect is treated as the source of truth for identity on every login:
-`refreshPersonIdentity` overwrites the linked record's name/promo/formation/email
-each time.
+`refreshPersonIdentity` overwrites the linked record's name/promo/formation
+each time. The e-mail is neither requested nor stored
+([data-protection.md](data-protection.md)).
 
 ## The ICM gate
 

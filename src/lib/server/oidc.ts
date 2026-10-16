@@ -2,7 +2,7 @@
  * Authentik (miconnect) OIDC flow for Sky.
  *
  * Ported from MiGallery's equivalent module: same Authentik instance, same
- * claims (`sub, given_name/family_name, email, promo, formation`). This module
+ * claims (`sub, given_name/family_name, promo, formation`). This module
  * is deliberately database-free: it returns a raw identity (`OidcClaims`) that
  * the callback links to a `people` record via the quasi-unique key (last name,
  * first name, class). The profile picture comes from the MiGallery API
@@ -35,7 +35,6 @@ interface OidcProfile {
   lastName?: string;
   given_name?: string;
   family_name?: string;
-  email?: string;
   promo?: string | number;
   formation?: string;
   [key: string]: unknown;
@@ -49,7 +48,6 @@ export interface OidcClaims {
   sub: string;
   firstName: string;
   lastName: string;
-  email: string | null;
   promo: number | null;
   formation: string | null;
 }
@@ -225,7 +223,6 @@ export async function completeOIDCFlow(
     sub,
     firstName,
     lastName,
-    email: trimmedOrNull(profile.email),
     promo,
     formation,
   };

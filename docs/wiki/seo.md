@@ -39,6 +39,8 @@ One component and one module, used by the two public pages.
   Saint-Etienne. "Sky" is a word nothing can be won on; being consistently
   attached to an institution a search engine already knows, by name, URL and
   postal address, is the only thing that makes it placeable at all.
+- **`/confidentialite`** (the privacy notice, [data-protection.md](data-protection.md)) is public
+  for the same reason and gets `noindex, nofollow` too.
 - **`/unauthorized`** gets `noindex, nofollow` and no canonical. It is public
   only so a refused sign-in has somewhere to land - it is a refusal, not a
   destination.

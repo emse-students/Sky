@@ -71,6 +71,7 @@
   </header>
 
   <div class="account-content">
+    <p class="privacy-note"><a href="/confidentialite">{m.privacy_link()}</a></p>
     <p class="current">
       {m.account_relink_intro_before()}
       <strong>{data.currentName}</strong>. {m.account_relink_intro_after()}
@@ -162,6 +163,13 @@
     max-width: 720px;
     margin: 0 auto;
     padding: 32px 24px 64px;
+  }
+  .privacy-note {
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+  }
+  .privacy-note a {
+    color: #87cefa;
   }
   .current {
     line-height: 1.6;

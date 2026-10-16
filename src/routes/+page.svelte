@@ -39,6 +39,7 @@
     ChevronDown,
     LoaderCircle,
     Database,
+    ShieldCheck,
     Network,
     ExternalLink,
     ArrowLeft,
@@ -522,6 +523,10 @@
                   <Link size={16} />
                   {m.nav_fix_link()}
                 </a>
+                <a href="/confidentialite" class="menu-item">
+                  <ShieldCheck size={16} />
+                  {m.privacy_link()}
+                </a>
                 {#if user?.role === 'admin'}
                   <div class="menu-divider"></div>
                   <a href="/admin" class="menu-item">
@@ -545,6 +550,10 @@
       </div>
     </div>
   </nav>
+
+  {#if !isAuthenticated}
+    <a class="privacy-link" href="/confidentialite">{m.privacy_link()}</a>
+  {/if}
 
   {#if isLoading}
     <div class="loader-overlay" transition:fade>
@@ -1220,6 +1229,20 @@
     color: var(--text-dim);
     opacity: 0.5;
     cursor: default;
+  }
+
+  .privacy-link {
+    position: fixed;
+    left: 1rem;
+    bottom: 0.75rem;
+    z-index: 20;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-decoration: none;
+  }
+
+  .privacy-link:hover {
+    color: #87cefa;
   }
 
   .loader-overlay {

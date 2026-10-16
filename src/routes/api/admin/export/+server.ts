@@ -1,6 +1,5 @@
 import type { RequestHandler } from './$types';
-import { readFileSync } from 'fs';
-import { DB_PATH } from '$lib/server/database';
+import { exportDatabaseWithoutSessions } from '$lib/server/database';
 
 export const GET: RequestHandler = ({ locals }) => {
   // Check admin authorization
@@ -9,9 +8,10 @@ export const GET: RequestHandler = ({ locals }) => {
   }
 
   try {
-    const dbBuffer = readFileSync(DB_PATH);
+    // A copy without live sessions: the download must not be a way to sign in as anyone.
+    const dbBuffer = exportDatabaseWithoutSessions();
 
-    return new Response(dbBuffer, {
+    return new Response(new Uint8Array(dbBuffer), {
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="sky-backup-${new Date().toISOString().split('T')[0]}.db"`,

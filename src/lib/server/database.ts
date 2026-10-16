@@ -2,6 +2,7 @@ import { checkPromoPair, MAX_PROMO_GAP } from './promo';
 import { Database } from 'bun:sqlite';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { randomUUID } from 'crypto';
 import type { Person, JsonRelation, GraphDataFile } from '$types/graph';
 import {
@@ -91,6 +92,32 @@ export function getDatabase(): Database {
     );
   }
   return db;
+}
+
+/**
+ * A consistent copy of the database for the admin export, WITHOUT anything that would let its
+ * holder sign in as somebody: `sessions` (live tokens) and `pending_links` (an identity awaiting a
+ * choice) are emptied. The copy is VACUUMed after the delete, because a deleted row's bytes stay in
+ * the file's free pages until the file is rewritten - emptying the table alone would still leave
+ * the tokens readable in the download.
+ */
+export function exportDatabaseWithoutSessions(): Buffer {
+  console.debug('[Database] Exporting a copy without sessions');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sky-export-'));
+  const copyPath = path.join(dir, 'export.db');
+  try {
+    getDatabase().exec(`VACUUM INTO '${copyPath.replace(/'/g, "''")}'`);
+    const copy = new Database(copyPath);
+    try {
+      copy.exec('DELETE FROM sessions; DELETE FROM pending_links;');
+      copy.exec('VACUUM');
+    } finally {
+      copy.close();
+    }
+    return fs.readFileSync(copyPath);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 // ============================================
@@ -318,7 +345,6 @@ export interface OidcIdentity {
   firstName: string;
   lastName: string;
   level: number | null;
-  email: string | null;
   formation: string | null;
   role: string;
 }
@@ -330,7 +356,6 @@ export interface SessionPerson {
   nom: string;
   level: number | null;
   auth_sub: string | null;
-  email: string | null;
   formation: string | null;
   role: string;
 }
@@ -449,7 +474,7 @@ function promoMatches(level: number | null, promo: number | null): boolean {
 /**
  * Link an existing record to an Authentik account and overwrite its identity
  * fields with the SSO values (MiConnect is source of truth: name/first
- * name/promo/email/formation are replaced whenever a value is provided, never
+ * name/promo/formation are replaced whenever a value is provided, never
  * wiped when absent).
  */
 export function linkPersonAuth(id: string, identity: OidcIdentity): void {
@@ -461,7 +486,6 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
         first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name),
         level = COALESCE(?, level),
-        email = COALESCE(?, email),
         formation = COALESCE(?, formation),
         role = ?,
         last_login = ?,
@@ -473,7 +497,6 @@ export function linkPersonAuth(id: string, identity: OidcIdentity): void {
       identity.firstName || null,
       identity.lastName || null,
       identity.level,
-      identity.email,
       identity.formation,
       identity.role,
       nowEpoch(),
@@ -490,7 +513,6 @@ export function refreshPersonIdentity(id: string, identity: OidcIdentity): void 
         first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name),
         level = COALESCE(?, level),
-        email = COALESCE(?, email),
         formation = COALESCE(?, formation),
         role = ?,
         last_login = ?,
@@ -501,7 +523,6 @@ export function refreshPersonIdentity(id: string, identity: OidcIdentity): void 
       identity.firstName || null,
       identity.lastName || null,
       identity.level,
-      identity.email,
       identity.formation,
       identity.role,
       nowEpoch(),
@@ -515,8 +536,8 @@ export function createAuthedPerson(identity: OidcIdentity): string {
   database
     .prepare(
       `INSERT INTO people
-        (id, first_name, last_name, level, auth_sub, email, formation, role, last_login)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (id, first_name, last_name, level, auth_sub, formation, role, last_login)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       identity.sub,
@@ -524,7 +545,6 @@ export function createAuthedPerson(identity: OidcIdentity): string {
       identity.lastName,
       identity.level,
       identity.sub,
-      identity.email,
       identity.formation,
       identity.role,
       nowEpoch()
@@ -653,7 +673,7 @@ export function relinkSelf(currentId: string, targetId: string, sessionToken: st
   return database.transaction(() => {
     const current = database
       .prepare(
-        `SELECT auth_sub, first_name, last_name, level, email, formation, role
+        `SELECT auth_sub, first_name, last_name, level, formation, role
          FROM people WHERE id = ?`
       )
       .get(currentId) as {
@@ -661,7 +681,6 @@ export function relinkSelf(currentId: string, targetId: string, sessionToken: st
       first_name: string;
       last_name: string;
       level: number | null;
-      email: string | null;
       formation: string | null;
       role: string;
     } | null;
@@ -689,7 +708,7 @@ export function relinkSelf(currentId: string, targetId: string, sessionToken: st
       .prepare(
         `UPDATE people SET
            auth_sub = ?, first_name = ?, last_name = ?, level = ?,
-           email = ?, formation = ?, role = ?, last_login = ?,
+           formation = ?, role = ?, last_login = ?,
            updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`
       )
@@ -698,7 +717,6 @@ export function relinkSelf(currentId: string, targetId: string, sessionToken: st
         current.first_name,
         current.last_name,
         current.level,
-        current.email,
         current.formation,
         current.role,
         nowEpoch(),
@@ -752,7 +770,6 @@ export interface AdminPersonRow {
   role: string;
   linked: boolean;
   auth_sub: string | null;
-  email: string | null;
   formation: string | null;
 }
 
@@ -760,7 +777,7 @@ export interface AdminPersonRow {
 export function getAllPeopleAdmin(): AdminPersonRow[] {
   const rows = getDatabase()
     .prepare(
-      `SELECT id, first_name, last_name, level, role, auth_sub, email, formation
+      `SELECT id, first_name, last_name, level, role, auth_sub, formation
        FROM people ORDER BY last_name, first_name`
     )
     .all() as {
@@ -770,7 +787,6 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
     level: number | null;
     role: string;
     auth_sub: string | null;
-    email: string | null;
     formation: string | null;
   }[];
   return rows.map((r) => ({
@@ -781,7 +797,6 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
     role: r.role,
     linked: r.auth_sub !== null,
     auth_sub: r.auth_sub,
-    email: r.email,
     formation: r.formation,
   }));
 }
@@ -806,7 +821,7 @@ export function getSessionPerson(token: string): SessionPerson | null {
   const row = database
     .prepare(
       `SELECT p.id, p.first_name, p.last_name, p.level,
-              p.auth_sub, p.email, p.formation, p.role
+              p.auth_sub, p.formation, p.role
        FROM sessions s
        JOIN people p ON p.id = s.person_id
        WHERE s.token = ? AND s.expires_at > ?`
@@ -817,7 +832,6 @@ export function getSessionPerson(token: string): SessionPerson | null {
     last_name: string;
     level: number | null;
     auth_sub: string | null;
-    email: string | null;
     formation: string | null;
     role: string;
   } | null;
@@ -830,7 +844,6 @@ export function getSessionPerson(token: string): SessionPerson | null {
     nom: row.last_name,
     level: row.level,
     auth_sub: row.auth_sub,
-    email: row.email,
     formation: row.formation,
     role: row.role,
   };
@@ -863,8 +876,8 @@ export function createPendingLink(identity: OidcIdentity): string {
   database
     .prepare(
       `INSERT INTO pending_links
-        (token, sub, first_name, last_name, level, email, formation, role, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (token, sub, first_name, last_name, level, formation, role, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       token,
@@ -872,7 +885,6 @@ export function createPendingLink(identity: OidcIdentity): string {
       identity.firstName,
       identity.lastName,
       identity.level,
-      identity.email,
       identity.formation,
       identity.role,
       nowEpoch() + PENDING_TTL_SECONDS
@@ -885,7 +897,7 @@ export function getPendingLink(token: string): OidcIdentity | null {
   const database = getDatabase();
   const row = database
     .prepare(
-      `SELECT sub, first_name, last_name, level, email, formation, role
+      `SELECT sub, first_name, last_name, level, formation, role
        FROM pending_links WHERE token = ? AND expires_at > ?`
     )
     .get(token, nowEpoch()) as {
@@ -893,7 +905,6 @@ export function getPendingLink(token: string): OidcIdentity | null {
     first_name: string;
     last_name: string;
     level: number | null;
-    email: string | null;
     formation: string | null;
     role: string;
   } | null;
@@ -905,7 +916,6 @@ export function getPendingLink(token: string): OidcIdentity | null {
     firstName: row.first_name,
     lastName: row.last_name,
     level: row.level,
-    email: row.email,
     formation: row.formation,
     role: row.role,
   };
