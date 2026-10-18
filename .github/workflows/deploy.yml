@@ -31,7 +31,7 @@ permissions:
 jobs:
   build-image:
     name: Build & Push Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # NO `if:` AT ALL, and that is the point of being a library. Every condition this job used to
     # carry was about which trigger had fired and whether some other run had gone green; a called
     # workflow runs because its caller decided it should, and the caller's gates are the condition.
