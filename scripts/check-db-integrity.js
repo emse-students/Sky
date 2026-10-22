@@ -44,7 +44,6 @@ const EXPECTED = {
     'last_name',
     'level',
     'auth_sub',
-    'email',
     'formation',
     'role',
     'last_login',
@@ -61,7 +60,6 @@ const EXPECTED = {
     'first_name',
     'last_name',
     'level',
-    'email',
     'formation',
     'role',
     'expires_at',
@@ -72,7 +70,7 @@ const EXPECTED = {
 
 /** Objets que le schema courant ne doit PLUS porter (voir migrate-drop-dead-schema.js). */
 const FORBIDDEN_TABLES = ['people_fts', 'external_links'];
-const FORBIDDEN_COLUMNS = { people: ['bio', 'image_url'] };
+const FORBIDDEN_COLUMNS = { people: ['bio', 'image_url', 'email'], pending_links: ['email'] };
 
 if (!fs.existsSync(dbPath)) {
   console.error('[check-db-integrity] Base introuvable:', dbPath);
