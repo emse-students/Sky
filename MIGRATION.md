@@ -1,6 +1,6 @@
 # Sky Migration / Cloning to a New Server
 
-Sky runs as a Docker container (**Node** runtime, image published on GHCR by
+Sky runs as a Docker container (**Bun** runtime, image published on GHCR by
 the CD). This document covers manual bootstrapping of a new server and data
 restoration.
 
@@ -8,17 +8,16 @@ restoration.
 
 | Element | Detail                                                                                           |
 | ------- | ------------------------------------------------------------------------------------------------ |
-| Runtime | `sky` Docker container (SvelteKit adapter-node, Node), port 3001                                 |
+| Runtime | `sky` Docker container (SvelteKit adapter-node, Bun), port 3001                                  |
 | Data    | `database/` mounted as volume: `sky.db` (identities + sessions), `positions.json` + `schema.sql` |
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                                 |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy              |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`                    |
 | Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)               |
 
-> Runtime is Node (not Bun): `better-sqlite3` is used by non-bundled scripts
-> (`init-db.js`, migrations) that Bun cannot load. Graph position computation is
-> TypeScript in-process (`src/lib/server/positions.ts`, ForceAtlas2 via
-> graphology): no Python dependency at runtime.
+> Runtime is Bun: the driver is `bun:sqlite`, so the maintenance scripts (`init-db.js`,
+> migrations) run under Bun only. Graph position computation is TypeScript in-process
+> (`src/lib/server/positions.ts`, ForceAtlas2 via graphology): no Python dependency at runtime.
 
 ## 0. Prerequisites
 
