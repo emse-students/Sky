@@ -89,6 +89,7 @@ try {
       NODE_ENV: 'production',
       PORT: String(port),
       HOST: '127.0.0.1',
+      MICONNECT_BASE_URL: 'https://idp.example.test',
       MICONNECT_CLIENT_ID: 'smoke',
       MICONNECT_CLIENT_SECRET: 'smoke',
       MIGALLERY_API_KEY: 'smoke',
@@ -139,6 +140,29 @@ try {
   );
   console.log('[smoke] /api/graph read the seeded row through bun:sqlite');
 
+  // The sign-in start is the one redirect to ANOTHER origin. SvelteKit 3 turns it into a 500 unless
+  // the identity provider's origin is allowlisted, and nothing else here ever requested it.
+  const login = await fetch(`${base}/auth/login`, { redirect: 'manual' });
+  const loginLocation = login.headers.get('location');
+  expect(login.status === 302, `GET /auth/login answered ${login.status}, not 302`);
+  expect(
+    loginLocation !== null &&
+      new URL(loginLocation).origin === 'https://idp.example.test' &&
+      new URL(loginLocation).pathname === '/application/o/authorize/',
+    `/auth/login redirected to ${loginLocation}, not the configured identity provider`
+  );
+  const stateCookie = login.headers.getSetCookie().find((c) => c.startsWith('__oidc_state='));
+  expect(
+    stateCookie !== undefined && /;\s*Secure/i.test(stateCookie) && /HttpOnly/i.test(stateCookie),
+    `the OIDC state cookie is missing or not Secure/HttpOnly: ${stateCookie}`
+  );
+  console.log('[smoke] /auth/login redirects to the configured identity provider');
+
+  // The callback refuses a return whose state is not the one the cookie holds (a 400, not a redirect).
+  const callback = await fetch(`${base}/auth/callback?code=x&state=forged`, { redirect: 'manual' });
+  expect(callback.status === 400, `a forged callback state answered ${callback.status}, not 400`);
+  console.log('[smoke] /auth/callback refuses a forged state');
+
   const anonymous = await fetch(`${base}/api/graph`);
   expect(anonymous.status === 401, `an anonymous /api/graph answered ${anonymous.status}, not 401`);
   console.log('[smoke] the session gate refuses an anonymous request');
@@ -156,7 +180,10 @@ try {
       body: '',
     });
   const same = await logout('https://sky.example.test');
-  expect(same.status !== 403, `a same-origin POST was refused (${same.status})`);
+  expect(
+    same.status === 302 && same.headers.get('location') === '/',
+    `a same-origin logout answered ${same.status} to ${same.headers.get('location')}, not 302 to /`
+  );
   const cross = await logout('https://evil.example.test');
   expect(cross.status === 403, `a cross-origin POST answered ${cross.status}, not 403`);
   // SvelteKit 3 also refuses a mutative request that carries no Content-Type and no matching Origin.
