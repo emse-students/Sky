@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   getPersonById,
@@ -6,8 +5,8 @@ import {
   isSameFamily,
   MAX_PARRAINS,
   MAX_FILLOTS,
-} from '$lib/server/database';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/server/database.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Direct entourage of a person (incoming parrains, outgoing fillots) for the
@@ -18,12 +17,12 @@ import { m } from '$lib/paraglide/messages';
 export const GET: RequestHandler = ({ url, locals }) => {
   const id = url.searchParams.get('id') ?? locals.user?.profile_id ?? null;
   if (!id) {
-    return json({ error: m.api_no_target_person() }, { status: 400 });
+    return Response.json({ error: m.api_no_target_person() }, { status: 400 });
   }
 
   const person = getPersonById(id);
   if (!person) {
-    return json({ error: m.api_person_not_found() }, { status: 404 });
+    return Response.json({ error: m.api_person_not_found() }, { status: 404 });
   }
 
   const user = locals.user;
@@ -31,7 +30,7 @@ export const GET: RequestHandler = ({ url, locals }) => {
     !!user && (user.role === 'admin' || (!!user.profile_id && isSameFamily(user.profile_id, id)));
 
   const { parrains, fillots } = getEntourage(id);
-  return json({
+  return Response.json({
     person: {
       id: person.id,
       prenom: person.prenom,

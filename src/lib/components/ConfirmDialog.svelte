@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
-  import { activeDialog, type DialogRequest } from '$lib/stores/dialogStore';
-  import { m } from '$lib/paraglide/messages';
+  import { activeDialog, type DialogRequest } from '#lib/stores/dialogStore.js';
+  import { m } from '#lib/paraglide/messages.js';
 
   /**
    * Global host for in-app confirm/alert modals. Rendered once at the app root;

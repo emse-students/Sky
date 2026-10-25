@@ -1,21 +1,20 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDatabase, recalculatePositions, getAllPeopleAdmin } from '$lib/server/database';
-import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
-import { formatFirstName, formatLastName } from '$lib/utils/format';
-import { requireAdmin } from '$lib/server/guards';
-import { m } from '$lib/paraglide/messages';
+import { getDatabase, recalculatePositions, getAllPeopleAdmin } from '#lib/server/database.js';
+import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { formatFirstName, formatLastName } from '#lib/utils/format.js';
+import { requireAdmin } from '#lib/server/guards.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Enriched list (role, account link status) for administration. */
 export const GET: RequestHandler = ({ locals }) => {
   requireAdmin(locals);
-  return json(getAllPeopleAdmin());
+  return Response.json(getAllPeopleAdmin());
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || user.role !== 'admin') {
-    return json({ error: 'Unauthorized' }, { status: 403 });
+    return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const data = (await request.json()) as {
@@ -31,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Check if ID already exists
     const existing = db.prepare('SELECT id FROM people WHERE id = ?').get(data.id);
     if (existing) {
-      return json({ error: 'ID already exists' }, { status: 400 });
+      return Response.json({ error: 'ID already exists' }, { status: 400 });
     }
 
     // Enforce the display convention: "NOM" uppercase, "Prenom" capitalized.
@@ -40,11 +39,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Last name, first name and class are mandatory when creating a star.
     if (!prenom || !nom || data.level === null || data.level === undefined) {
-      return json({ error: m.modal_required_fields() }, { status: 400 });
+      return Response.json({ error: m.modal_required_fields() }, { status: 400 });
     }
     // Reject typos: no promotion predates the school's founding year.
     if (!isValidPromo(data.level)) {
-      return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
+      return Response.json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
     }
 
     // Insert person
@@ -57,9 +56,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     recalculatePositions().catch(console.error);
 
-    return json({ success: true, id: data.id });
+    return Response.json({ success: true, id: data.id });
   } catch (error) {
     console.error('Create person error:', error);
-    return json({ error: 'Failed to create person' }, { status: 500 });
+    return Response.json({ error: 'Failed to create person' }, { status: 500 });
   }
 };

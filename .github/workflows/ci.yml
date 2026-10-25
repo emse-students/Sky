@@ -138,36 +138,15 @@ jobs:
         env:
           API_BASE_URL: http://localhost:3000
 
-      # THE GATE THAT LETS `@sveltejs/adapter-node` BE UPGRADED WITHOUT A HUMAN.
+      # THE GATE THAT LETS `@sveltejs/adapter-bun` AND SVELTEKIT BE UPGRADED WITHOUT A HUMAN.
       #
       # `bun run build` proves the adapter PRODUCED something. It does not prove the thing it
-      # produced STARTS, and nothing else here ever ran `build/index.js` - so an adapter major that
-      # changed how the server bootstraps, read its port, or mounted its handler would leave every
-      # check green and fail on the first request in production. A build is not a boot.
-      #
-      # The database is initialised first because the server opens it at startup; `/api/health` is
-      # the same route the production healthcheck uses, so this asks the deployed question.
+      # produced STARTS, and a build is not a boot. `/api/health` alone is not enough either: it never
+      # opens the database, and `bun:sqlite` only exists at RUNTIME. So the smoke runs the container's
+      # own migration chain on a throwaway database, boots `build/index.js`, reads a seeded row back
+      # through the session gate, renders the home page and asserts both sides of the CSRF check.
       - name: Boot the packaged server
-        run: |
-          set -uo pipefail
-          bun scripts/init-db.js
-
-          PORT=3399 ORIGIN=http://localhost:3399 bun build/index.js > /tmp/boot.log 2>&1 &
-          server=$!
-
-          for _ in $(seq 1 30); do
-            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3399/api/health)" = "200" ]; then
-              echo "The packaged server booted and answered /api/health."
-              kill "$server" 2>/dev/null
-              exit 0
-            fi
-            sleep 1
-          done
-
-          echo "::error::The packaged server never answered /api/health."
-          kill "$server" 2>/dev/null
-          cat /tmp/boot.log
-          exit 1
+        run: bun scripts/boot-smoke.js 3399
 
       - name: Package application
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

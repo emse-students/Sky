@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { randomUUID } from 'crypto';
-import type { Person, JsonRelation, GraphDataFile } from '$types/graph';
+import type { Person, JsonRelation, GraphDataFile } from '#lib/types/graph.js';
 import {
   normalizeName,
   nameDistance,
@@ -12,9 +12,9 @@ import {
   formatFirstName,
   formatLastName,
   personMatchScore,
-} from '$utils/format';
-import { layoutGraph } from '$server/positions';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/utils/format.js';
+import { layoutGraph } from '#lib/server/positions.js';
+import { m } from '#lib/paraglide/messages.js';
 
 const DB_PATH = path.join(process.cwd(), 'database', 'sky.db');
 const SCHEMA_PATH = path.join(process.cwd(), 'database', 'schema.sql');

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ShieldAlert } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import Seo from '$components/Seo.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import Seo from '#lib/components/Seo.svelte';
 </script>
 
 <!--

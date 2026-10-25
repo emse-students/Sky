@@ -19,13 +19,11 @@ services:
     environment:
       PORT: '3001'
       NODE_ENV: production
-      # The public URL, exactly as a visitor types it. Without it adapter-node
-      # derives the origin from the Host header, which gives the right name but
-      # the wrong scheme behind the reverse proxy - and every absolute URL in
-      # the head (og:url, og:image, canonical) is built from `url.origin`, so a
-      # preview pointing at http:// is one no unfurler can fetch. It is also the
-      # origin adapter-node compares against for its CSRF check.
-      ORIGIN: ${SKY_ORIGIN:-https://sky.emse.fr}
+      # No `ORIGIN` and none to set: the public origin is DERIVED from the Host header (https
+      # assumed), so the same image serves dev and prod. THE PROXY MUST FORWARD `Host` UNCHANGED
+      # (nginx `proxy_set_header Host $host`; no tunnel `httpHostHeader` override). Another Host
+      # silently breaks the OIDC redirect_uri, canonical/og:url and every mutation (CSRF compares
+      # Origin with https://<Host>). See docs/wiki/seo.md.
       # SSO Authentik (miconnect). Base non secrete (defaut ci-dessous) ; les
       # endpoints sont a /application/o/<endpoint>/ (globaux, sans slug, comme Canari).
       MICONNECT_BASE_URL: ${MICONNECT_BASE_URL:-https://miconnect.emse.fr}

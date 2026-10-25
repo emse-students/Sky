@@ -9,7 +9,7 @@
  * (`/api/avatar/{sub}`), not from the `picture` claim (unused).
  */
 
-import { formatFirstName, formatLastName } from '$utils/format';
+import { formatFirstName, formatLastName } from '#lib/utils/format.js';
 import { OUTBOUND_BUDGET_MS } from './outbound';
 
 /** Response of Authentik's /token/ endpoint. */

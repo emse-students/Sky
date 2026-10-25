@@ -8,7 +8,7 @@ restoration.
 
 | Element | Detail                                                                                           |
 | ------- | ------------------------------------------------------------------------------------------------ |
-| Runtime | `sky` Docker container (SvelteKit adapter-node, Node), port 3001                                 |
+| Runtime | `sky` Docker container (SvelteKit adapter-bun, Bun), port 3001                                   |
 | Data    | `database/` mounted as volume: `sky.db` (identities + sessions), `positions.json` + `schema.sql` |
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                                 |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy              |

@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { layoutGraph, type Point } from '$server/positions';
+import { layoutGraph, type Point } from '#lib/server/positions.js';
 
 /**
  * One connected component of six and two lone stars, which is the smallest graph that exercises
