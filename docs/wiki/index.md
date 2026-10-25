@@ -15,7 +15,7 @@ disagree, the code wins and the page is a bug.
 
 - **Framework**: SvelteKit 3 + Svelte 5 (SSR, `adapter-bun`), TypeScript.
 - **Styling**: Tailwind CSS 4.
-- **Database**: SQLite via `better-sqlite3` (single file `database/sky.db`).
+- **Database**: SQLite via `bun:sqlite` (single file `database/sky.db`).
 - **Graph layout**: in-process ForceAtlas2 (graphology), no Python at runtime.
 - **i18n**: Paraglide (inlang), French + English, `messages/{fr,en}.json`.
 - **Auth**: Authentik OIDC (miconnect), opaque server sessions.
@@ -45,7 +45,7 @@ disagree, the code wins and the page is a bug.
   are English. User-visible text goes through Paraglide (`m.*()`), never inline.
 - Text is normalized to ASCII (straight `'` and `"`, hyphen `-`); the ellipsis
   `…` is the one intentional non-ASCII character.
-- Path aliases: `$lib`, `$components`, `$stores`, `$types`, `$utils`, `$server`.
+- Path aliases: `#lib/*` (package.json `imports`, explicit file extensions; mirrored in tsconfig `paths`).
 - Domain vocabulary kept as identifiers: `nom`/`prenom` (DB columns and the
   `Person` shape), `parrain`/`fillot` (godparent/godchild), `promo` (the
   promotion = year of entry, stored as `people.level`), `fiche` (a `people`

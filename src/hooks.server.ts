@@ -1,10 +1,23 @@
 import { redirect, isRedirect } from '@sveltejs/kit';
 import { sequence, type Handle } from '@sveltejs/kit/hooks';
-import { getSessionPerson } from '#lib/server/database.js';
+import { closeDatabase, getSessionPerson } from '#lib/server/database.js';
 import { SESSION_COOKIE_NAME } from '#lib/server/session.js';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { m } from '#lib/paraglide/messages.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.js';
+
+/**
+ * adapter-bun drains in-flight requests on SIGTERM/SIGINT, emits `sveltekit:shutdown` and then
+ * leaves the process to exit by itself - which it only does if nothing else holds the event loop.
+ * Exiting here makes the stop deterministic: `docker stop` ends in a clean exit 0 instead of
+ * waiting out its grace period for a SIGKILL. The emit happens after the drain, so no request is
+ * still using the database being closed.
+ */
+process.on('sveltekit:shutdown', (reason: string) => {
+  console.log('[Shutdown] Drained on', reason, '- closing the database and exiting');
+  closeDatabase();
+  process.exit(0);
+});
 
 /**
  * Binds the request locale (resolved from the cookie / Accept-Language header,

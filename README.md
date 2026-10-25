@@ -11,7 +11,7 @@ graph.
 
 - **Framework**: SvelteKit 3 + Svelte 5 (SSR, `adapter-bun`), TypeScript
 - **Styling**: Tailwind CSS 4
-- **Database**: SQLite via `better-sqlite3` (single file `database/sky.db`)
+- **Database**: SQLite via `bun:sqlite` (single file `database/sky.db`)
 - **Graph layout**: in-process ForceAtlas2 (graphology), no Python at runtime
 - **i18n**: Paraglide (inlang), French + English
 - **Auth**: Authentik OIDC (miconnect), opaque server sessions

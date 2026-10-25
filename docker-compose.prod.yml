@@ -19,9 +19,11 @@ services:
     environment:
       PORT: '3001'
       NODE_ENV: production
-      # No `ORIGIN`: adapter-bun has none. It derives the public origin from the Host header, which
-      # the reverse proxy forwards untouched, and ASSUMES https - the right scheme behind the tunnel.
-      # Every absolute URL in the head (og:url, canonical) and the CSRF check use that origin.
+      # No `ORIGIN` and none to set: the public origin is DERIVED from the Host header (https
+      # assumed), so the same image serves dev and prod. THE PROXY MUST FORWARD `Host` UNCHANGED
+      # (nginx `proxy_set_header Host $host`; no tunnel `httpHostHeader` override). Another Host
+      # silently breaks the OIDC redirect_uri, canonical/og:url and every mutation (CSRF compares
+      # Origin with https://<Host>). See docs/wiki/seo.md.
       # SSO Authentik (miconnect). Base non secrete (defaut ci-dessous) ; les
       # endpoints sont a /application/o/<endpoint>/ (globaux, sans slug, comme Canari).
       MICONNECT_BASE_URL: ${MICONNECT_BASE_URL:-https://miconnect.emse.fr}

@@ -114,9 +114,17 @@ try {
   const home = await fetch(`${base}/`, { headers: { host: 'sky.example.test' } });
   const html = await home.text();
   expect(home.status === 200, `GET / answered ${home.status}`);
+  // Parsed, not substring-matched: the canonical link and og:url must BE the https origin the
+  // adapter derived from Host, not merely mention it somewhere in the document.
+  const canonical = html.match(/<link[^>]*rel="canonical"[^>]*href="([^"]*)"/)?.[1];
+  const ogUrl = html.match(/<meta[^>]*property="og:url"[^>]*content="([^"]*)"/)?.[1];
   expect(
-    html.includes('https://sky.example.test'),
-    'the home page did not build its absolute URLs from the public https origin'
+    canonical !== undefined && new URL(canonical).origin === 'https://sky.example.test',
+    `the canonical link is not on the public https origin: ${canonical}`
+  );
+  expect(
+    ogUrl !== undefined && new URL(ogUrl).origin === 'https://sky.example.test',
+    `og:url is not on the public https origin: ${ogUrl}`
   );
   console.log('[smoke] / rendered');
 
@@ -151,7 +159,37 @@ try {
   expect(same.status !== 403, `a same-origin POST was refused (${same.status})`);
   const cross = await logout('https://evil.example.test');
   expect(cross.status === 403, `a cross-origin POST answered ${cross.status}, not 403`);
+  // SvelteKit 3 also refuses a mutative request that carries no Content-Type and no matching Origin.
+  // Sky's own body-less fetches (admin/people DELETE, the recalc POST) depend on Origin being
+  // exactly https://<Host>, so a body-less DELETE is asserted on both sides: a matching Origin gets
+  // past the CSRF check and reaches the session gate (401), anything else is refused (403).
+  const bodyless = (headers) =>
+    fetch(`${base}/api/admin/people/smoke-1`, {
+      method: 'DELETE',
+      headers: { host: 'sky.example.test', ...headers },
+    });
+  const deleteSame = await bodyless({ origin: 'https://sky.example.test' });
+  expect(
+    deleteSame.status === 401,
+    `a body-less same-origin DELETE answered ${deleteSame.status}, not the gate's 401`
+  );
+  const deleteBare = await bodyless({});
+  expect(
+    deleteBare.status === 403,
+    `a body-less DELETE with no Origin answered ${deleteBare.status}, not 403`
+  );
   console.log('[smoke] the CSRF check accepts the public origin and refuses another');
+  // A real SIGTERM, the way `docker stop` stops the container: the server must drain and EXIT on
+  // its own. Left to adapter-bun alone, one live timer or stream keeps the process up until the
+  // grace period ends in a SIGKILL. (On Windows kill() is a hard terminate, so this proves the
+  // exit path only on Linux, which is where CI and the container run.)
+  server.kill('SIGTERM');
+  const exited = await Promise.race([server.exited, Bun.sleep(10_000).then(() => 'timeout')]);
+  expect(exited !== 'timeout', 'the server did not exit within 10 s of SIGTERM');
+  if (process.platform !== 'win32') {
+    expect(exited === 0, `the server exited ${exited} on SIGTERM, not 0`);
+  }
+  console.log('[smoke] SIGTERM -> clean exit');
   console.log('[smoke] OK');
 } catch (error) {
   console.error('[smoke] FAILED:', error instanceof Error ? error.message : error);

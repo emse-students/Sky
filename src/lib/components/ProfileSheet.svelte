@@ -4,7 +4,7 @@
   manner of the Google Maps place sheet - it opens at a PEEK (~30%: name, promo, actions) that
   leaves the map usable above it, is dragged by its handle to HALF or FULL, and dragged down to
   dismiss. The handle is also a button (tap, or Arrow keys, to change state) and Escape closes the
-  panel on every device. Snap logic is pure, in `$lib/utils/sheet.ts`.
+  panel on every device. Snap logic is pure, in `#lib/utils/sheet.ts`.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';

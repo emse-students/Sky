@@ -54,15 +54,21 @@ on a page nothing can fetch would be decoration that reads as the protection.
 
 `og:image`, `og:url` and `link rel=canonical` are resolved by a machine with no
 page context, so a relative path is silently useless to every one of them. They
-are built from `$page.url.origin` - never a constant - so the same code is right
+are built from `page.url.origin` (`$app/state`) - never a constant - so the same code is right
 on production and on localhost.
 
-Under `adapter-bun` that origin comes from the request: the adapter takes the hostname from
-the `Host` header the reverse proxy forwards and ASSUMES `https`, which is what the proxy
-terminates. There is no `ORIGIN` variable any more (SvelteKit 3 removed it from the adapters; the
-build-time option is `paths.origin`, unused here). A preview image at `http://` is one no unfurler
-will fetch, so `scripts/boot-smoke.js` asserts the https origin and CI runs it. It is also the
-origin the CSRF check compares `Origin` with.
+Under `adapter-bun` that origin is **derived from the request, not pinned**: the adapter takes the
+hostname from the `Host` header and ASSUMES `https`. The old `ORIGIN` variable no longer exists for
+the adapters; `paths.origin` still does, but it is a BUILD-time option and would bake one hostname
+into an image that must serve both dev and prod, so it is deliberately unused.
+
+**The reverse proxy MUST forward `Host` unchanged** (nginx `proxy_set_header Host $host`; a tunnel
+must not override it with `httpHostHeader`). A different Host silently breaks, all at once: the OIDC
+`redirect_uri` built in `auth/login/+server.ts` and checked in `auth/callback/+server.ts`, the
+canonical link and `og:url`, and EVERY mutation, because SvelteKit 3's CSRF check compares `Origin`
+with `https://<Host>` and refuses a body-less request whose Origin does not match (Sky's own
+admin/tree DELETEs and the recalc POST are such requests). `scripts/boot-smoke.js` asserts the https
+canonical/og:url and both sides of that CSRF rule, and CI runs it.
 
 ### Escaping is the part that will matter later
 
@@ -134,15 +140,21 @@ on a page nothing can fetch would be decoration that reads as the protection.
 
 `og:image`, `og:url` and `link rel=canonical` are resolved by a machine with no
 page context, so a relative path is silently useless to every one of them. They
-are built from `$page.url.origin` - never a constant - so the same code is right
+are built from `page.url.origin` (`$app/state`) - never a constant - so the same code is right
 on production and on localhost.
 
-Under `adapter-bun` that origin comes from the request: the adapter takes the hostname from
-the `Host` header the reverse proxy forwards and ASSUMES `https`, which is what the proxy
-terminates. There is no `ORIGIN` variable any more (SvelteKit 3 removed it from the adapters; the
-build-time option is `paths.origin`, unused here). A preview image at `http://` is one no unfurler
-will fetch, so `scripts/boot-smoke.js` asserts the https origin and CI runs it. It is also the
-origin the CSRF check compares `Origin` with.
+Under `adapter-bun` that origin is **derived from the request, not pinned**: the adapter takes the
+hostname from the `Host` header and ASSUMES `https`. The old `ORIGIN` variable no longer exists for
+the adapters; `paths.origin` still does, but it is a BUILD-time option and would bake one hostname
+into an image that must serve both dev and prod, so it is deliberately unused.
+
+**The reverse proxy MUST forward `Host` unchanged** (nginx `proxy_set_header Host $host`; a tunnel
+must not override it with `httpHostHeader`). A different Host silently breaks, all at once: the OIDC
+`redirect_uri` built in `auth/login/+server.ts` and checked in `auth/callback/+server.ts`, the
+canonical link and `og:url`, and EVERY mutation, because SvelteKit 3's CSRF check compares `Origin`
+with `https://<Host>` and refuses a body-less request whose Origin does not match (Sky's own
+admin/tree DELETEs and the recalc POST are such requests). `scripts/boot-smoke.js` asserts the https
+canonical/og:url and both sides of that CSRF rule, and CI runs it.
 
 ### Escaping is the part that will matter later
 
@@ -182,7 +194,10 @@ what cost it its whole detail half.
 ## Verifying a change
 
 Against a local production build (`bun run build`, then
-`PORT=4321 bun build/index.js`):
+`PORT=4321 bun build/index.js`). The adapter assumes https, so over plain `http://localhost` every
+write (POST/PUT/DELETE) is refused by the CSRF check and the absolute URLs say `https://localhost`;
+set `PROTOCOL_HEADER=x-forwarded-proto` and send `-H 'x-forwarded-proto: http'` to see the local
+scheme. Reads, which is all the commands below do, are unaffected:
 
 ```sh
 curl -s http://localhost:4321/ | grep -o '<meta property="og:image" content="[^"]*"'
