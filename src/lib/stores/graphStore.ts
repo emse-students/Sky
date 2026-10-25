@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
-import type { Person, Relation, Position, GraphDataFile, JsonRelation } from '$types/graph';
-import { hashString } from '$lib/utils/format';
+import type { Person, Relation, Position, GraphDataFile, JsonRelation } from '#lib/types/graph.js';
+import { hashString } from '#lib/utils/format.js';
 
 export interface GraphData {
   people: Person[];

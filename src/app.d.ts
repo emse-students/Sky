@@ -1,4 +1,4 @@
-import type { SessionUser } from '$types/api';
+import type { SessionUser } from '#lib/types/api.js';
 
 declare global {
   namespace App {

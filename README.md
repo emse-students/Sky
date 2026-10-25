@@ -9,7 +9,7 @@ graph.
 
 ## Stack
 
-- **Framework**: SvelteKit 2 + Svelte 5 (SSR, `adapter-node`), TypeScript
+- **Framework**: SvelteKit 3 + Svelte 5 (SSR, `adapter-bun`), TypeScript
 - **Styling**: Tailwind CSS 4
 - **Database**: SQLite via `better-sqlite3` (single file `database/sky.db`)
 - **Graph layout**: in-process ForceAtlas2 (graphology), no Python at runtime

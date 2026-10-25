@@ -5,16 +5,16 @@
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { get, readable } from 'svelte/store';
-import { PHONE_CHIP_BOTTOM } from '$stores/mapActions';
-import { sheetHeight } from '$lib/utils/sheet';
-import { m } from '$lib/paraglide/messages';
+import { get } from 'svelte/store';
+import { PHONE_CHIP_BOTTOM } from '#lib/stores/mapActions.js';
+import { sheetHeight } from '#lib/utils/sheet.js';
+import { m } from '#lib/paraglide/messages.js';
 
-vi.mock('$app/stores', () => ({
-  page: readable({
+vi.mock('$app/state', () => ({
+  page: {
     data: { user: { id: 'me', profile_id: 'me', name: 'ME Myself', role: 'user' }, canariUrl: '' },
     url: new URL('http://localhost/'),
-  }),
+  },
 }));
 
 const graph = {
@@ -44,7 +44,7 @@ function fakeContext(): CanvasRenderingContext2D {
 
 let host: HTMLElement;
 let component: Record<string, unknown>;
-let cameraStore: typeof import('$stores/cameraStore').cameraStore;
+let cameraStore: typeof import('#lib/stores/cameraStore.js').cameraStore;
 let svelte: typeof import('svelte');
 
 async function settle() {
@@ -74,7 +74,7 @@ beforeEach(async () => {
   vi.resetModules();
   // The runtime is re-imported too, or the page and `mount` would hold two different ones.
   svelte = await import('svelte');
-  ({ cameraStore } = await import('$stores/cameraStore'));
+  ({ cameraStore } = await import('#lib/stores/cameraStore.js'));
   const Page = (await import('./+page.svelte')).default;
   host = document.createElement('div');
   document.body.appendChild(host);

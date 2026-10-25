@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Insets } from '$lib/utils/camera';
+import type { Insets } from '#lib/utils/camera.js';
 
 /**
  * Immersive mode on a phone, after Google Sky Map: a tap on EMPTY sky hides every control over the

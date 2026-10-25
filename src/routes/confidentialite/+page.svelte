@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { m } from '$lib/paraglide/messages';
-  import Seo from '$components/Seo.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import Seo from '#lib/components/Seo.svelte';
 
   // Each section is a heading plus its paragraphs, so the page reads as data and a new
   // section is one entry here and its message keys.

@@ -1,20 +1,19 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   getDatabase,
   recalculatePositions,
   setPersonRole,
   unlinkPersonAuth,
-} from '$lib/server/database';
-import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
-import { formatFirstName, formatLastName } from '$lib/utils/format';
-import { requireAdmin } from '$lib/server/guards';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/server/database.js';
+import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { formatFirstName, formatLastName } from '#lib/utils/format.js';
+import { requireAdmin } from '#lib/server/guards.js';
+import { m } from '#lib/paraglide/messages.js';
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   const user = locals.user;
   if (!user || user.role !== 'admin') {
-    return json({ error: 'Unauthorized' }, { status: 403 });
+    return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const { id } = params;
@@ -26,7 +25,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
   // Reject typos: no promotion predates the school's founding year (null clears it).
   if (!isValidPromo(data.level)) {
-    return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
+    return Response.json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
   }
 
   try {
@@ -42,10 +41,10 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
     updateStmt.run(formatFirstName(data.prenom), formatLastName(data.nom), data.level, id);
 
-    return json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     console.error('Update person error:', error);
-    return json({ error: 'Failed to update person' }, { status: 500 });
+    return Response.json({ error: 'Failed to update person' }, { status: 500 });
   }
 };
 
@@ -64,26 +63,26 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
   if (body.action === 'set-role') {
     if (body.role !== 'user' && body.role !== 'admin') {
-      return json({ error: m.api_invalid_role() }, { status: 400 });
+      return Response.json({ error: m.api_invalid_role() }, { status: 400 });
     }
     return setPersonRole(id, body.role)
-      ? json({ success: true })
-      : json({ error: m.api_fiche_not_found() }, { status: 404 });
+      ? Response.json({ success: true })
+      : Response.json({ error: m.api_fiche_not_found() }, { status: 404 });
   }
 
   if (body.action === 'unlink') {
     return unlinkPersonAuth(id)
-      ? json({ success: true })
-      : json({ error: m.api_fiche_not_found() }, { status: 404 });
+      ? Response.json({ success: true })
+      : Response.json({ error: m.api_fiche_not_found() }, { status: 404 });
   }
 
-  return json({ error: m.api_unknown_action() }, { status: 400 });
+  return Response.json({ error: m.api_unknown_action() }, { status: 400 });
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
   const user = locals.user;
   if (!user || user.role !== 'admin') {
-    return json({ error: 'Unauthorized' }, { status: 403 });
+    return Response.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const { id } = params;
@@ -99,9 +98,9 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
 
     recalculatePositions().catch(console.error);
 
-    return json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     console.error('Delete person error:', error);
-    return json({ error: 'Failed to delete person' }, { status: 500 });
+    return Response.json({ error: 'Failed to delete person' }, { status: 500 });
   }
 };

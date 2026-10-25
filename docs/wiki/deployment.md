@@ -1,6 +1,6 @@
 # Deployment
 
-Sky runs as a single Docker container (SvelteKit `adapter-node`, Node runtime) on
+Sky runs as a single Docker container (SvelteKit `adapter-bun`, Bun runtime) on
 port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 image is built and published to GHCR by the CD. This page is the operational
 summary; [MIGRATION.md](../../MIGRATION.md) is the authoritative, checklist-style
@@ -52,18 +52,17 @@ now stops the container, and the deploy's health check reports it.
 The CD generates `.env` from GitHub repo secrets. Non-secret values have defaults
 in `docker-compose.prod.yml`.
 
-| Variable                  | Required     | Role                                                                                                                                                                                                                                                                                                                     |
-| ------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                                                                                                                                                                                                                                                                                    |
-| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                                                                                                                                                                                                                                                                                    |
-| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                                                                                                                                                                                                                                                                                              |
-| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin                                                                                                                                                                                                                                                                     |
-| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://miconnect.emse.fr`                                                                                                                                                                                                                                                                      |
-| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`                                                                                                                                                                                                                                                                        |
-| `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`                                                                                                                                                                                                                                                                            |
-| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                                                                                                                                                                                                                                                                                      |
-| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it)                                                                                                                                                                                                                                                                |
-| `SKY_ORIGIN`              | no           | Public origin; default `https://sky.emse.fr`. Sets `ORIGIN` for `adapter-node`: without it the origin is derived from the `Host` header, which keeps the hostname and loses the scheme, and every absolute URL in the head is built from it (see [seo.md](seo.md)). It is also the origin `adapter-node` checks for CSRF |
+| Variable                  | Required     | Role                                                      |
+| ------------------------- | ------------ | --------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                     |
+| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                     |
+| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                               |
+| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin      |
+| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://miconnect.emse.fr`       |
+| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`         |
+| `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`             |
+| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
+| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
 The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
 

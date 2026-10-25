@@ -57,12 +57,12 @@ page context, so a relative path is silently useless to every one of them. They
 are built from `$page.url.origin` - never a constant - so the same code is right
 on production and on localhost.
 
-Under `adapter-node` that origin comes from the request, and without `ORIGIN` the
-adapter derives it from the `Host` header: the right hostname, but the scheme the
-reverse proxy spoke, which is `http`. A preview image at `http://` is one no
-unfurler will fetch. `docker-compose.prod.yml` therefore sets
-`ORIGIN=${SKY_ORIGIN:-https://sky.emse.fr}`, which is also the origin
-`adapter-node` compares against for its CSRF check.
+Under `adapter-bun` that origin comes from the request: the adapter takes the hostname from
+the `Host` header the reverse proxy forwards and ASSUMES `https`, which is what the proxy
+terminates. There is no `ORIGIN` variable any more (SvelteKit 3 removed it from the adapters; the
+build-time option is `paths.origin`, unused here). A preview image at `http://` is one no unfurler
+will fetch, so `scripts/boot-smoke.js` asserts the https origin and CI runs it. It is also the
+origin the CSRF check compares `Origin` with.
 
 ### Escaping is the part that will matter later
 
@@ -137,12 +137,12 @@ page context, so a relative path is silently useless to every one of them. They
 are built from `$page.url.origin` - never a constant - so the same code is right
 on production and on localhost.
 
-Under `adapter-node` that origin comes from the request, and without `ORIGIN` the
-adapter derives it from the `Host` header: the right hostname, but the scheme the
-reverse proxy spoke, which is `http`. A preview image at `http://` is one no
-unfurler will fetch. `docker-compose.prod.yml` therefore sets
-`ORIGIN=${SKY_ORIGIN:-https://sky.emse.fr}`, which is also the origin
-`adapter-node` compares against for its CSRF check.
+Under `adapter-bun` that origin comes from the request: the adapter takes the hostname from
+the `Host` header the reverse proxy forwards and ASSUMES `https`, which is what the proxy
+terminates. There is no `ORIGIN` variable any more (SvelteKit 3 removed it from the adapters; the
+build-time option is `paths.origin`, unused here). A preview image at `http://` is one no unfurler
+will fetch, so `scripts/boot-smoke.js` asserts the https origin and CI runs it. It is also the
+origin the CSRF check compares `Origin` with.
 
 ### Escaping is the part that will matter later
 
@@ -181,8 +181,8 @@ what cost it its whole detail half.
 
 ## Verifying a change
 
-Against a local production build (`npm run build`, then
-`ORIGIN=https://sky.mitv.fr PORT=4321 node build/index.js`):
+Against a local production build (`bun run build`, then
+`PORT=4321 bun build/index.js`):
 
 ```sh
 curl -s http://localhost:4321/ | grep -o '<meta property="og:image" content="[^"]*"'
@@ -199,4 +199,4 @@ ever sees.
 - [architecture.md](architecture.md) - the hook sequence and the public/private
   route split this page depends on
 - [authentication.md](authentication.md) - the ICM gate itself
-- [deployment.md](deployment.md) - where `ORIGIN` is set
+- [deployment.md](deployment.md) - the deployment topology and environment

@@ -16,7 +16,7 @@ import Graph from 'graphology';
 import { connectedComponents } from 'graphology-components';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
-import { hashString } from '$utils/format';
+import { hashString } from '#lib/utils/format.js';
 
 export interface Point {
   x: number;

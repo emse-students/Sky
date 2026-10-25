@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { PENDING_COOKIE_NAME } from '$server/link';
+import { PENDING_COOKIE_NAME } from '#lib/server/link.js';
 import {
   getPendingLink,
   deletePendingLink,
@@ -10,8 +10,8 @@ import {
   createSession,
   getPersonIdByAuthSub,
   recalculatePositions,
-} from '$server/database';
-import { setSessionCookie } from '$server/session';
+} from '#lib/server/database.js';
+import { setSessionCookie } from '#lib/server/session.js';
 
 /**
  * Ecran de choix de liaison : affiche les fiches candidates (meme nom/prenom,

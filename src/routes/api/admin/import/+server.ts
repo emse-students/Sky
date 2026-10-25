@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { writeFileSync, copyFileSync } from 'fs';
-import { DB_PATH, closeDatabase, recalculatePositions } from '$lib/server/database';
+import { DB_PATH, closeDatabase, recalculatePositions } from '#lib/server/database.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import {
     ArrowLeft,
     Plus,
@@ -15,20 +15,20 @@
     ExternalLink,
     Pencil,
   } from '@lucide/svelte';
-  import AddRelativeModal from '$components/AddRelativeModal.svelte';
-  import BioMarkdown from '$components/BioMarkdown.svelte';
-  import { confirmDialog, alertDialog } from '$lib/stores/dialogStore';
-  import { m } from '$lib/paraglide/messages';
-  import { formatPromoShort } from '$lib/utils/format';
+  import AddRelativeModal from '#lib/components/AddRelativeModal.svelte';
+  import BioMarkdown from '#lib/components/BioMarkdown.svelte';
+  import { confirmDialog, alertDialog } from '#lib/stores/dialogStore.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { formatPromoShort } from '#lib/utils/format.js';
   import type {
     EntourageResponse,
     EntourageMember,
     RelationKind,
     RelationRole,
     CanariProfileResponse,
-  } from '$types/graph';
+  } from '#lib/types/graph.js';
 
-  let user = $derived($page.data.user);
+  let user = $derived(page.data.user);
 
   let data = $state<EntourageResponse | null>(null);
   let canari = $state<CanariProfileResponse | null>(null);
@@ -53,7 +53,7 @@
 
   onMount(() => {
     // ?id lets an admin open another person's tree directly.
-    const requested = $page.url.searchParams.get('id');
+    const requested = page.url.searchParams.get('id');
     const start = requested || user?.profile_id;
     if (start) {
       load(start);
@@ -314,7 +314,7 @@
             <h2>{m.profile_link()}</h2>
             <a
               class="profil-link"
-              href={`${$page.data.canariUrl}/profile/${canari.profile.sub}`}
+              href={`${page.data.canariUrl}/profile/${canari.profile.sub}`}
               target="_blank"
               rel="noopener noreferrer"
             >

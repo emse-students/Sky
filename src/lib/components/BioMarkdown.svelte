@@ -1,6 +1,6 @@
 <script lang="ts">
   import SvelteMarkdown, { allowHtmlOnly } from '@humanspeak/svelte-markdown';
-  import { normalizeBioLineBreaks } from '$lib/utils/markdown';
+  import { normalizeBioLineBreaks } from '#lib/utils/markdown.js';
 
   // Canari bios are authored in Markdown; render them the same way here (GFM + hard line breaks).
   //

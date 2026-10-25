@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { exportDatabaseWithoutSessions } from '$lib/server/database';
+import { exportDatabaseWithoutSessions } from '#lib/server/database.js';
 
 export const GET: RequestHandler = ({ locals }) => {
   // Check admin authorization

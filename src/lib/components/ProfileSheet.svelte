@@ -11,8 +11,8 @@
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { X } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { settleSheet, sheetHeight, stepSheet, type SheetState } from '$lib/utils/sheet';
+  import { m } from '#lib/paraglide/messages.js';
+  import { settleSheet, sheetHeight, stepSheet, type SheetState } from '#lib/utils/sheet.js';
 
   interface Props {
     /** Phone layout: a draggable bottom sheet instead of the desktop drawer. */
