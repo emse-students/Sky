@@ -69,5 +69,5 @@ Not copied: Sky Map's "Trouve : X" chip after a search - in Sky the found person
 chip. Owed on the Mi 9T: the numbers above as rendered, and the toggle on a real tap.
 
 What already meets the bar: the landing page (one clear action, one sentence of context), the search
-itself (fuzzy, finds "BOUTIN" for "boudin"), and the person sheet's CONTENT (associations with logo
+itself (fuzzy, finds "MARTINS" for "martin"), and the person sheet's CONTENT (associations with logo
 and role).

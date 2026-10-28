@@ -16,7 +16,7 @@ procedure changes.
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy   |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`         |
-| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)    |
+| Backups | `scripts/backup.sh`: local archive + offsite mirror over SSH (cron)                   |
 
 Bun, not Node, is the runtime, and the reason INVERTED on 2026-08-27. It used to be
 Node because `better-sqlite3` was a native module the unbundled maintenance scripts
@@ -64,7 +64,9 @@ in `docker-compose.prod.yml`.
 | `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
 | `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
-The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
+The three MiConnect/MiGallery secrets are mandatory (the CD fails without them), and so are the
+three backup destinations `BACKUP_DIR`, `BACKUP_SSH_HOST` and `BACKUP_SSH_PATH`, which go to
+`scripts/backup.env` rather than `.env` ([Backups](#backups)).
 
 ### Authentik app requirements
 
@@ -81,8 +83,10 @@ is ICM-only; `SKY_ADMIN_SUBS` are the exception (see
 The same shape as Canari's and le Cercle's backups (2026-09-25). The deploy user's cron runs
 `scripts/backup.sh`, which takes a `VACUUM INTO` snapshot **inside** the container (`bun:sqlite`,
 never a `cp` of the live file), writes `sky-backup-<timestamp>.tar.gz` with a manifest into
-`/srv/sky-backups`, keeps 14 days, then mirrors the archive to the `mitv` NAS
-(`canaribackup@10.0.0.4:/srv/sky-backups`, the account and path shape Canari's own backup uses).
+`BACKUP_DIR`, keeps 14 days, then mirrors the archive offsite over SSH (`BACKUP_SSH_HOST`,
+`BACKUP_SSH_PATH`). The three destinations are repository secrets, written by the deploy into
+`scripts/backup.env` beside the scripts; both scripts refuse to run without them
+(`scripts/backup-config.sh`), so no host or path is named in this public repository.
 The archive carries **two** files, and `sky.db` alone is NOT the whole state: `sky.db` (people,
 relationships, sessions - a restore signs nobody out) and `positions.json` (the star map's layout,
 recomputed on a mutation, never at start).
