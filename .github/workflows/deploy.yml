@@ -54,7 +54,7 @@ jobs:
           for v in SKY_RUNNER_LABEL SKY_DEPLOY_DIR; do
             if [ -z "${!v}" ]; then echo "::error::Repository variable $v is not set - it names the box Sky deploys to."; exit 1; fi
           done
-          echo "Deploying to runner '$SKY_RUNNER_LABEL', directory '$SKY_DEPLOY_DIR'"
+          echo "Deploying to runner '$SKY_RUNNER_LABEL'"
 
       - name: Checkout
         uses: actions/checkout@v7
@@ -134,7 +134,13 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Generate .env from secrets
+      # Every value is checked BEFORE anything is written, so a missing or malformed secret leaves
+      # the host's .env, compose file and backup scripts exactly as they were. A value holding a
+      # newline or a carriage return would inject a second line into the KEY=VALUE files, so it is
+      # refused rather than written. Where the backups go is operations data this public
+      # repository does not name: the three BACKUP_* secrets go to scripts/backup.env, beside the
+      # scripts that read them (scripts/backup-config.sh), never to .env.
+      - name: Generate .env and backup.env from secrets
         env:
           MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
           MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
@@ -145,11 +151,22 @@ jobs:
           CANARI_API_KEY: ${{ secrets.CANARI_API_KEY }}
           CANARI_API_URL: ${{ secrets.CANARI_API_URL }}
           SKY_API_KEY: ${{ secrets.SKY_API_KEY }}
+          BACKUP_DIR: ${{ secrets.BACKUP_DIR }}
+          BACKUP_SSH_HOST: ${{ secrets.BACKUP_SSH_HOST }}
+          BACKUP_SSH_PATH: ${{ secrets.BACKUP_SSH_PATH }}
         run: |
-          for v in MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET MIGALLERY_API_KEY; do
+          for v in MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET MIGALLERY_API_KEY \
+            BACKUP_DIR BACKUP_SSH_HOST BACKUP_SSH_PATH; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
           done
-          mkdir -p "$DEPLOY_DIR"
+          for v in MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET MICONNECT_BASE_URL SKY_ADMIN_SUBS \
+            MIGALLERY_API_KEY MIGALLERY_API_URL CANARI_API_KEY CANARI_API_URL SKY_API_KEY \
+            BACKUP_DIR BACKUP_SSH_HOST BACKUP_SSH_PATH; do
+            case "${!v}" in
+              *$'\n'* | *$'\r'*) echo "::error::Secret GitHub $v contient un saut de ligne"; exit 1 ;;
+            esac
+          done
+          mkdir -p "$DEPLOY_DIR/scripts"
           umask 077
           {
             printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
@@ -162,21 +179,6 @@ jobs:
             if [ -n "$CANARI_API_URL" ]; then printf 'CANARI_API_URL=%s\n' "$CANARI_API_URL"; fi
             if [ -n "$SKY_API_KEY" ]; then printf 'SKY_API_KEY=%s\n' "$SKY_API_KEY"; fi
           } > "$DEPLOY_DIR/.env"
-
-      # Where the backups go is operations data this public repository does not name: three
-      # secrets, written beside the scripts that read them (scripts/backup-config.sh). Refused
-      # BEFORE the scripts are synced, so a missing secret leaves the host's working copies alone.
-      - name: Write the backup destinations
-        env:
-          BACKUP_DIR: ${{ secrets.BACKUP_DIR }}
-          BACKUP_SSH_HOST: ${{ secrets.BACKUP_SSH_HOST }}
-          BACKUP_SSH_PATH: ${{ secrets.BACKUP_SSH_PATH }}
-        run: |
-          for v in BACKUP_DIR BACKUP_SSH_HOST BACKUP_SSH_PATH; do
-            if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
-          done
-          mkdir -p "$DEPLOY_DIR/scripts"
-          umask 077
           printf 'BACKUP_DIR=%s\nBACKUP_SSH_HOST=%s\nBACKUP_SSH_PATH=%s\n' \
             "$BACKUP_DIR" "$BACKUP_SSH_HOST" "$BACKUP_SSH_PATH" > "$DEPLOY_DIR/scripts/backup.env"
 

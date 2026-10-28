@@ -7,7 +7,7 @@
 # locally, then mirrors the archive offsite over SSH.
 #
 # Meant to run from cron as the deploy user, or by hand:
-#   /srv/sky/scripts/backup.sh
+#   <deploy-dir>/scripts/backup.sh
 #
 # No host dependency beyond Docker and SSH/rsync. The snapshot is taken INSIDE the container with
 # `bun:sqlite`, so the host needs no sqlite3 CLI and the database is never read from outside the

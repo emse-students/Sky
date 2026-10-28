@@ -2,9 +2,9 @@
 #
 # Restore Sky's database from an archive written by backup.sh.
 #
-#   /srv/sky/scripts/restore.sh --yes                     # the newest LOCAL archive
-#   /srv/sky/scripts/restore.sh --yes --offsite           # the newest archive on the offsite mirror
-#   /srv/sky/scripts/restore.sh --yes --archive <path>    # that archive
+#   <deploy-dir>/scripts/restore.sh --yes                     # the newest LOCAL archive
+#   <deploy-dir>/scripts/restore.sh --yes --offsite           # the newest archive on the offsite mirror
+#   <deploy-dir>/scripts/restore.sh --yes --archive <path>    # that archive
 #
 # DESTRUCTIVE: replaces database/sky.db and positions.json. Requires --yes. Each
 # file it replaces is kept beside it as <name>.before-restore-<timestamp>. Where the archive comes from is always NAMED on the
@@ -13,7 +13,8 @@
 #
 set -euo pipefail
 
-SKY_DIR="${SKY_DIR:-/srv/sky}"
+# The deploy syncs this script into <deploy-dir>/scripts, so its parent IS the deploy directory.
+SKY_DIR="${SKY_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 DB_DIR="${DB_DIR:-$SKY_DIR/database}"
 COMPOSE="docker compose -f $SKY_DIR/docker-compose.prod.yml --project-directory $SKY_DIR"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
