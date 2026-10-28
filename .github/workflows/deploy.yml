@@ -163,11 +163,28 @@ jobs:
             if [ -n "$SKY_API_KEY" ]; then printf 'SKY_API_KEY=%s\n' "$SKY_API_KEY"; fi
           } > "$DEPLOY_DIR/.env"
 
+      # Where the backups go is operations data this public repository does not name: three
+      # secrets, written beside the scripts that read them (scripts/backup-config.sh). Refused
+      # BEFORE the scripts are synced, so a missing secret leaves the host's working copies alone.
+      - name: Write the backup destinations
+        env:
+          BACKUP_DIR: ${{ secrets.BACKUP_DIR }}
+          BACKUP_SSH_HOST: ${{ secrets.BACKUP_SSH_HOST }}
+          BACKUP_SSH_PATH: ${{ secrets.BACKUP_SSH_PATH }}
+        run: |
+          for v in BACKUP_DIR BACKUP_SSH_HOST BACKUP_SSH_PATH; do
+            if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
+          done
+          mkdir -p "$DEPLOY_DIR/scripts"
+          umask 077
+          printf 'BACKUP_DIR=%s\nBACKUP_SSH_HOST=%s\nBACKUP_SSH_PATH=%s\n' \
+            "$BACKUP_DIR" "$BACKUP_SSH_HOST" "$BACKUP_SSH_PATH" > "$DEPLOY_DIR/scripts/backup.env"
+
       - name: Sync deploy files
         run: |
           cp docker-compose.prod.yml "$DEPLOY_DIR/"
           mkdir -p "$DEPLOY_DIR/scripts"
-          cp scripts/backup.sh scripts/restore.sh "$DEPLOY_DIR/scripts/"
+          cp scripts/backup.sh scripts/restore.sh scripts/backup-config.sh "$DEPLOY_DIR/scripts/"
           chmod +x "$DEPLOY_DIR/scripts/backup.sh" "$DEPLOY_DIR/scripts/restore.sh"
 
       # The compose file reads IMAGE_PREFIX, so the deploy names the same image the build pushed.

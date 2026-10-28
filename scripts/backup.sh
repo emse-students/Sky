@@ -16,21 +16,21 @@
 set -euo pipefail
 
 # -- Configuration (overridable via environment) -----------------------------
-BACKUP_DIR="${BACKUP_DIR:-/srv/sky-backups}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 # compose names it <project>-<service>-1, and the project is the deploy directory's name (`sky`).
 SKY_CONTAINER="${SKY_CONTAINER:-sky-sky-1}"
 DB_DIR_IN_CONTAINER="${DB_DIR_IN_CONTAINER:-/app/database}"
-# Offsite mirror: the mitv NAS, over the School network - the same account and path shape
-# Canari's own backup uses every night. An EMPTY BACKUP_SSH_HOST disables it, and that is the only
-# gesture that does - hence `-` and not `:-` below: `:-` treats empty as unset and puts the default
-# back, so "empty disables" would be a comment the code contradicts (found by running it).
-BACKUP_SSH_HOST="${BACKUP_SSH_HOST-canaribackup@10.0.0.4}"
-BACKUP_SSH_PATH="${BACKUP_SSH_PATH:-/srv/sky-backups}"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 
 log() { printf '[sky-backup] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[sky-backup] ERROR %s\n' "$*" >&2; exit 1; }
+
+# BACKUP_DIR (the local archive), BACKUP_SSH_HOST and BACKUP_SSH_PATH (the offsite mirror, the same
+# shape Canari's own backup uses) come from the deploy-written backup.env (backup-config.sh). An
+# EMPTY BACKUP_SSH_HOST in the environment disables the mirror, and that is the only gesture that does.
+# shellcheck source=scripts/backup-config.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+load_backup_config
 
 docker inspect "$SKY_CONTAINER" >/dev/null 2>&1 || fail "container ${SKY_CONTAINER} not found"
 

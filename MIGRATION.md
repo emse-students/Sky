@@ -13,7 +13,7 @@ restoration.
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                                 |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy              |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`                    |
-| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)               |
+| Backups | `scripts/backup.sh`: local archive + offsite mirror over SSH (cron)                              |
 
 > Runtime is Node (not Bun): `better-sqlite3` is used by non-bundled scripts
 > (`init-db.js`, migrations) that Bun cannot load. Graph position computation is
@@ -49,8 +49,13 @@ The CD generates `.env` from repo secrets:
 | `SKY_ADMIN_SUBS`          | (optional) Authentik admin subs, comma-separated                 |
 | `MICONNECT_BASE_URL`      | (optional) Authentik base; default `https://miconnect.emse.fr`   |
 | `MIGALLERY_API_URL`       | (optional) MiGallery API base; default `https://gallery.mitv.fr` |
+| `BACKUP_DIR`              | Local archive directory on the host (`<backup-dir>`)             |
+| `BACKUP_SSH_HOST`         | Offsite mirror, `<backup-account>@<backup-host>`                 |
+| `BACKUP_SSH_PATH`         | Archive directory on the mirror                                  |
 
-The first three are mandatory (CD fails if missing). Non-secret values (PORT
+The first three and the three `BACKUP_*` are mandatory (CD fails if missing). The `BACKUP_*`
+values never reach `.env`: the deploy writes them into `scripts/backup.env` beside the backup
+scripts, which refuse to run without it (`scripts/backup-config.sh`). Non-secret values (PORT
 3001, `MICONNECT_BASE_URL`, `MIGALLERY_API_URL`, BODY_SIZE_LIMIT) have defaults
 in `docker-compose.prod.yml`. OIDC endpoints are at
 `<base>/application/o/{authorize,token,userinfo}/` (global, no slug, like
@@ -66,15 +71,10 @@ formation`). All of Sky is restricted to the ICM program; `SKY_ADMIN_SUBS`
 
 ## 3. SSH Access for the Offsite Mirror
 
-The deploy user (the runner's) needs a key authorized for `canaribackup@10.0.0.4` on `mitv` - the
-account Canari's backup already uses - and a directory it owns there:
-
-```bash
-# on mitv
-sudo install -d -m 700 -o canaribackup -g canaribackup /srv/sky-backups
-# on the Sky host, as the deploy user
-ssh -o BatchMode=yes canaribackup@10.0.0.4 'touch /srv/sky-backups/.probe && rm /srv/sky-backups/.probe'
-```
+The deploy user (the runner's) needs a key authorized for the backup account on `<backup-host>`
+(the `BACKUP_SSH_HOST` secret) and a directory that account owns there (`BACKUP_SSH_PATH`). Check,
+as the deploy user, that a non-interactive `ssh -o BatchMode=yes` to that account can write in
+that directory before relying on the cron line below.
 
 ## 4. First Deployment
 
@@ -85,26 +85,26 @@ generates `.env`, syncs `docker-compose.prod.yml` and `scripts/` into `SKY_DEPLO
 ## 5. Data Restoration
 
 ```bash
-./scripts/restore.sh --yes             # newest local archive in /srv/sky-backups
-./scripts/restore.sh --yes --offsite   # newest archive on the mitv mirror
+./scripts/restore.sh --yes             # newest local archive in BACKUP_DIR
+./scripts/restore.sh --yes --offsite   # newest archive on the offsite mirror
 ```
 
 ## 6. Recurring Backups
 
-The deploy user's crontab on the server (`/srv/sky-backups` owned by that user). **`BACKUP_DIR` is
-set ON THE LINE**: that crontab is shared with Canari's backups and sets `BACKUP_DIR=/srv/canari-backups`
-at its top, which every job inherits - without the prefix Sky's archives would land in Canari's
-directory and under its retention (found installing it, 2026-09-27; le Cercle's line does the same).
+The deploy user's crontab on the server (`<backup-dir>` owned by that user). **Set `BACKUP_DIR` ON
+THE LINE**: the environment wins over `scripts/backup.env`, so a `BACKUP_DIR` set at the top of a
+crontab shared with other jobs would send Sky's archives into another project's directory and
+under its retention.
 
 ```cron
-45 4 * * * BACKUP_DIR=/srv/sky-backups /srv/sky/scripts/backup.sh >> /srv/sky-backups/backup.log 2>&1
+45 4 * * * BACKUP_DIR=<backup-dir> <deploy-dir>/scripts/backup.sh >> <backup-dir>/backup.log 2>&1
 ```
 
 ## Checklist
 
 - [ ] Docker + compose, self-hosted runner (docker group)
-- [ ] GitHub secrets created
-- [ ] SSH deploy user -> `canaribackup@10.0.0.4` for the offsite mirror, and the cron line above
+- [ ] GitHub secrets created, the three `BACKUP_*` included
+- [ ] SSH deploy user -> the backup account for the offsite mirror, and the cron line above
 - [ ] Green CD (image + deployment)
 - [ ] Databases restored
 - [ ] Backup cron installed

@@ -15,14 +15,16 @@ set -euo pipefail
 
 SKY_DIR="${SKY_DIR:-/srv/sky}"
 DB_DIR="${DB_DIR:-$SKY_DIR/database}"
-BACKUP_DIR="${BACKUP_DIR:-/srv/sky-backups}"
-BACKUP_SSH_HOST="${BACKUP_SSH_HOST-canaribackup@10.0.0.4}"
-BACKUP_SSH_PATH="${BACKUP_SSH_PATH:-/srv/sky-backups}"
 COMPOSE="docker compose -f $SKY_DIR/docker-compose.prod.yml --project-directory $SKY_DIR"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 
 log() { printf '[sky-restore] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[sky-restore] ERROR %s\n' "$*" >&2; exit 1; }
+
+# Where the archives are: the same deploy-written backup.env backup.sh reads (backup-config.sh).
+# shellcheck source=scripts/backup-config.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+load_backup_config
 
 CONFIRM=no SOURCE=local ARCHIVE=""
 while [ $# -gt 0 ]; do
