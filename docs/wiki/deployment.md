@@ -1,6 +1,6 @@
 # Deployment
 
-Sky runs as a single Docker container (SvelteKit `adapter-node`, Node runtime) on
+Sky runs as a single Docker container (SvelteKit `adapter-bun`, Bun runtime) on
 port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 image is built and published to GHCR by the CD. This page is the operational
 summary; [MIGRATION.md](../../MIGRATION.md) is the authoritative, checklist-style
@@ -16,7 +16,7 @@ procedure changes.
 | Image   | `ghcr.io/emse-students/sky:latest` (built by CD)                                      |
 | CD      | `.github/workflows/deploy.yml`, called by `release.yml` only: build-image -> deploy   |
 | Target  | repository variables `SKY_RUNNER_LABEL` (the box's runner) + `SKY_DEPLOY_DIR`         |
-| Backups | `scripts/backup.sh`: local archive in `/srv/sky-backups` + mirror on `mitv` (cron)    |
+| Backups | `scripts/backup.sh`: local archive + offsite mirror over SSH (cron)                   |
 
 Bun, not Node, is the runtime, and the reason INVERTED on 2026-08-27. It used to be
 Node because `better-sqlite3` was a native module the unbundled maintenance scripts
@@ -52,20 +52,21 @@ now stops the container, and the deploy's health check reports it.
 The CD generates `.env` from GitHub repo secrets. Non-secret values have defaults
 in `docker-compose.prod.yml`.
 
-| Variable                  | Required     | Role                                                                                                                                                                                                                                                                                                                     |
-| ------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                                                                                                                                                                                                                                                                                    |
-| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                                                                                                                                                                                                                                                                                    |
-| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                                                                                                                                                                                                                                                                                              |
-| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin                                                                                                                                                                                                                                                                     |
-| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://miconnect.emse.fr`                                                                                                                                                                                                                                                                      |
-| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`                                                                                                                                                                                                                                                                        |
-| `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`                                                                                                                                                                                                                                                                            |
-| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                                                                                                                                                                                                                                                                                      |
-| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it)                                                                                                                                                                                                                                                                |
-| `SKY_ORIGIN`              | no           | Public origin; default `https://sky.emse.fr`. Sets `ORIGIN` for `adapter-node`: without it the origin is derived from the `Host` header, which keeps the hostname and loses the scheme, and every absolute URL in the head is built from it (see [seo.md](seo.md)). It is also the origin `adapter-node` checks for CSRF |
+| Variable                  | Required     | Role                                                      |
+| ------------------------- | ------------ | --------------------------------------------------------- |
+| `MICONNECT_CLIENT_ID`     | yes          | Authentik OIDC client for the Sky app                     |
+| `MICONNECT_CLIENT_SECRET` | yes          | Authentik OIDC secret                                     |
+| `MIGALLERY_API_KEY`       | yes          | MiGallery avatar API access                               |
+| `SKY_ADMIN_SUBS`          | no           | Comma-separated Authentik subs bootstrapped as admin      |
+| `MICONNECT_BASE_URL`      | no           | Authentik base; default `https://miconnect.emse.fr`       |
+| `MIGALLERY_API_URL`       | no           | MiGallery base; default `https://gallery.mitv.fr`         |
+| `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`             |
+| `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
+| `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
 
-The three MiConnect/MiGallery secrets are mandatory (the CD fails without them).
+The three MiConnect/MiGallery secrets are mandatory (the CD fails without them), and so are the
+three backup destinations `BACKUP_DIR`, `BACKUP_SSH_HOST` and `BACKUP_SSH_PATH`, which go to
+`scripts/backup.env` rather than `.env` ([Backups](#backups)).
 
 ### Authentik app requirements
 
@@ -82,8 +83,10 @@ is ICM-only; `SKY_ADMIN_SUBS` are the exception (see
 The same shape as Canari's and le Cercle's backups (2026-09-25). The deploy user's cron runs
 `scripts/backup.sh`, which takes a `VACUUM INTO` snapshot **inside** the container (`bun:sqlite`,
 never a `cp` of the live file), writes `sky-backup-<timestamp>.tar.gz` with a manifest into
-`/srv/sky-backups`, keeps 14 days, then mirrors the archive to the `mitv` NAS
-(`canaribackup@10.0.0.4:/srv/sky-backups`, the account and path shape Canari's own backup uses).
+`BACKUP_DIR`, keeps 14 days, then mirrors the archive offsite over SSH (`BACKUP_SSH_HOST`,
+`BACKUP_SSH_PATH`). The three destinations are repository secrets, written by the deploy into
+`scripts/backup.env` beside the scripts; both scripts refuse to run without them
+(`scripts/backup-config.sh`), so no host or path is named in this public repository.
 The archive carries **two** files, and `sky.db` alone is NOT the whole state: `sky.db` (people,
 relationships, sessions - a restore signs nobody out) and `positions.json` (the star map's layout,
 recomputed on a mutation, never at start).

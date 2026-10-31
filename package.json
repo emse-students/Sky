@@ -4,11 +4,14 @@
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "bun --bun vite dev",
     "build": "bun --bun vite build",
     "preview": "bun --bun vite preview",
-    "prepare": "husky",
+    "prepare": "bun --bun husky",
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "check": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsgo --tsconfig ./tsconfig.json",
     "check:watch": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsgo --tsconfig ./tsconfig.json --watch",
@@ -27,7 +30,7 @@
     "@fontsource/orbitron": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
     "@humanspeak/svelte-markdown": "^2.1.3",
-    "@lucide/svelte": "^1.58.0",
+    "@lucide/svelte": "^1.61.0",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout": "^0.6.1",
@@ -35,14 +38,14 @@
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.25.4",
-    "@sveltejs/adapter-node": "^5.5.7",
-    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/adapter-bun": "^1.0.0",
+    "@sveltejs/kit": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "husky": "^9.1.7",
-    "jsdom": "^30.1.1",
+    "jsdom": "^30.1.3",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
     "svelte": "^5.57.1",
@@ -50,11 +53,10 @@
     "tailwindcss": "^4.3.3",
     "tar": "^7.5.22",
     "typescript": "~6.0.3",
-    "vite": "^8.3.2",
+    "vite": "^8.3.5",
     "vitest": "^5.0.3"
   },
   "overrides": {
-    "cookie": "^0.7.0",
     "nanoid": "^3.3.18",
     "picomatch": "^4.0.4",
     "postcss": "^8.5.26"

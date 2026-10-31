@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [sveltekit({ preprocess: vitePreprocess({ script: true }) })],
   // `svelte` ships a server build and a client build and picks between them by export condition.
   // Vite resolves to the SERVER one outside a browser, so `mount()` throws
   // `lifecycle_function_unavailable` and no Svelte component can be rendered in a test at all -

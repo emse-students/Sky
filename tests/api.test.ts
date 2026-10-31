@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import { GET as getAvatar } from '../src/routes/api/avatar/[id]/+server';
-import { getPersonById, getPersonAuthSub } from '$lib/server/database';
+import { getPersonById, getPersonAuthSub } from '#lib/server/database.js';
 
 // Mock database module
-vi.mock('$lib/server/database', () => ({
+vi.mock('#lib/server/database.js', () => ({
   getPersonById: vi.fn(),
   getPersonAuthSub: vi.fn(() => 'photo-key'),
   getDatabase: vi.fn(),

@@ -1,8 +1,7 @@
-import { json } from '@sveltejs/kit';
-import { mergePeople, recalculatePositions, getPersonAuthSub } from '$lib/server/database';
-import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
+import { mergePeople, recalculatePositions, getPersonAuthSub } from '#lib/server/database.js';
+import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
 import type { RequestHandler } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Chosen identity to keep when the two fiches disagree (nom/prenom/promo). */
 interface MergeResolution {
@@ -14,7 +13,7 @@ interface MergeResolution {
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user) {
-    return json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -26,11 +25,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const { sourceId, targetId, resolution } = body;
 
     if (!sourceId || !targetId) {
-      return json({ error: 'Missing sourceId or targetId' }, { status: 400 });
+      return Response.json({ error: 'Missing sourceId or targetId' }, { status: 400 });
     }
 
     if (sourceId === targetId) {
-      return json({ error: 'Cannot merge person into themselves' }, { status: 400 });
+      return Response.json({ error: 'Cannot merge person into themselves' }, { status: 400 });
     }
 
     // "One star = one person" lock: never merge two fiches linked to an
@@ -38,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const sourceLinked = getPersonAuthSub(sourceId) !== null;
     const targetLinked = getPersonAuthSub(targetId) !== null;
     if (sourceLinked && targetLinked) {
-      return json({ error: m.api_merge_two_linked() }, { status: 409 });
+      return Response.json({ error: m.api_merge_two_linked() }, { status: 409 });
     }
 
     // The linked fiche (connected account) always survives, whatever the
@@ -52,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (resolution?.prenom && resolution?.nom) {
       const level = typeof resolution.level === 'number' ? resolution.level : null;
       if (level !== null && !isValidPromo(level)) {
-        return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
+        return Response.json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
       }
       survivorIdentity = {
         prenom: resolution.prenom,
@@ -66,10 +65,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Trigger recalculation in background
     recalculatePositions().catch((e) => console.error('Recalc failed', e));
 
-    return json({ success: true, survivorId: keepId });
+    return Response.json({ success: true, survivorId: keepId });
   } catch (error) {
     console.error('Merge failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return json({ error: 'Merge failed', details: message }, { status: 500 });
+    return Response.json({ error: 'Merge failed', details: message }, { status: 500 });
   }
 };

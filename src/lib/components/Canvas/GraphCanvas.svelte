@@ -6,13 +6,13 @@
     graphStore,
     directLinks,
     selectStar,
-  } from '$stores/graphStore';
-  import { cameraStore } from '$stores/cameraStore';
-  import { frameStar } from '$stores/mapActions';
-  import { chromeHidden } from '$stores/mapChrome';
-  import { getPersonName } from '$lib/utils/format';
-  import { computePromoBounds, promoColor } from '$lib/utils/promoColor';
-  import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '$lib/utils/camera';
+  } from '#lib/stores/graphStore.js';
+  import { cameraStore } from '#lib/stores/cameraStore.js';
+  import { frameStar } from '#lib/stores/mapActions.js';
+  import { chromeHidden } from '#lib/stores/mapChrome.js';
+  import { getPersonName } from '#lib/utils/format.js';
+  import { computePromoBounds, promoColor } from '#lib/utils/promoColor.js';
+  import { wheelZoomFactor, zoomAt, zoomBoundsFor, type ScreenPoint } from '#lib/utils/camera.js';
   import {
     LabelFader,
     labelPriority,
@@ -20,9 +20,9 @@
     placeLabels,
     TextWidthCache,
     type LabelCandidate,
-  } from '$lib/utils/labels';
-  import type { Person } from '$types/graph';
-  import type { DirectLinks } from '$stores/graphStore';
+  } from '#lib/utils/labels.js';
+  import type { Person } from '#lib/types/graph.js';
+  import type { DirectLinks } from '#lib/stores/graphStore.js';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;

@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   getDatabase,
@@ -15,19 +14,19 @@ import {
   isSameFamily,
   RelationError,
   type RelationKind,
-} from '$lib/server/database';
-import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/server/database.js';
+import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Raw list of links (read). */
 export const GET: RequestHandler = () => {
   try {
     const db = getDatabase();
     const relationships = db.prepare('SELECT * FROM relationships').all();
-    return json(relationships);
+    return Response.json(relationships);
   } catch (error) {
     console.error('Error fetching relationships:', error);
-    return json({ error: 'Failed to fetch relationships' }, { status: 500 });
+    return Response.json({ error: 'Failed to fetch relationships' }, { status: 500 });
   }
 };
 
@@ -73,14 +72,14 @@ function parseLevel(value: number | string | null | undefined): number | null {
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: m.api_unauthenticated() }, { status: 401 });
+    return Response.json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
   const body = (await request.json()) as AddRelationBody;
   const { type, role = 'fillot', targetId, newPerson, confirmCreate, centerId } = body;
 
   if (!isRelationKind(type)) {
-    return json({ error: m.api_invalid_relation_type() }, { status: 400 });
+    return Response.json({ error: m.api_invalid_relation_type() }, { status: 400 });
   }
   const kind: RelationKind = type;
 
@@ -92,7 +91,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     user.role !== 'admin' &&
     !isSameFamily(user.profile_id, center)
   ) {
-    return json({ error: m.api_unauthorized() }, { status: 403 });
+    return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
   // Validate the new-star input BEFORE any write (promo present & valid, dedup
@@ -101,21 +100,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   let creation: { firstName: string; lastName: string; level: number } | null = null;
   if (!targetId) {
     if (!newPerson?.firstName || !newPerson?.lastName) {
-      return json({ error: m.api_target_or_new_required() }, { status: 400 });
+      return Response.json({ error: m.api_target_or_new_required() }, { status: 400 });
     }
     const level = parseLevel(newPerson.level);
     // Promo is mandatory when creating a new star.
     if (level === null) {
-      return json({ error: m.api_promo_required() }, { status: 400 });
+      return Response.json({ error: m.api_promo_required() }, { status: 400 });
     }
     // Reject typos: no promotion predates the school's founding year.
     if (!isValidPromo(level)) {
-      return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
+      return Response.json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
     }
     if (!confirmCreate) {
       const candidates = findPeopleByName(newPerson.lastName, newPerson.firstName);
       if (candidates.length > 0) {
-        return json({ needsConfirmation: true, candidates }, { status: 409 });
+        return Response.json({ needsConfirmation: true, candidates }, { status: 409 });
       }
     }
     creation = {
@@ -150,16 +149,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
   } catch (error) {
     if (error instanceof RelationError) {
-      return json({ error: error.message, code: error.code }, { status: 409 });
+      return Response.json({ error: error.message, code: error.code }, { status: 409 });
     }
     console.error('Error creating relationship:', error);
-    return json({ error: m.api_relation_create_failed() }, { status: 500 });
+    return Response.json({ error: m.api_relation_create_failed() }, { status: 500 });
   }
 
   // Recompute positions in the background (best effort).
   recalculatePositions().catch((err) => console.error('Failed to recalculate positions:', err));
 
-  return json({ success: true, personId: otherId });
+  return Response.json({ success: true, personId: otherId });
 };
 
 /**
@@ -169,24 +168,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 export const DELETE: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || !user.profile_id) {
-    return json({ error: m.api_unauthenticated() }, { status: 401 });
+    return Response.json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
   const body = (await request.json()) as { relationshipId?: number };
   const { relationshipId } = body;
   if (!relationshipId) {
-    return json({ error: m.api_relationship_id_missing() }, { status: 400 });
+    return Response.json({ error: m.api_relationship_id_missing() }, { status: 400 });
   }
 
   const rel = getRelationshipById(relationshipId);
   if (!rel) {
-    return json({ error: m.api_relationship_not_found() }, { status: 404 });
+    return Response.json({ error: m.api_relationship_not_found() }, { status: 404 });
   }
 
   const touchesMyFamily =
     isSameFamily(user.profile_id, rel.source_id) || isSameFamily(user.profile_id, rel.target_id);
   if (!touchesMyFamily && user.role !== 'admin') {
-    return json({ error: m.api_unauthorized() }, { status: 403 });
+    return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
   removeRelationshipById(relationshipId);
@@ -207,5 +206,5 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
     }
   }
 
-  return json({ success: true, orphan });
+  return Response.json({ success: true, orphan });
 };

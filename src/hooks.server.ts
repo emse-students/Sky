@@ -1,19 +1,33 @@
-import { redirect, json, isRedirect, type Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-import { getSessionPerson } from '$server/database';
-import { SESSION_COOKIE_NAME } from '$server/session';
-import { paraglideMiddleware } from '$lib/paraglide/server';
-import { m } from '$lib/paraglide/messages';
-import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
+import { redirect, isRedirect } from '@sveltejs/kit';
+import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { closeDatabase, getSessionPerson } from '#lib/server/database.js';
+import { SESSION_COOKIE_NAME } from '#lib/server/session.js';
+import { paraglideMiddleware } from '#lib/paraglide/server.js';
+import { m } from '#lib/paraglide/messages.js';
+import { isIndexable, NOINDEX_HEADER } from '#lib/seo.js';
+
+/**
+ * adapter-bun drains in-flight requests on SIGTERM/SIGINT, emits `sveltekit:shutdown` and then
+ * leaves the process to exit by itself - which it only does if nothing else holds the event loop.
+ * Exiting here makes the stop deterministic: `docker stop` ends in a clean exit 0 instead of
+ * waiting out its grace period for a SIGKILL. The emit happens after the drain, so no request is
+ * still using the database being closed.
+ */
+process.on('sveltekit:shutdown', (reason: string) => {
+  console.log('[Shutdown] Drained on', reason, '- closing the database and exiting');
+  closeDatabase();
+  process.exit(0);
+});
 
 /**
  * Binds the request locale (resolved from the cookie / Accept-Language header,
  * falling back to fr) to the server-side async context so that `m.*()` renders
  * in the right language during SSR, and injects it into the <html lang> tag.
  */
+// The URL strategy is not used, so the middleware never rewrites the request (`event.request` is
+// read-only in SvelteKit 3): only the locale it resolved is taken from it.
 const paraglideHandler: Handle = ({ event, resolve }) =>
-  paraglideMiddleware(event.request, ({ request, locale }) => {
-    event.request = request;
+  paraglideMiddleware(event.request, ({ locale }) => {
     return resolve(event, {
       transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale),
     });
@@ -100,14 +114,14 @@ const gateHandler: Handle = async ({ event, resolve }) => {
   const user = event.locals.user;
   if (!user) {
     if (pathname.startsWith('/api/')) {
-      return json({ error: m.api_unauthenticated() }, { status: 401 });
+      return Response.json({ error: m.api_unauthenticated() }, { status: 401 });
     }
     throw redirect(302, '/auth/login');
   }
 
   if (user.formation !== 'ICM' && user.role !== 'admin') {
     if (pathname.startsWith('/api/')) {
-      return json({ error: m.api_icm_only() }, { status: 403 });
+      return Response.json({ error: m.api_icm_only() }, { status: 403 });
     }
     throw redirect(302, '/unauthorized');
   }

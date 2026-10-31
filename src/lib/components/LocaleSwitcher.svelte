@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Languages } from '@lucide/svelte';
-  import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
-  import { m } from '$lib/paraglide/messages';
+  import { getLocale, setLocale, type Locale } from '#lib/paraglide/runtime.js';
+  import { m } from '#lib/paraglide/messages.js';
 
   // setLocale persists the choice in the paraglide cookie and reloads the page
   // so the server middleware re-renders every string in the new language.

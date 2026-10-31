@@ -1,7 +1,7 @@
 # Data model
 
 Sky stores everything in one SQLite file, `database/sky.db`, accessed through
-`better-sqlite3` in `src/lib/server/database.ts`. The schema is `schema.sql`
+`bun:sqlite` in `src/lib/server/database.ts`. The schema is `schema.sql`
 (version 4.0); on first boot `getDatabase()` applies it if the `people` table is
 missing, with an inline fallback schema baked into the code.
 

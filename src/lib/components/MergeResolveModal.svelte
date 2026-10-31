@@ -1,9 +1,13 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
   import { GitMerge, X } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { formatPromoShort } from '$lib/utils/format';
-  import { diffIdentity, type MergeIdentity, type IdentityField } from '$lib/utils/mergeIdentity';
+  import { m } from '#lib/paraglide/messages.js';
+  import { formatPromoShort } from '#lib/utils/format.js';
+  import {
+    diffIdentity,
+    type MergeIdentity,
+    type IdentityField,
+  } from '#lib/utils/mergeIdentity.js';
 
   /**
    * Conflict resolver shown when two fiches about to be merged carry different

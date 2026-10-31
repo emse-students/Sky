@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import {
     Users,
@@ -12,11 +12,11 @@
     RefreshCw,
     GitMerge,
   } from '@lucide/svelte';
-  import { confirmDialog } from '$lib/stores/dialogStore';
-  import { m } from '$lib/paraglide/messages';
-  import { formatPromoShort } from '$lib/utils/format';
-  import { identityMatches, type MergeIdentity } from '$lib/utils/mergeIdentity';
-  import MergeResolveModal from '$lib/components/MergeResolveModal.svelte';
+  import { confirmDialog } from '#lib/stores/dialogStore.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { formatPromoShort } from '#lib/utils/format.js';
+  import { identityMatches, type MergeIdentity } from '#lib/utils/mergeIdentity.js';
+  import MergeResolveModal from '#lib/components/MergeResolveModal.svelte';
 
   type SuggPerson = {
     id: string;
@@ -36,7 +36,7 @@
   // The pair awaiting identity-conflict resolution (drives MergeResolveModal).
   let pendingMerge = $state<Suggestion | null>(null);
 
-  let user = $derived($page.data.user);
+  let user = $derived(page.data.user);
   let isAdmin = $derived(user?.role === 'admin');
 
   onMount(() => {

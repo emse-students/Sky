@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   isSameFamily,
@@ -6,9 +5,9 @@ import {
   deletePlaceholderPerson,
   countPersonRelations,
   recalculatePositions,
-} from '$lib/server/database';
-import { isValidPromo, MIN_PROMO } from '$lib/server/promo';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/server/database.js';
+import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Edit or delete a placeholder relative (a parrain/fillot not yet linked to a
@@ -42,7 +41,7 @@ function parseLevel(value: unknown): number | null {
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   if (!canManage(locals, params.id)) {
-    return json({ error: m.api_unauthorized() }, { status: 403 });
+    return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
   const data = (await request.json()) as {
     prenom?: string;
@@ -51,17 +50,17 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   };
   const level = parseLevel(data.level);
   if (!data.prenom?.trim() || !data.nom?.trim() || level === null) {
-    return json({ error: m.modal_required_fields() }, { status: 400 });
+    return Response.json({ error: m.modal_required_fields() }, { status: 400 });
   }
   // Reject typos: no promotion predates the school's founding year.
   if (!isValidPromo(level)) {
-    return json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
+    return Response.json({ error: m.api_promo_invalid({ min: MIN_PROMO }) }, { status: 400 });
   }
   const ok = updatePlaceholderIdentity(params.id, data.prenom, data.nom, level);
   if (!ok) {
-    return json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
+    return Response.json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
   }
-  return json({ success: true });
+  return Response.json({ success: true });
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
@@ -69,12 +68,12 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
   // signed-in user: this is the "unlink -> the star is now dangling" cleanup.
   const orphan = !!locals.user && countPersonRelations(params.id) === 0;
   if (!canManage(locals, params.id) && !orphan) {
-    return json({ error: m.api_unauthorized() }, { status: 403 });
+    return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
   const ok = deletePlaceholderPerson(params.id);
   if (!ok) {
-    return json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
+    return Response.json({ error: m.api_fiche_not_found_or_linked() }, { status: 409 });
   }
   recalculatePositions().catch((e) => console.error('Recalc failed', e));
-  return json({ success: true });
+  return Response.json({ success: true });
 };

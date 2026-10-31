@@ -13,12 +13,12 @@
 -->
 <script lang="ts">
   import { Plus, Minus, Maximize, LocateFixed, Info, X, Search } from '@lucide/svelte';
-  import { cameraStore } from '$stores/cameraStore';
-  import { graphStore } from '$stores/graphStore';
-  import { BUTTON_ZOOM_FACTOR, zoomAt, zoomBoundsFor } from '$lib/utils/camera';
-  import { showWholeSky } from '$stores/mapActions';
-  import { promoColor } from '$lib/utils/promoColor';
-  import { m } from '$lib/paraglide/messages';
+  import { cameraStore } from '#lib/stores/cameraStore.js';
+  import { graphStore } from '#lib/stores/graphStore.js';
+  import { BUTTON_ZOOM_FACTOR, zoomAt, zoomBoundsFor } from '#lib/utils/camera.js';
+  import { showWholeSky } from '#lib/stores/mapActions.js';
+  import { promoColor } from '#lib/utils/promoColor.js';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     /** Show "go to my star" and run this on press; omitted when the user has no star. */

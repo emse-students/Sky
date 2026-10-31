@@ -15,8 +15,8 @@
     GitMerge,
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
-  import { confirmDialog, alertDialog } from '$lib/stores/dialogStore';
-  import { m } from '$lib/paraglide/messages';
+  import { confirmDialog, alertDialog } from '#lib/stores/dialogStore.js';
+  import { m } from '#lib/paraglide/messages.js';
 
   let people: any[] = $state([]);
   let searchTerm = $state('');

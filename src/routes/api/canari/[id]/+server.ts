@@ -1,8 +1,7 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getPersonAuthSub } from '$lib/server/database';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import type { CanariProfile } from '$types/graph';
+import { getPersonAuthSub } from '#lib/server/database.js';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.js';
+import type { CanariProfile } from '#lib/types/graph.js';
 
 // Canari public URL and external-profile API key (server-side only).
 const CANARI_API_URL = (process.env.CANARI_API_URL || 'https://canari.emse.fr').replace(/\/+$/, '');
@@ -27,11 +26,11 @@ export const GET: RequestHandler = async ({ params }) => {
   const { id } = params;
   const sub = getPersonAuthSub(id);
   if (!sub) {
-    return json({ linked: false });
+    return Response.json({ linked: false });
   }
   if (!CANARI_API_KEY) {
     console.error('[Canari] CANARI_API_KEY not configured');
-    return json({ linked: true, error: 'unconfigured' });
+    return Response.json({ linked: true, error: 'unconfigured' });
   }
 
   try {
@@ -41,11 +40,11 @@ export const GET: RequestHandler = async ({ params }) => {
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
     });
     if (res.status === 404) {
-      return json({ linked: true, profile: null });
+      return Response.json({ linked: true, profile: null });
     }
     if (!res.ok) {
       console.error(`[Canari] profile ${sub} -> HTTP ${res.status}`);
-      return json({ linked: true, error: 'upstream' });
+      return Response.json({ linked: true, error: 'upstream' });
     }
     const profile = (await res.json()) as CanariProfile;
     // Resolve club logos to absolute URLs (logoUrl = same-origin path
@@ -58,9 +57,9 @@ export const GET: RequestHandler = async ({ params }) => {
       ...a,
       logo: resolveCanariLogo(a.logoUrl),
     }));
-    return json({ linked: true, profile });
+    return Response.json({ linked: true, profile });
   } catch (e) {
     console.error('[Canari] profile fetch failed:', e);
-    return json({ linked: true, error: 'network' });
+    return Response.json({ linked: true, error: 'network' });
   }
 };

@@ -84,15 +84,15 @@ Godparent (source_id) ──[type]──> Godchild (target_id)
 **Example:**
 
 ```sql
--- Lucas is Jolan's official godparent
+-- Alice is Bob's official godparent
 INSERT INTO relationships (source_id, target_id, type)
-VALUES ('lucas.hausner', 'jolan.boudin', 'parrainage');
+VALUES ('alice.example', 'bob.example', 'parrainage');
 ```
 
 To retrieve:
 
-- **Jolan's godparents:** `WHERE target_id = 'jolan.boudin'`
-- **Lucas's godchildren:** `WHERE source_id = 'lucas.hausner'`
+- **Bob's godparents:** `WHERE target_id = 'bob.example'`
+- **Alice's godchildren:** `WHERE source_id = 'alice.example'`
 
 ---
 
@@ -158,11 +158,11 @@ The `people_fts` table is kept up to date automatically via triggers:
 **Search example:**
 
 ```sql
--- Search for "jolan"
+-- Search for "alice"
 SELECT p.*
 FROM people p
 JOIN people_fts fts ON p.rowid = fts.rowid
-WHERE people_fts MATCH 'jolan*'
+WHERE people_fts MATCH 'alice*'
 ORDER BY rank;
 ```
 
@@ -296,7 +296,7 @@ for admins):
 SELECT p.first_name, p.last_name, r.type
 FROM relationships r
 JOIN people p ON r.source_id = p.id
-WHERE r.target_id = 'jolan.boudin'
+WHERE r.target_id = 'bob.example'
 AND r.type IN ('parrainage', 'adoption');
 ```
 
@@ -306,7 +306,7 @@ AND r.type IN ('parrainage', 'adoption');
 SELECT p.first_name, p.last_name, r.type
 FROM relationships r
 JOIN people p ON r.target_id = p.id
-WHERE r.source_id = 'lucas.hausner'
+WHERE r.source_id = 'alice.example'
 AND r.type IN ('parrainage', 'adoption');
 ```
 
