@@ -47,6 +47,7 @@ function addColumn(table, definition) {
 try {
   // Colonnes d identite SSO sur people.
   addColumn('people', 'auth_sub TEXT');
+  addColumn('people', 'email TEXT');
   addColumn('people', 'formation TEXT');
   addColumn('people', "role TEXT NOT NULL DEFAULT 'user'");
   addColumn('people', 'last_login INTEGER');
@@ -78,6 +79,7 @@ try {
       first_name TEXT,
       last_name TEXT,
       level INTEGER,
+      email TEXT,
       formation TEXT,
       role TEXT NOT NULL DEFAULT 'user',
       expires_at INTEGER NOT NULL,

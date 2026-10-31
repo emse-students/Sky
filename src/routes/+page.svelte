@@ -270,11 +270,11 @@
   }
 
   function goToMyProfile() {
-    if (user?.id && peopleMap.has(user.id)) {
+    if (user?.profile_id && peopleMap.has(user.profile_id)) {
       // selectStar, not a bare set: when the star is already selected (it is, after the landing)
       // a bare set notifies nobody and a dismissed sheet stayed closed.
-      selectStar(user.id);
-      frameStar(user.id);
+      selectStar(user.profile_id);
+      frameStar(user.profile_id);
     }
   }
 
@@ -325,7 +325,7 @@
   );
 
   function land() {
-    const profileId = user?.id ?? null;
+    const profileId = user?.profile_id ?? null;
     const decision = decideLanding({
       signedIn: isAuthenticated,
       profileId,
@@ -364,7 +364,7 @@
   <p class="sr-only" aria-live="polite">{mapSummary}</p>
   {#if showMapChrome && chromeVisible}
     <MapControls
-      onMe={user?.id && peopleMap.has(user.id) ? goToMyProfile : undefined}
+      onMe={user?.profile_id && peopleMap.has(user.profile_id) ? goToMyProfile : undefined}
       onSearch={isMobile ? openMobileSearch : undefined}
       {topInset}
       bottomInset={sheetCovered}
@@ -499,7 +499,7 @@
             >
               <div class="user-avatar-small">
                 <img
-                  src={getAvatarUrl(user?.id)}
+                  src={getAvatarUrl(user?.profile_id || user?.id)}
                   alt=""
                   onerror={(e) => {
                     (e.currentTarget as HTMLImageElement).src =
@@ -508,7 +508,7 @@
                 />
               </div>
               <span class="user-label">
-                {user?.id ? peopleMap.get(user.id)?.prenom || user.name : user.name}
+                {user?.profile_id ? peopleMap.get(user.profile_id)?.prenom || user.name : user.name}
               </span>
               <span class="sr-only">{m.nav_account_menu()}</span>
               <ChevronDown size={14} class="chevron" aria-hidden="true" />

@@ -42,7 +42,7 @@
     level: string;
   } | null>(null);
 
-  let isMe = $derived(!!data && !!user && data.person.id === user.id);
+  let isMe = $derived(!!data && !!user && data.person.id === user.profile_id);
   // The server decides who may edit a given tree (admin, or a member of the same
   // parrainage family); we mirror its verdict so the controls match the API.
   let canEdit = $derived(!!data?.canEdit);
@@ -54,7 +54,7 @@
   onMount(() => {
     // ?id lets an admin open another person's tree directly.
     const requested = $page.url.searchParams.get('id');
-    const start = requested || user?.id;
+    const start = requested || user?.profile_id;
     if (start) {
       load(start);
     } else {
@@ -92,8 +92,8 @@
   }
 
   function backToMe() {
-    if (user?.id) {
-      load(user.id);
+    if (user?.profile_id) {
+      load(user.profile_id);
     }
   }
 

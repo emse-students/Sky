@@ -5,6 +5,8 @@ There are two kinds of record ("fiche"), distinguished by whether `auth_sub` is
 set. This page explains the two kinds, how a login is resolved to a record, and
 the admin/self-service operations that move accounts between records.
 
+(Formerly documented in `docs/ID-MODEL.md.archived`; this page supersedes it.)
+
 ## The two kinds of record
 
 ### Placeholder records (no account)

@@ -4,6 +4,7 @@
  */
 export interface SessionUser {
   id: string; // people.id (key for avatars, relations, profile)
+  profile_id: string; // alias of id, kept for compatibility with existing code
   auth_sub: string | null; // Authentik sub (= Canari profile id), null if placeholder
   name: string; // "LASTNAME Firstname"
   role: 'admin' | 'user';

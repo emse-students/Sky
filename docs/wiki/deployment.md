@@ -1,6 +1,6 @@
 # Deployment
 
-Sky runs as a single Docker container (SvelteKit `adapter-node`, Bun runtime) on
+Sky runs as a single Docker container (SvelteKit `adapter-node`, Node runtime) on
 port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 image is built and published to GHCR by the CD. This page is the operational
 summary; [MIGRATION.md](../../MIGRATION.md) is the authoritative, checklist-style

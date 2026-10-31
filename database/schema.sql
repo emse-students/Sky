@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS people (
     -- in. auth_sub = the Authentik `sub` claim, also the key for the MiGallery
     -- photo (/api/avatar/{auth_sub}).
     auth_sub TEXT,           -- Authentik sub (unique when not NULL)
+    email TEXT,
     formation TEXT,          -- 'ICM', 'ISMIN'... (ICM gating)
     role TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'admin'
     last_login INTEGER,      -- epoch of the last SSO login
@@ -132,6 +133,7 @@ CREATE TABLE IF NOT EXISTS pending_links (
     first_name TEXT,
     last_name TEXT,
     level INTEGER,
+    email TEXT,
     formation TEXT,
     role TEXT NOT NULL DEFAULT 'user',
     expires_at INTEGER NOT NULL,

@@ -25,7 +25,7 @@ function canManage(locals: App.Locals, id: string): boolean {
   if (user.role === 'admin') {
     return true;
   }
-  return !!user.id && isSameFamily(user.id, id);
+  return !!user.profile_id && isSameFamily(user.profile_id, id);
 }
 
 /** Coerce a JSON promo value to a positive integer, or null. */
