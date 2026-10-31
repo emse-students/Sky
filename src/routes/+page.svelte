@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { groupCanariAssociations } from '$lib/utils/associationKinds';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { page } from '$app/stores';
@@ -170,6 +171,10 @@
   // Canari profile (bio, clubs) of the selected person: the source of truth for
   // everything but parrainage (Sky only edits links, the rest comes from Canari).
   let canariProfile: CanariProfileResponse | null = null;
+  /** The profile's memberships sorted by kind, campaign lists of past years and repeats dropped. */
+  $: groupedAssociations = groupCanariAssociations(
+    canariProfile?.profile ?? { associations: [], formerAssociations: [] }
+  );
   let canariLoadedId: string | null = null;
   $: loadCanariProfile($selectedPersonId);
 
@@ -682,30 +687,32 @@
           </div>
         {/if}
 
-        {#if canariProfile?.profile?.associations?.length}
-          <div class="info-block">
-            <h3>{m.profile_associations()}</h3>
-            <div class="asso-list">
-              {#each canariProfile.profile.associations as asso (asso.slug)}
-                <div class="asso-card">
-                  {#if asso.logo}
-                    <img class="asso-logo" src={asso.logo} alt="" />
-                  {/if}
-                  <div class="asso-meta">
-                    <span class="asso-n">{asso.name}</span>
-                    <span class="asso-r">{asso.role}</span>
+        {#each [{ title: m.profile_associations(), rows: groupedAssociations.associations }, { title: m.profile_lists(), rows: groupedAssociations.lists }, { title: m.profile_institutions(), rows: groupedAssociations.institutions }] as group (group.title)}
+          {#if group.rows.length}
+            <div class="info-block">
+              <h3>{group.title}</h3>
+              <div class="asso-list">
+                {#each group.rows as asso (asso.slug)}
+                  <div class="asso-card">
+                    {#if asso.logo}
+                      <img class="asso-logo" src={asso.logo} alt="" />
+                    {/if}
+                    <div class="asso-meta">
+                      <span class="asso-n">{asso.name}</span>
+                      <span class="asso-r">{asso.role}</span>
+                    </div>
                   </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
-          </div>
-        {/if}
+          {/if}
+        {/each}
 
-        {#if canariProfile?.profile?.formerAssociations?.length}
+        {#if groupedAssociations.former.length}
           <div class="info-block">
             <h3>{m.profile_former_associations()}</h3>
             <div class="asso-list">
-              {#each canariProfile.profile.formerAssociations as asso, i (i)}
+              {#each groupedAssociations.former as asso, i (i)}
                 <div class="asso-card">
                   {#if asso.logo}
                     <img class="asso-logo" src={asso.logo} alt="" />

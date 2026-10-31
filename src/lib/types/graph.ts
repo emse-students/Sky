@@ -35,8 +35,15 @@ export interface EntourageMember {
   linked: boolean;
 }
 
+/** The three kinds Canari stores in `associations`; absent from an older Canari (= association). */
+export type CanariAssociationType = 'association' | 'list' | 'institution';
+
 /** A member's current club (public Canari projection). */
 export interface CanariAssociation {
+  /** Kind of the entity. Missing on a Canari that predates the field: treated as an association. */
+  type?: CanariAssociationType;
+  /** Campaign year of a list (its mandate starts 1 August of that year); null otherwise. */
+  promo?: number | null;
   name: string;
   slug: string;
   role: string;
@@ -47,6 +54,8 @@ export interface CanariAssociation {
 
 /** Former club or honorary role (Canari CV). */
 export interface CanariFormerAssociation {
+  type?: CanariAssociationType;
+  promo?: number | null;
   name: string;
   role: string;
   logoUrl: string | null;
