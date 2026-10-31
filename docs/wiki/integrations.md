@@ -82,6 +82,22 @@ null }` on 404). Club logo URLs are resolved to absolute URLs
 `CANARI_URL + path`). The API key stays server-side; the client only ever sees
 the public projection.
 
+**Kinds and the list rule.** Canari stores associations, campaign lists and institutions in one
+table, discriminated by `type` (`association` | `list` | `institution`); a list also has `promo`,
+its campaign year. Each membership row may carry `type` and `promo`, and the profile panel
+(`groupCanariAssociations`, `src/lib/utils/associationKinds.ts`) draws three headings -
+Associations, Listes, Institutions - plus the former section. A row without `type` (a Canari that
+predates the field) is an association. Rules, all pinned by `associationKinds.test.ts`:
+
+- a list shows only during its campaign - `isPastCampaignList`, mirrored from Canari
+  (`frontend/src/lib/associations/campaign.ts`): active until 1 August of `promo`;
+- a list never shows in the former section (the mandate is recorded under the association that
+  ran it, so it would duplicate). **This loss is deliberate** (owner: a past list is a "doublon"):
+  a list mandate never recorded under its parent association disappears from the profile once
+  its campaign ends, because the projection carries no parent to fall back on;
+- a former entry with the same association (by `slug`; by name only for a Canari that sends no slug on former rows) AND the same role as a current row is dropped (one
+  continuous mandate); a different former role is kept.
+
 Config: `CANARI_API_URL` (default `https://canari.emse.fr`), `CANARI_API_KEY`.
 The shapes are typed in `src/lib/types/graph.ts` (`CanariProfile`,
 `CanariAssociation`, `CanariFormerAssociation`, `CanariProfileResponse`).
