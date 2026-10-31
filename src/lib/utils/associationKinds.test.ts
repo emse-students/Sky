@@ -63,6 +63,15 @@ describe('groupCanariAssociations', () => {
     expect(g.former).toEqual([]);
   });
 
+  it('drops a former list even when no mandate was recorded under a parent association (deliberate loss)', () => {
+    const g = group(
+      [cur({ name: 'BDE', role: 'Membre' })],
+      [past({ name: 'Liste orpheline', type: 'list', promo: 2024, startYear: 2023, endYear: 2024 })]
+    );
+    expect(g.former).toEqual([]);
+    expect(g.lists).toEqual([]);
+  });
+
   it('drops a past mandate that repeats a current one (same association, same role)', () => {
     const g = group(
       [cur({ name: "T'art'garyen", role: 'Secrétaire', type: 'association' })],

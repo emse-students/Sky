@@ -92,7 +92,9 @@ predates the field) is an association. Rules, all pinned by `associationKinds.te
 - a list shows only during its campaign - `isPastCampaignList`, mirrored from Canari
   (`frontend/src/lib/associations/campaign.ts`): active until 1 August of `promo`;
 - a list never shows in the former section (the mandate is recorded under the association that
-  ran it, so it would duplicate);
+  ran it, so it would duplicate). **This loss is deliberate** (owner: a past list is a "doublon"):
+  a list mandate never recorded under its parent association disappears from the profile once
+  its campaign ends, because the projection carries no parent to fall back on;
 - a former entry with the same association (by `slug`; by name only for a Canari that sends no slug on former rows) AND the same role as a current row is dropped (one
   continuous mandate); a different former role is kept.
 
