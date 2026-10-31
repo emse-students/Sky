@@ -93,7 +93,7 @@ predates the field) is an association. Rules, all pinned by `associationKinds.te
   (`frontend/src/lib/associations/campaign.ts`): active until 1 August of `promo`;
 - a list never shows in the former section (the mandate is recorded under the association that
   ran it, so it would duplicate);
-- a former entry with the same association AND the same role as a current row is dropped (one
+- a former entry with the same association (by `slug`; by name only for a Canari that sends no slug on former rows) AND the same role as a current row is dropped (one
   continuous mandate); a different former role is kept.
 
 Config: `CANARI_API_URL` (default `https://canari.emse.fr`), `CANARI_API_KEY`.

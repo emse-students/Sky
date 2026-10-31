@@ -81,4 +81,20 @@ describe('groupCanariAssociations', () => {
     );
     expect(g.former.map((f) => f.name)).toEqual(['BDE', 'BDS']);
   });
+
+  it('matches by slug when present: a renamed association is still the same one', () => {
+    const g = group(
+      [cur({ name: 'Nouveau nom', slug: 'bde', role: 'Secrétaire' })],
+      [past({ name: 'Ancien nom', slug: 'bde', role: 'Secrétaire', startYear: 2024 })]
+    );
+    expect(g.former).toEqual([]);
+  });
+
+  it('does not match two associations that share a name but not a slug', () => {
+    const g = group(
+      [cur({ name: 'Club', slug: 'club-a', role: 'Secrétaire' })],
+      [past({ name: 'Club', slug: 'club-b', role: 'Secrétaire', startYear: 2024 })]
+    );
+    expect(g.former).toHaveLength(1);
+  });
 });

@@ -55,6 +55,8 @@ export interface CanariAssociation {
 /** Former club or honorary role (Canari CV). */
 export interface CanariFormerAssociation {
   type?: CanariAssociationType;
+  /** Slug of the association, null when it no longer exists; absent on an older Canari. */
+  slug?: string | null;
   promo?: number | null;
   name: string;
   role: string;
