@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { groupCanariAssociations, isPastCampaignList } from './associationKinds';
-import type { CanariAssociation, CanariFormerAssociation } from '$lib/types/graph';
+import type { CanariAssociation, CanariFormerAssociation } from '#lib/types/graph.js';
 
 const cur = (o: Partial<CanariAssociation> & { name: string }): CanariAssociation => ({
   slug: o.name,

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { groupCanariAssociations } from '$lib/utils/associationKinds';
+  import { groupCanariAssociations } from '#lib/utils/associationKinds.js';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { page } from '$app/state';

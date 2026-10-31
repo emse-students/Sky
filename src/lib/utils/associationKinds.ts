@@ -1,4 +1,8 @@
-import type { CanariAssociation, CanariFormerAssociation, CanariProfile } from '$lib/types/graph';
+import type {
+  CanariAssociation,
+  CanariFormerAssociation,
+  CanariProfile,
+} from '#lib/types/graph.js';
 
 /**
  * A promo list is "campaigning for" the mandate that starts the summer of its `promo` year, so its
