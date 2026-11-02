@@ -51,7 +51,7 @@ The directed godparent graph. `source_id` is the godparent (parrain),
 - `sessions(token PK, person_id FK, expires_at, created_at)` - opaque login
   sessions (7-day tokens). Replaces the former separate `auth.db`.
 - `pending_links(token PK, sub, first_name, last_name, level, email, formation,
-role, expires_at, created_at)` - SSO identities waiting for the user to pick a
+  role, expires_at, created_at)` - SSO identities waiting for the user to pick a
   record on `/auth/link` (ambiguous login).
 
 Both are swept of expired rows on each login.
