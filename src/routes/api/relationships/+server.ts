@@ -86,11 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   // Center of the link: oneself by default. A user may also edit any node of
   // their own parrainage family (same connected component); an admin, anyone.
   const center = centerId ?? user.id;
-  if (
-    center !== user.id &&
-    user.role !== 'admin' &&
-    !isSameFamily(user.id, center)
-  ) {
+  if (center !== user.id && user.role !== 'admin' && !isSameFamily(user.id, center)) {
     return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
