@@ -15,7 +15,7 @@ graph.
 - **Graph layout**: in-process ForceAtlas2 (graphology), no Python at runtime
 - **i18n**: Paraglide (inlang), French + English
 - **Auth**: Authentik OIDC (miconnect), opaque server sessions
-- **Runtime**: Node in production (Docker); Bun for local dev tooling
+- **Runtime**: Bun, in production (Docker) and for local tooling
 
 ## Quick start
 
@@ -77,8 +77,6 @@ installs `--frozen`.
   search, the frontend, integrations, the API reference, and deployment. This is
   the canonical source of truth.
 - **[MIGRATION.md](MIGRATION.md)** - runbook for cloning Sky onto a new server.
-- **[docs/ID-MODEL.md](docs/ID-MODEL.md)** - the two record kinds (superseded by
-  the wiki's identity-model page).
 
 ## Conventions
 

@@ -71,7 +71,7 @@ function parseLevel(value: number | string | null | undefined): number | null {
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || !user.profile_id) {
+  if (!user || !user.id) {
     return Response.json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
@@ -85,12 +85,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   // Center of the link: oneself by default. A user may also edit any node of
   // their own parrainage family (same connected component); an admin, anyone.
-  const center = centerId ?? user.profile_id;
-  if (
-    center !== user.profile_id &&
-    user.role !== 'admin' &&
-    !isSameFamily(user.profile_id, center)
-  ) {
+  const center = centerId ?? user.id;
+  if (center !== user.id && user.role !== 'admin' && !isSameFamily(user.id, center)) {
     return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }
 
@@ -134,7 +130,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         creation.firstName,
         creation.lastName,
         creation.level,
-        user.profile_id,
+        user.id,
         center,
         role,
         kind
@@ -167,7 +163,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
  */
 export const DELETE: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || !user.profile_id) {
+  if (!user || !user.id) {
     return Response.json({ error: m.api_unauthenticated() }, { status: 401 });
   }
 
@@ -183,7 +179,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
   }
 
   const touchesMyFamily =
-    isSameFamily(user.profile_id, rel.source_id) || isSameFamily(user.profile_id, rel.target_id);
+    isSameFamily(user.id, rel.source_id) || isSameFamily(user.id, rel.target_id);
   if (!touchesMyFamily && user.role !== 'admin') {
     return Response.json({ error: m.api_unauthorized() }, { status: 403 });
   }

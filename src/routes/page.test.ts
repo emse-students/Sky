@@ -12,7 +12,7 @@ import { m } from '#lib/paraglide/messages.js';
 
 vi.mock('$app/state', () => ({
   page: {
-    data: { user: { id: 'me', profile_id: 'me', name: 'ME Myself', role: 'user' }, canariUrl: '' },
+    data: { user: { id: 'me', name: 'ME Myself', role: 'user' }, canariUrl: '' },
     url: new URL('http://localhost/'),
   },
 }));
