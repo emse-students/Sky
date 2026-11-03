@@ -6,7 +6,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync, createRawSnippet } from 'svelte';
 import ProfileSheet from './ProfileSheet.svelte';
-import { sheetHeight } from '$lib/utils/sheet';
+import { sheetHeight } from '#lib/utils/sheet.js';
 
 let host: HTMLElement;
 let component: Record<string, unknown>;

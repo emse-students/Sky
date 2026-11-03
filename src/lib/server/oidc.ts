@@ -9,7 +9,7 @@
  * (`/api/avatar/{sub}`), not from the `picture` claim (unused).
  */
 
-import { formatFirstName, formatLastName } from '$utils/format';
+import { formatFirstName, formatLastName } from '#lib/utils/format.js';
 import { OUTBOUND_BUDGET_MS } from './outbound';
 
 /** Response of Authentik's /token/ endpoint. */
@@ -60,6 +60,15 @@ export interface OidcClaims {
  */
 function getBaseUrl(): string {
   return (process.env.MICONNECT_BASE_URL || '').trim().replace(/\/+$/, '');
+}
+
+/**
+ * Origin of the configured identity provider. SvelteKit 3 refuses a redirect to another origin
+ * unless it is allowlisted, and the allowlist must come from CONFIGURATION: deriving it from the
+ * URL being checked would allow anything. Throws on a missing or malformed `MICONNECT_BASE_URL`.
+ */
+export function getIssuerOrigin(): string {
+  return new URL(getBaseUrl()).origin;
 }
 
 function trimmedOrNull(value: unknown): string | null {

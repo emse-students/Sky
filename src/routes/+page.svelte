@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { groupCanariAssociations } from '#lib/utils/associationKinds.js';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
+  import { toStore } from 'svelte/store';
   import {
     graphStore,
     selectedPersonId,
@@ -11,13 +13,13 @@
     filteredGraph,
     profileReopenRequests,
     selectStar,
-  } from '$stores/graphStore';
-  import StarfieldCanvas from '$components/Canvas/StarfieldCanvas.svelte';
-  import GraphCanvas from '$components/Canvas/GraphCanvas.svelte';
-  import MapControls from '$components/Canvas/MapControls.svelte';
-  import ProfileSheet from '$components/ProfileSheet.svelte';
-  import { sheetHeight, sheetLeavesMapUsable } from '$lib/utils/sheet';
-  import { decideLanding } from '$lib/utils/landing';
+  } from '#lib/stores/graphStore.js';
+  import StarfieldCanvas from '#lib/components/Canvas/StarfieldCanvas.svelte';
+  import GraphCanvas from '#lib/components/Canvas/GraphCanvas.svelte';
+  import MapControls from '#lib/components/Canvas/MapControls.svelte';
+  import ProfileSheet from '#lib/components/ProfileSheet.svelte';
+  import { sheetHeight, sheetLeavesMapUsable } from '#lib/utils/sheet.js';
+  import { decideLanding } from '#lib/utils/landing.js';
   import {
     frameStar,
     showWholeSky,
@@ -26,9 +28,9 @@
     PHONE_CHIP_BOTTOM,
     DESKTOP_CHIP_BOTTOM,
     DRAWER_WIDTH,
-  } from '$stores/mapActions';
-  import { chromeHidden, framingInsets } from '$stores/mapChrome';
-  import { getPersonName, getPersonInitials, personMatchScore } from '$lib/utils/format';
+  } from '#lib/stores/mapActions.js';
+  import { chromeHidden, framingInsets } from '#lib/stores/mapChrome.js';
+  import { getPersonName, getPersonInitials, personMatchScore } from '#lib/utils/format.js';
   import {
     Link,
     User,
@@ -46,12 +48,12 @@
     Minus,
     Plus,
   } from '@lucide/svelte';
-  import BioMarkdown from '$components/BioMarkdown.svelte';
-  import LocaleSwitcher from '$components/LocaleSwitcher.svelte';
-  import Seo from '$components/Seo.svelte';
-  import { institutionNode, siteNode } from '$lib/seo';
-  import { m } from '$lib/paraglide/messages';
-  import type { CanariProfileResponse } from '$types/graph';
+  import BioMarkdown from '#lib/components/BioMarkdown.svelte';
+  import LocaleSwitcher from '#lib/components/LocaleSwitcher.svelte';
+  import Seo from '#lib/components/Seo.svelte';
+  import { institutionNode, siteNode } from '#lib/seo.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import type { CanariProfileResponse } from '#lib/types/graph.js';
 
   // UI State
   let searchTerm = '';
@@ -144,7 +146,10 @@
   let imageErrors: { [id: string]: boolean } = {};
 
   // Derived values
-  $: user = $page.data.user;
+  // `$app/state` is rune-based and this component is still legacy (`$:`), whose dependencies are
+  // read at compile time: a store bridge is what makes `$:` re-run when the page data changes.
+  const pageStore = toStore(() => ({ data: page.data, url: page.url }));
+  $: user = $pageStore.data.user;
   $: isAuthenticated = !!user;
   $: people = $graphStore.people;
 
@@ -170,6 +175,10 @@
   // Canari profile (bio, clubs) of the selected person: the source of truth for
   // everything but parrainage (Sky only edits links, the rest comes from Canari).
   let canariProfile: CanariProfileResponse | null = null;
+  /** The profile's memberships sorted by kind, campaign lists of past years and repeats dropped. */
+  $: groupedAssociations = groupCanariAssociations(
+    canariProfile?.profile ?? { associations: [], formerAssociations: [] }
+  );
   let canariLoadedId: string | null = null;
   $: loadCanariProfile($selectedPersonId);
 
@@ -339,7 +348,7 @@
     title: m.home_page_title(),
     description: m.seo_site_description(),
     imageAlt: m.seo_image_alt(),
-    jsonLd: [siteNode($page.url.origin), institutionNode()],
+    jsonLd: [siteNode($pageStore.url.origin), institutionNode()],
   }}
 />
 
@@ -634,7 +643,7 @@
           {#if canariProfile?.profile?.sub}
             <a
               class="round-action"
-              href={`${$page.data.canariUrl}/profile/${canariProfile.profile.sub}`}
+              href={`${$pageStore.data.canariUrl}/profile/${canariProfile.profile.sub}`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={m.profile_open_canari()}
@@ -682,30 +691,32 @@
           </div>
         {/if}
 
-        {#if canariProfile?.profile?.associations?.length}
-          <div class="info-block">
-            <h3>{m.profile_associations()}</h3>
-            <div class="asso-list">
-              {#each canariProfile.profile.associations as asso (asso.slug)}
-                <div class="asso-card">
-                  {#if asso.logo}
-                    <img class="asso-logo" src={asso.logo} alt="" />
-                  {/if}
-                  <div class="asso-meta">
-                    <span class="asso-n">{asso.name}</span>
-                    <span class="asso-r">{asso.role}</span>
+        {#each [{ title: m.profile_associations(), rows: groupedAssociations.associations }, { title: m.profile_lists(), rows: groupedAssociations.lists }, { title: m.profile_institutions(), rows: groupedAssociations.institutions }] as group (group.title)}
+          {#if group.rows.length}
+            <div class="info-block">
+              <h3>{group.title}</h3>
+              <div class="asso-list">
+                {#each group.rows as asso (asso.slug)}
+                  <div class="asso-card">
+                    {#if asso.logo}
+                      <img class="asso-logo" src={asso.logo} alt="" />
+                    {/if}
+                    <div class="asso-meta">
+                      <span class="asso-n">{asso.name}</span>
+                      <span class="asso-r">{asso.role}</span>
+                    </div>
                   </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
-          </div>
-        {/if}
+          {/if}
+        {/each}
 
-        {#if canariProfile?.profile?.formerAssociations?.length}
+        {#if groupedAssociations.former.length}
           <div class="info-block">
             <h3>{m.profile_former_associations()}</h3>
             <div class="asso-list">
-              {#each canariProfile.profile.formerAssociations as asso, i (i)}
+              {#each groupedAssociations.former as asso, i (i)}
                 <div class="asso-card">
                   {#if asso.logo}
                     <img class="asso-logo" src={asso.logo} alt="" />

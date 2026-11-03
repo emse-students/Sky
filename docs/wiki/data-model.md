@@ -1,7 +1,7 @@
 # Data model
 
 Sky stores everything in one SQLite file, `database/sky.db`, accessed through
-`better-sqlite3` in `src/lib/server/database.ts`. The schema is `schema.sql`
+`bun:sqlite` in `src/lib/server/database.ts`. The schema is `schema.sql`
 (version 4.0); on first boot `getDatabase()` applies it if the `people` table is
 missing, with an inline fallback schema baked into the code.
 
@@ -18,6 +18,7 @@ One row per person, whether or not they have an account (see
 | `first_name`, `last_name`  | display form "Prenom" / "NOM"                                         |
 | `level` INTEGER            | promotion = year of entry (SSO `promo` claim); nullable               |
 | `auth_sub` TEXT            | Authentik sub; `NULL` for placeholders                                |
+| `email`                    | LEGACY, always NULL: no longer requested, written or read (2026-10)   |
 | `formation`                | from the SSO; drives the ICM gate                                     |
 | `role` TEXT                | `'user'` \| `'admin'`, default `'user'`                               |
 | `last_login` INTEGER       | epoch of last SSO login                                               |
@@ -50,7 +51,7 @@ The directed godparent graph. `source_id` is the godparent (parrain),
 - `sessions(token PK, person_id FK, expires_at, created_at)` - opaque login
   sessions (7-day tokens). Replaces the former separate `auth.db`.
 - `pending_links(token PK, sub, first_name, last_name, level, formation,
-role, expires_at, created_at)` - SSO identities waiting for the user to pick a
+  role, expires_at, created_at)` - SSO identities waiting for the user to pick a
   record on `/auth/link` (ambiguous login).
 
 Both are swept of expired rows on each login.

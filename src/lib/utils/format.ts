@@ -2,7 +2,7 @@
  * Utility functions for formatting and displaying data
  */
 
-import type { Person } from '$types/graph';
+import type { Person } from '#lib/types/graph.js';
 
 /**
  * Generate full name from first_name and last_name

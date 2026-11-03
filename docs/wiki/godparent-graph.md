@@ -87,7 +87,7 @@ endpoints:
   to self; must be self, same-family, or admin), and either an existing
   `targetId` or a `newPerson`. Creating a `newPerson` requires a promo and does a
   dedup pass (`findPeopleByName`): on a name collision it returns `409
-needsConfirmation` with candidates, unless `confirmCreate` is set, in which case
+  needsConfirmation` with candidates, unless `confirmCreate` is set, in which case
   it calls `createPlaceholderPerson`. On success it recomputes positions in the
   background.
 

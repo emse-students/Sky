@@ -1,6 +1,6 @@
 import { get, writable } from 'svelte/store';
-import type { CameraState } from '$types/graph';
-import type { View } from '$lib/utils/camera';
+import type { CameraState } from '#lib/types/graph.js';
+import type { View } from '#lib/utils/camera.js';
 
 const DEFAULT_CAMERA: CameraState = {
   x: 0,

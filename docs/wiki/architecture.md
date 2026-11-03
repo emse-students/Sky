@@ -89,13 +89,13 @@ pattern is what has to change.
 
 ## Deployment topology
 
-Production runs as a single Docker container (`adapter-node`, Node runtime) on
+Production runs as a single Docker container (`adapter-bun`, Bun runtime) on
 port `3001`, behind a reverse proxy that terminates TLS for `sky.emse.fr`. The
 `database/` directory is a mounted volume holding `sky.db`, `schema.sql`, and the
 generated `positions.json`. See [deployment.md](deployment.md) for the full
 picture.
 
-Node (not Bun) is the production runtime because `better-sqlite3` is used by
-unbundled maintenance scripts (`init-db.js`, migrations) that Bun cannot load.
+Bun is the production runtime: the driver is `bun:sqlite`, a Bun builtin, so the maintenance
+scripts (`init-db.js`, migrations) cannot run under Node at all.
 The graph layout is TypeScript in-process, so there is no Python dependency at
 runtime.

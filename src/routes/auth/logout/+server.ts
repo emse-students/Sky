@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { deleteSession } from '$server/database';
-import { SESSION_COOKIE_NAME, clearSessionCookie } from '$server/session';
+import { deleteSession } from '#lib/server/database.js';
+import { SESSION_COOKIE_NAME, clearSessionCookie } from '#lib/server/session.js';
 
 /**
  * Ends the session: deletes the `sessions` row and the cookie, then redirects

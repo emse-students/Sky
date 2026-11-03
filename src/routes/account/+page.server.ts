@@ -1,8 +1,8 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getLinkCandidates, getUnlinkedPeople, relinkSelf } from '$server/database';
-import { SESSION_COOKIE_NAME } from '$server/session';
-import { m } from '$lib/paraglide/messages';
+import { getLinkCandidates, getUnlinkedPeople, relinkSelf } from '#lib/server/database.js';
+import { SESSION_COOKIE_NAME } from '#lib/server/session.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Account correction screen: shows the fiche the signed-in user is currently

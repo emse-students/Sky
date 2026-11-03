@@ -1,6 +1,6 @@
 import { error, redirect, isRedirect, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { completeOIDCFlow } from '$server/oidc';
+import { completeOIDCFlow } from '#lib/server/oidc.js';
 import {
   resolveLogin,
   createPendingLink,
@@ -10,10 +10,10 @@ import {
   getPersonRoleByAuthSub,
   recalculatePositions,
   type OidcIdentity,
-} from '$server/database';
-import { setSessionCookie } from '$server/session';
-import { PENDING_COOKIE_NAME } from '$server/link';
-import { m } from '$lib/paraglide/messages';
+} from '#lib/server/database.js';
+import { setSessionCookie } from '#lib/server/session.js';
+import { PENDING_COOKIE_NAME } from '#lib/server/link.js';
+import { m } from '#lib/paraglide/messages.js';
 
 const STATE_COOKIE_NAME = '__oidc_state';
 const NONCE_COOKIE_NAME = '__oidc_nonce';

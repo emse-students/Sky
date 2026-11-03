@@ -1,7 +1,6 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { timingSafeEqual } from 'crypto';
-import { getEntourageBySub } from '$lib/server/database';
+import { getEntourageBySub } from '#lib/server/database.js';
 
 // Inbound public API key (Canari -> Sky). Empty = every call is rejected.
 const SKY_API_KEY = process.env.SKY_API_KEY;
@@ -24,8 +23,8 @@ function validKey(provided: string | null): boolean {
  */
 export const GET: RequestHandler = ({ params, request }) => {
   if (!validKey(request.headers.get('x-api-key'))) {
-    return json({ error: 'Forbidden' }, { status: 403 });
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const { sub } = params;
-  return json(getEntourageBySub(sub));
+  return Response.json(getEntourageBySub(sub));
 };

@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * What a crawler and a link unfurler are given, and how it is built.
@@ -16,8 +16,8 @@ import { m } from '$lib/paraglide/messages';
  *    else - no description, no image - measured on prod 2026-08-19.
  * 2. **Absolute URLs, from the REQUEST's own origin.** `og:image` and `og:url` are resolved by a
  *    machine with no page context, so a relative path is silently useless to every one of them.
- *    Under `adapter-node` that origin comes from the request, which is why `ORIGIN` is set in
- *    `docker-compose.prod.yml` - without it the scheme is whatever the reverse proxy spoke.
+ *    Under `adapter-bun` that origin comes from the request (Host header, https assumed), so the
+ *    scheme is right behind the reverse proxy; `scripts/boot-smoke.js` asserts it.
  */
 
 /** Everything one page contributes to its head. */

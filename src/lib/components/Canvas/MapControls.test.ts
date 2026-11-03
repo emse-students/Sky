@@ -8,10 +8,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { get } from 'svelte/store';
 import MapControls from './MapControls.svelte';
-import { cameraStore } from '$stores/cameraStore';
-import { graphStore, selectedPersonId } from '$stores/graphStore';
-import { FIT_FILL } from '$lib/utils/camera';
-import { m } from '$lib/paraglide/messages';
+import { cameraStore } from '#lib/stores/cameraStore.js';
+import { graphStore, selectedPersonId } from '#lib/stores/graphStore.js';
+import { FIT_FILL } from '#lib/utils/camera.js';
+import { m } from '#lib/paraglide/messages.js';
 
 let host: HTMLElement;
 let component: Record<string, unknown>;

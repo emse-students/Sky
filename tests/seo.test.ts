@@ -9,7 +9,7 @@ import {
   prune,
   serializeJsonLd,
   siteNode,
-} from '$lib/seo';
+} from '#lib/seo.js';
 
 /**
  * Sky's head has a narrower job than a public site's - `src/hooks.server.ts` keeps everything but

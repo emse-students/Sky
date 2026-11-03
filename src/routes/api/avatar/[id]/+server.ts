@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
-import { getPersonById, getPersonAuthSub } from '$lib/server/database';
-import { getPersonInitials } from '$lib/utils/format';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { getPersonById, getPersonAuthSub } from '#lib/server/database.js';
+import { getPersonInitials } from '#lib/utils/format.js';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.js';
 
 // Environment variable - loaded by Bun or SvelteKit
 const MIGALLERY_API_KEY = process.env.MIGALLERY_API_KEY;

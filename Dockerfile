@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Sky production image (SvelteKit adapter-node, Bun runtime).
+# Sky production image (SvelteKit adapter-bun, Bun runtime).
 #
 # It ran on Node until 2026-08-27, for a reason that no longer exists: better-sqlite3 was a native
 # module the non-bundled scripts loaded, and Bun could not (oven-sh/bun#4290). The driver is now

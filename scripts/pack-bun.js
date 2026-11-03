@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import fs from 'fs';
 import path from 'path';
@@ -21,7 +21,7 @@ console.log('');
 
 const buildDir = path.resolve(process.cwd(), 'build');
 if (!fs.existsSync(buildDir)) {
-  console.error('❌ build/ does not exist. Run "npm run build" first.');
+  console.error('❌ build/ does not exist. Run "bun run build" first.');
   process.exit(1);
 }
 console.log('✅ build/ found');

@@ -4,15 +4,15 @@
   manner of the Google Maps place sheet - it opens at a PEEK (~30%: name, promo, actions) that
   leaves the map usable above it, is dragged by its handle to HALF or FULL, and dragged down to
   dismiss. The handle is also a button (tap, or Arrow keys, to change state) and Escape closes the
-  panel on every device. Snap logic is pure, in `$lib/utils/sheet.ts`.
+  panel on every device. Snap logic is pure, in `#lib/utils/sheet.ts`.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { X } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { settleSheet, sheetHeight, stepSheet, type SheetState } from '$lib/utils/sheet';
+  import { m } from '#lib/paraglide/messages.js';
+  import { settleSheet, sheetHeight, stepSheet, type SheetState } from '#lib/utils/sheet.js';
 
   interface Props {
     /** Phone layout: a draggable bottom sheet instead of the desktop drawer. */

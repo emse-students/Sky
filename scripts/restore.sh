@@ -2,9 +2,9 @@
 #
 # Restore Sky's database from an archive written by backup.sh.
 #
-#   /srv/sky/scripts/restore.sh --yes                     # the newest LOCAL archive
-#   /srv/sky/scripts/restore.sh --yes --offsite           # the newest archive on the offsite mirror
-#   /srv/sky/scripts/restore.sh --yes --archive <path>    # that archive
+#   <deploy-dir>/scripts/restore.sh --yes                     # the newest LOCAL archive
+#   <deploy-dir>/scripts/restore.sh --yes --offsite           # the newest archive on the offsite mirror
+#   <deploy-dir>/scripts/restore.sh --yes --archive <path>    # that archive
 #
 # DESTRUCTIVE: replaces database/sky.db and positions.json. Requires --yes. Each
 # file it replaces is kept beside it as <name>.before-restore-<timestamp>. Where the archive comes from is always NAMED on the
@@ -13,16 +13,19 @@
 #
 set -euo pipefail
 
-SKY_DIR="${SKY_DIR:-/srv/sky}"
+# The deploy syncs this script into <deploy-dir>/scripts, so its parent IS the deploy directory.
+SKY_DIR="${SKY_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 DB_DIR="${DB_DIR:-$SKY_DIR/database}"
-BACKUP_DIR="${BACKUP_DIR:-/srv/sky-backups}"
-BACKUP_SSH_HOST="${BACKUP_SSH_HOST-canaribackup@10.0.0.4}"
-BACKUP_SSH_PATH="${BACKUP_SSH_PATH:-/srv/sky-backups}"
 COMPOSE="docker compose -f $SKY_DIR/docker-compose.prod.yml --project-directory $SKY_DIR"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 
 log() { printf '[sky-restore] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[sky-restore] ERROR %s\n' "$*" >&2; exit 1; }
+
+# Where the archives are: the same deploy-written backup.env backup.sh reads (backup-config.sh).
+# shellcheck source=scripts/backup-config.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+load_backup_config
 
 CONFIRM=no SOURCE=local ARCHIVE=""
 while [ $# -gt 0 ]; do

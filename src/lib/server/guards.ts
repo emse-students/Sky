@@ -4,8 +4,8 @@
  * `people.role`, see hooks.server.ts).
  */
 import { error } from '@sveltejs/kit';
-import type { SessionUser } from '$types/api';
-import { m } from '$lib/paraglide/messages';
+import type { SessionUser } from '#lib/types/api.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Require an admin session, else 403. Returns the user for convenience. */
 export function requireAdmin(locals: App.Locals): SessionUser {

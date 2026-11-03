@@ -1,9 +1,9 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
   import { Search, UserPlus, X, LoaderCircle } from '@lucide/svelte';
-  import type { RelationRole, RelationKind } from '$types/graph';
-  import { m } from '$lib/paraglide/messages';
-  import { formatPromoShort } from '$lib/utils/format';
+  import type { RelationRole, RelationKind } from '#lib/types/graph.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import { formatPromoShort } from '#lib/utils/format.js';
 
   /**
    * Modal to add a network member for a given slot (role + kind fixed by the

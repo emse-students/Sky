@@ -2,10 +2,10 @@
   import { enhance } from '$app/forms';
   import { ArrowLeft, Search, Link2, Check } from '@lucide/svelte';
   import { goto } from '$app/navigation';
-  import { personMatchScore } from '$lib/utils/format';
-  import { confirmDialog } from '$lib/stores/dialogStore';
-  import { m } from '$lib/paraglide/messages';
-  import LocaleSwitcher from '$components/LocaleSwitcher.svelte';
+  import { personMatchScore } from '#lib/utils/format.js';
+  import { confirmDialog } from '#lib/stores/dialogStore.js';
+  import { m } from '#lib/paraglide/messages.js';
+  import LocaleSwitcher from '#lib/components/LocaleSwitcher.svelte';
 
   let { data, form } = $props();
 

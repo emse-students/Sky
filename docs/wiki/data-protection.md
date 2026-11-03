@@ -38,7 +38,7 @@ Hosting: the school's shared server, administered with the DSI. Recipients: sign
 ## What was changed on 2026-10-16
 
 - **E-mail is no longer collected.** The scope never asked for it (`openid profile promo name
-formation`) and no code read `people.email`; every write path and the `email` fields of the
+  formation`) and no code read `people.email`; every write path and the `email` fields of the
   identity types are gone. `migrate-drop-dead-schema.js` (step 3, at every container start) sets
   `people.email` and `pending_links.email` to NULL. The columns are KEPT (stop-writing plus null, no
   `DROP COLUMN`), so an older backup still restores against the current schema; dropping them is a

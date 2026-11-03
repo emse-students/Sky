@@ -6,7 +6,7 @@
 import { get } from 'svelte/store';
 import { cameraStore } from './cameraStore';
 import { findNeighborsWithinHops, focusDepth, graphStore, selectedPersonId } from './graphStore';
-import { fitView, focusView, type Insets, type Viewport } from '$lib/utils/camera';
+import { fitView, focusView, type Insets, type Viewport } from '#lib/utils/camera.js';
 import { framingInsets } from './mapChrome';
 
 /** Pixels of the desktop top bar: nothing is framed under it. */

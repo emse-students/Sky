@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { canonicalUrl, defaultImage, jsonLdScript, type SeoMeta } from '$lib/seo';
+  import { page } from '$app/state';
+  import { canonicalUrl, defaultImage, jsonLdScript, type SeoMeta } from '#lib/seo.js';
 
   let { meta }: { meta: SeoMeta } = $props();
 
   // The REQUEST's own origin, never a constant: Sky answers on its production hostname and on
   // localhost during development, and an absolute URL built from the wrong one is a preview image
   // no unfurler can fetch.
-  const origin = $derived($page.url.origin);
-  const canonical = $derived(canonicalUrl(origin, $page.url.pathname));
+  const origin = $derived(page.url.origin);
+  const canonical = $derived(canonicalUrl(origin, page.url.pathname));
   const image = $derived(meta.image || defaultImage(origin));
 </script>
 

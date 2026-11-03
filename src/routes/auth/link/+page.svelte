@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
   import { Star, UserPlus } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
 
   let { data, form } = $props();
 

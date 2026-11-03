@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateAuthorizationUrl } from '$server/oidc';
+import { generateAuthorizationUrl, getIssuerOrigin } from '#lib/server/oidc.js';
 import { randomBytes } from 'crypto';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 const STATE_COOKIE_NAME = '__oidc_state';
 const NONCE_COOKIE_NAME = '__oidc_nonce';
@@ -19,6 +19,7 @@ function generateRandomString(length: number): string {
  */
 export const GET: RequestHandler = ({ cookies, url }) => {
   let authUrl: string;
+  let issuerOrigin: string;
   try {
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
@@ -35,10 +36,12 @@ export const GET: RequestHandler = ({ cookies, url }) => {
 
     const callbackUrl = new URL('/auth/callback', url.origin).toString();
     authUrl = generateAuthorizationUrl(callbackUrl, state, nonce);
+    issuerOrigin = getIssuerOrigin();
   } catch (e) {
     console.error('[LOGIN] Error:', e);
     throw error(500, m.api_login_failed());
   }
 
-  throw redirect(302, authUrl);
+  // The one external redirect in Sky: SvelteKit 3 refuses it without this allowlist (a 500).
+  throw redirect(302, authUrl, { external: [issuerOrigin] });
 };

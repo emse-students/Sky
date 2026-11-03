@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
-  import { cameraStore } from '$stores/cameraStore';
+  import { cameraStore } from '#lib/stores/cameraStore.js';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
