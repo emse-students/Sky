@@ -1,5 +1,6 @@
 import { mergePeople, recalculatePositions, getPersonAuthSub } from '#lib/server/database.js';
 import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { requireAdmin } from '#lib/server/guards.js';
 import type { RequestHandler } from '@sveltejs/kit';
 import { m } from '#lib/paraglide/messages.js';
 
@@ -11,10 +12,8 @@ interface MergeResolution {
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-  const user = locals.user;
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Before the try: the refusal is a 403 of its own, never the 500 of the catch below.
+  requireAdmin(locals);
 
   try {
     const body = (await request.json()) as {
