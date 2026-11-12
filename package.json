@@ -38,7 +38,7 @@
     "graphology-layout-forceatlas2": "^0.10.1"
   },
   "devDependencies": {
-    "@inlang/paraglide-js": "^2.29.3",
+    "@inlang/paraglide-js": "^3.2.0",
     "@sveltejs/adapter-bun": "^1.0.0",
     "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
