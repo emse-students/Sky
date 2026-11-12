@@ -25,6 +25,12 @@ Svelte stores in `src/lib/stores/`:
   The canvas repaints on every camera notification (#121), so `updateSmooth` writes nothing once
   settled: a store notifies on every `set` of an object, and a no-op write per frame meant a
   60 fps redraw of an idle map (pinned in `cameraStore.test.ts`).
+- **`dialogStore`** (`dialogStore.ts`) - `confirmDialog()` / `alertDialog()`, the in-app
+  replacements of the browser's `confirm()` / `alert()`, drawn once at the root by
+  `ConfirmDialog.svelte`. From the keyboard: the focus opens on the button that changes nothing
+  ("Cancel" for a confirm), Enter and Space activate the button that holds the focus and nothing
+  else, Tab stays among the dialog's buttons, Escape cancels, and the focus returns to what held
+  it when the dialog is answered (pinned in `ConfirmDialog.test.ts`).
 
 ### Zoom gestures
 
