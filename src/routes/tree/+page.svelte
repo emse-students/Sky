@@ -163,6 +163,7 @@
       { danger: true, confirmLabel: m.tree_remove_aria() }
     );
     if (!confirmed) return;
+    let orphan = null as { id: string; prenom: string; nom: string } | null;
     try {
       const res = await fetch('/api/relationships', {
         method: 'DELETE',
@@ -175,34 +176,36 @@
         await alertDialog(refusal.error || m.tree_remove_failed());
         return;
       }
-      const result = (await res.json().catch(() => ({}))) as {
-        orphan?: { id: string; prenom: string; nom: string } | null;
-      };
-      await load(centerId);
-      // Removing the link left a placeholder with no relation: offer to delete it
-      // (a mistyped star recreated elsewhere leaves such an orphan behind).
-      if (result.orphan) {
-        const o = result.orphan;
-        if (
-          await confirmDialog(m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }), {
-            danger: true,
-            confirmLabel: m.common_delete(),
-          })
-        ) {
-          const gone = await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
-            method: 'DELETE',
-          });
-          if (!gone.ok) {
-            console.error('[Tree] orphan delete refused', gone.status);
-            await alertDialog(m.tree_delete_failed());
-          }
-          await load(centerId);
-        }
-      }
+      const result = (await res.json().catch(() => ({}))) as { orphan?: typeof orphan };
+      orphan = result.orphan ?? null;
     } catch (e) {
       console.error('[Tree] remove error', e);
       await alertDialog(m.tree_remove_failed());
+      return;
     }
+    // The link is gone from here on: what follows can only fail at deleting the orphan.
+    await load(centerId);
+    // Removing the link left a placeholder with no relation: offer to delete it
+    // (a mistyped star recreated elsewhere leaves such an orphan behind).
+    if (!orphan) return;
+    const confirmedOrphan = await confirmDialog(
+      m.tree_orphan_confirm({ name: `${orphan.prenom} ${orphan.nom}` }),
+      { danger: true, confirmLabel: m.common_delete() }
+    );
+    if (!confirmedOrphan) return;
+    try {
+      const gone = await fetch(`/api/relatives/${encodeURIComponent(orphan.id)}`, {
+        method: 'DELETE',
+      });
+      if (!gone.ok) {
+        console.error('[Tree] orphan delete refused', gone.status);
+        await alertDialog(m.tree_delete_failed());
+      }
+    } catch (e) {
+      console.error('[Tree] orphan delete error', e);
+      await alertDialog(m.tree_delete_failed());
+    }
+    await load(centerId);
   }
 
   /** Open the edit form for a placeholder relative. */

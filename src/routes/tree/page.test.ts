@@ -41,6 +41,7 @@ const TREE = {
 /** What the server answers, per call; each test sets what it needs. */
 let entourage: () => Response;
 let removal: () => Response;
+let orphanDeletion: () => Response;
 const calls: { url: string; method: string }[] = [];
 
 let host: HTMLElement;
@@ -65,6 +66,7 @@ beforeEach(() => {
   calls.length = 0;
   entourage = () => Response.json(TREE);
   removal = () => Response.json({ success: true, orphan: null });
+  orphanDeletion = () => Response.json({ success: true });
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -73,6 +75,7 @@ beforeEach(() => {
       calls.push({ url, method });
       if (url.startsWith('/api/entourage')) return entourage();
       if (url === '/api/relationships' && method === 'DELETE') return removal();
+      if (url.startsWith('/api/relatives/') && method === 'DELETE') return orphanDeletion();
       return new Response('{}', { status: 404 });
     })
   );
@@ -179,5 +182,22 @@ describe('removing a link', () => {
     await answer(true);
 
     expect(get(activeDialog)!.message).toBe(m.tree_remove_failed());
+  });
+
+  it('reports the orphan it could not delete as a deletion, not as a removal', async () => {
+    removal = () =>
+      Response.json({ success: true, orphan: { id: 'o', prenom: 'Sasha', nom: 'Morel' } });
+    orphanDeletion = () => {
+      throw new TypeError('fetch failed');
+    };
+    await render();
+    removeButton().click();
+    await settle();
+    await answer(true);
+    expect(get(activeDialog)!.message).toBe(m.tree_orphan_confirm({ name: 'Sasha Morel' }));
+    await answer(true);
+
+    expect(get(activeDialog)!.kind).toBe('alert');
+    expect(get(activeDialog)!.message).toBe(m.tree_delete_failed());
   });
 });
