@@ -10,22 +10,59 @@
    * browser `confirm()` / `alert()` windows.
    */
 
-  /** Resolve the active dialog with the given outcome and close it. */
+  /** What held the focus when the dialog opened; it gets it back when the dialog is answered. */
+  let focusedBefore: HTMLElement | null = null;
+
+  /**
+   * Resolve the active dialog with the given outcome and close it. The focus returns HERE, at the
+   * answer, not when the node leaves: the closing transition keeps the buttons in the page for a
+   * moment, and a key pressed during it must not reach them.
+   */
   function settle(dialog: DialogRequest, ok: boolean) {
     console.debug('[Dialog] settle:', ok);
     dialog.resolve(ok);
     activeDialog.set(null);
+    if (focusedBefore?.isConnected) focusedBefore.focus();
+    else (document.activeElement as HTMLElement | null)?.blur();
+    focusedBefore = null;
   }
 
+  /**
+   * The keyboard inside the dialog. Escape dismisses (cancel for a confirm, acknowledge for an
+   * alert). Tab stays among the dialog's buttons. Enter and Space are NOT read here: they
+   * activate the button that holds the focus, so Enter on "Cancel" cancels.
+   */
   function onKeydown(e: KeyboardEvent, dialog: DialogRequest) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      // Escape dismisses: cancel for a confirm, acknowledge for an alert.
       settle(dialog, false);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      settle(dialog, true);
+      return;
     }
+    if (e.key !== 'Tab') return;
+    const buttons = Array.from(
+      (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('button')
+    );
+    if (buttons.length === 0) return;
+    const at = buttons.indexOf(document.activeElement as HTMLElement);
+    const next = e.shiftKey
+      ? at <= 0
+        ? buttons.length - 1
+        : at - 1
+      : at === buttons.length - 1
+        ? 0
+        : at + 1;
+    e.preventDefault();
+    buttons[next].focus();
+  }
+
+  /**
+   * Holds the focus while the dialog is open: on opening it goes to the button that changes
+   * nothing - "Cancel" for a confirm, the only button for an alert. `settle` gives it back to
+   * whatever held it before, so the keyboard resumes where the person was.
+   */
+  function holdFocus(node: HTMLElement) {
+    focusedBefore = document.activeElement as HTMLElement | null;
+    node.querySelector<HTMLElement>('button')?.focus();
   }
 </script>
 
@@ -43,12 +80,15 @@
       transition:scale={{ duration: 180, start: 0.95 }}
       role="alertdialog"
       aria-modal="true"
+      aria-labelledby={dialog.title ? 'confirm-dialog-title' : undefined}
+      aria-describedby="confirm-dialog-message"
       tabindex="-1"
+      use:holdFocus
     >
       {#if dialog.title}
-        <h2>{dialog.title}</h2>
+        <h2 id="confirm-dialog-title">{dialog.title}</h2>
       {/if}
-      <p class="message">{dialog.message}</p>
+      <p class="message" id="confirm-dialog-message">{dialog.message}</p>
       <div class="actions">
         {#if dialog.kind === 'confirm'}
           <button class="ghost" onclick={() => settle(dialog, false)}>
