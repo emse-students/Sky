@@ -71,6 +71,16 @@ Created lazily in `getDatabase()` (no migration needed):
 `ignored_merge_pairs(a_id, b_id PRIMARY KEY)` with the canonical order `a_id <
 b_id`. Records merge suggestions an admin chose to ignore so they stop resurfacing.
 
+### `merge_log`
+
+Created lazily in `getDatabase()` like the table above:
+`merge_log(id, merged_by, removed_id, kept_id, merged_at)`. One row per admin merge, written in
+the merge's own transaction by `mergePeople`: the `people.id` of the admin who decided, the fiche
+that was removed and the one that was kept. Ids only. Nothing reads it in the application; it is
+what answers "who merged this fiche away, and when". A merge that names a fiche that does not exist
+throws inside the transaction and writes nothing (the route answers 404). Rows are kept for the
+life of the database: nothing purges them, and they hold no name.
+
 ### `metadata`
 
 Key/value store holding `schema_version` and `last_migration`.

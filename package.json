@@ -24,7 +24,8 @@
     "db:init": "bun scripts/init-db.js",
     "db:check": "bun scripts/check-db-integrity.js",
     "package": "bun run build && bun ./scripts/pack-bun.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "bun test ./tests/merge-log.bun.ts"
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.3.0",

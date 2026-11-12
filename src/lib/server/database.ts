@@ -52,6 +52,14 @@ function initializeSchema(database: Database): void {
   }
 }
 
+/** A merge named a fiche that does not exist; thrown inside the merge's transaction. */
+export class MergePersonNotFoundError extends Error {
+  constructor(readonly personId: string) {
+    super(`No fiche ${personId} to merge`);
+    this.name = 'MergePersonNotFoundError';
+  }
+}
+
 /**
  * Drop the process-wide handle so the next `getDatabase()` reopens the file.
  *
@@ -88,6 +96,19 @@ export function getDatabase(): Database {
          a_id TEXT NOT NULL,
          b_id TEXT NOT NULL,
          PRIMARY KEY (a_id, b_id)
+       )`
+    );
+
+    // Who merged which fiche into which, and when: the removed fiche is gone after a merge, so
+    // this row is the only record that it existed and of the admin who decided. Created lazily
+    // like the table above. Ids only - no name outlives the fiche it belonged to.
+    db.exec(
+      `CREATE TABLE IF NOT EXISTS merge_log (
+         id INTEGER PRIMARY KEY,
+         merged_by TEXT NOT NULL,
+         removed_id TEXT NOT NULL,
+         kept_id TEXT NOT NULL,
+         merged_at TEXT NOT NULL DEFAULT (datetime('now'))
        )`
     );
   }
@@ -267,15 +288,24 @@ export function deletePerson(id: string): boolean {
  * differ. The survivor's `id` is never changed (it is a stable PK referenced by
  * relations), only its display columns. Omit `survivorIdentity` to keep the
  * survivor's own values unchanged (silent survivor-wins).
+ *
+ * `mergedBy` is the `people.id` of the admin who decided: the merge and its `merge_log` row are
+ * one transaction, so no merge exists without the record of who made it - and no record without a
+ * merge: a fiche that does not exist throws {@link MergePersonNotFoundError} and nothing is written.
  */
 export function mergePeople(
   sourceId: string,
   targetId: string,
-  survivorIdentity?: { prenom: string; nom: string; level: number | null }
+  survivorIdentity: { prenom: string; nom: string; level: number | null } | undefined,
+  mergedBy: string
 ): void {
   const database = getDatabase();
 
   database.transaction(() => {
+    if (!database.prepare('SELECT 1 FROM people WHERE id = ?').get(targetId)) {
+      throw new MergePersonNotFoundError(targetId);
+    }
+
     // 1. Move relationships requests (target_id = sourceId)
     // I am the TARGET (fillot), so these are my Parrains.
     const incoming = database
@@ -311,8 +341,16 @@ export function mergePeople(
       }
     }
 
-    // 3. Delete the source person
-    database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
+    // 3. Delete the source person. Exactly one fiche goes, or the whole merge rolls back: a
+    // log row for a fiche that never existed would be a record of nothing.
+    const removed = database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
+    if (removed.changes !== 1) {
+      throw new MergePersonNotFoundError(sourceId);
+    }
+    database
+      .prepare('INSERT INTO merge_log (merged_by, removed_id, kept_id) VALUES (?, ?, ?)')
+      .run(mergedBy, sourceId, targetId);
+    console.debug(`[Database] Merge of ${sourceId} into ${targetId} recorded for ${mergedBy}`);
 
     // 4. Apply the chosen identity to the survivor (only when resolving a
     // conflict). Re-format to keep the "NOM"/"Prenom" display convention.

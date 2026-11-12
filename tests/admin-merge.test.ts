@@ -7,6 +7,7 @@ vi.mock('#lib/server/database.js', () => ({
   mergePeople: vi.fn(),
   recalculatePositions: vi.fn(() => Promise.resolve()),
   getPersonAuthSub: vi.fn(() => null),
+  MergePersonNotFoundError: class extends Error {},
 }));
 
 type MergeEvent = RequestEvent<Record<string, never>, '/api/admin/merge'>;
@@ -27,11 +28,11 @@ describe('POST /api/admin/merge', () => {
     (mergePeople as Mock).mockClear();
   });
 
-  it('merges for an admin', async () => {
+  it('merges for an admin, and hands the merge the id of the admin who made it', async () => {
     const response = await mergePost(mergeEvent('admin'));
 
     expect(response.status).toBe(200);
-    expect(mergePeople).toHaveBeenCalledWith('a', 'b', undefined);
+    expect(mergePeople).toHaveBeenCalledWith('a', 'b', undefined, 'someone');
   });
 
   it.each(['user', null] as const)('answers 403 and merges nothing for role %s', async (role) => {

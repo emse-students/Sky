@@ -138,6 +138,10 @@ jobs:
         env:
           API_BASE_URL: http://localhost:3000
 
+      # The tests that need a real database: `bun:sqlite` exists only under the Bun runtime.
+      - name: Run the database tests
+        run: bun run test:db
+
       # THE GATE THAT LETS `@sveltejs/adapter-bun` AND SVELTEKIT BE UPGRADED WITHOUT A HUMAN.
       #
       # `bun run build` proves the adapter PRODUCED something. It does not prove the thing it
