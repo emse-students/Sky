@@ -47,6 +47,27 @@ tree on a profile page. `/api/avatar/` is public so `<img>` tags can load it.
 The public landing (like Canari) avoids a silent re-login loop after logout: the
 Authentik SSO session is not killed, so reconnecting is one click.
 
+## Security headers and the content security policy
+
+Every answer - a page, an API answer, a redirect - carries `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: SAMEORIGIN`. They are
+written by the outermost handler of `src/hooks.server.ts` through `applySecurityHeaders`
+(`src/lib/server/security-headers.ts`), which keeps a stricter value a route already set.
+`Strict-Transport-Security` is the front's: it belongs to whatever terminates TLS.
+
+The content security policy lives in `csp.config.ts`, read by `vite.config.ts` (SvelteKit adds
+the nonce of each inline script it writes), in two stages:
+
+- **enforced**: `frame-ancestors 'self'`;
+- **observed for one release** (`Content-Security-Policy-Report-Only`): `default-src 'self'` and
+  the directives beside it. Nothing is blocked. A browser posts each violation to
+  `POST /api/csp-report` (public, stores nothing, bodies over 8 KB dropped), and `noteCspReport`
+  logs it as `[CSP] would block: directive=... blocked=... page=... source=...` - once per distinct
+  violation, then at its 10th, 100th... occurrence with the count; URLs lose their query and
+  fragment. When a release's log is quiet, the observed directives move to `directives`.
+
+Pinned by `tests/security-headers.test.ts`.
+
 ## Route map
 
 ```
