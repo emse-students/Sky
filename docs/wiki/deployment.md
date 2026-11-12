@@ -227,6 +227,13 @@ and its failure is the report saying this tree has gone a day unaudited). The un
 CLOSED, and `audit-dependencies.test.sh` asserts that direction against a fake `bun`, in the same
 run that uses the script.
 
+**A value reaches a workflow script through `env:`, never written into its text.** A `${{ }}`
+expression inside a `run:` is substituted before the shell reads the script, so its value is read
+as code; passed through `env:` it is data, and the script reads the variable. A tag name, an
+event name, a login and a token all travel that way.
+`.github/scripts/tests/workflow-expressions.test.sh` reads every workflow in CI and fails on an
+expression found in a script; it first plants two in a sample, so its silence means something.
+
 ### One lesson from the year the sweep ran, kept because it outlives it
 
 **Counting deliveries is the wrong question; read one log.** This repository's sweep was delivered,
