@@ -132,7 +132,10 @@ jobs:
           ref: ${{ inputs.sha }}
 
       - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
 
       # Every value is checked BEFORE anything is written, so a missing or malformed secret leaves
       # the host's .env, compose file and backup scripts exactly as they were. A value holding a
