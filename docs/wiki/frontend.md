@@ -182,6 +182,20 @@ Search uses `personMatchScore` (see
 [matching-and-search.md](matching-and-search.md)) for tolerant, inversion-aware
 ranking.
 
+## The tree editor (`tree/+page.svelte`)
+
+The page reads `/api/entourage` and writes through `/api/relationships` and `/api/relatives`, and
+it says what happened to each:
+
+- **A tree that could not be read is not an absent fiche.** Only a 404 means the person has no
+  fiche. Any other status, or no answer, shows "could not be loaded" with a retry; a tree already on
+  screen stays, and an alert says its refresh failed.
+- **Removing a link asks first**, in the in-app confirm dialog, naming the person. A removal the
+  server refused is reported with the reason it gave; one that got no answer, with a message of the
+  page's own. The deletion of the star a removal left without any link reports its failure too.
+
+Pinned in `src/routes/tree/page.test.ts`.
+
 ## Internationalization
 
 Sky uses **Paraglide** (inlang). Messages are authored in `messages/fr.json` and
