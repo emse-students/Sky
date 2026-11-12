@@ -33,6 +33,9 @@
   let data = $state<EntourageResponse | null>(null);
   let canari = $state<CanariProfileResponse | null>(null);
   let loading = $state(true);
+  // The id of a tree that could not be read (no answer, or an error other than "no such fiche"):
+  // the page says so and offers to ask again, instead of saying the member has no fiche.
+  let failedId = $state<string | null>(null);
   let modal: { role: RelationRole; kind: RelationKind; title: string } | null = $state(null);
   // Edit form for a placeholder relative (name/promo), null when closed.
   let editing = $state<{
@@ -66,17 +69,25 @@
   async function load(id: string) {
     loading = true;
     canari = null;
+    failedId = null;
     try {
       const res = await fetch(`/api/entourage?id=${encodeURIComponent(id)}`);
       if (res.ok) {
         data = (await res.json()) as EntourageResponse;
+      } else if (res.status !== 404) {
+        // A 404 is the server saying this person has no fiche; anything else is not an answer.
+        console.error('[Tree] load refused', res.status);
+        failedId = id;
       }
     } catch (e) {
       console.error('[Tree] load error', e);
+      failedId = id;
     } finally {
       loading = false;
     }
-    loadCanari(id);
+    // A tree already on screen stays on screen; the person is told its refresh did not happen.
+    if (failedId && data) await alertDialog(m.tree_load_failed());
+    if (!failedId) loadCanari(id);
   }
 
   /** Load the Canari profile (bio, clubs) of the centered person. */
@@ -143,39 +154,58 @@
     }
   }
 
-  async function removeRelation(relId: number) {
+  /** Remove the link to `member`, once the person has said yes, and say so when it fails. */
+  async function removeRelation(member: EntourageMember) {
     if (!data) return;
     const centerId = data.person.id;
+    const confirmed = await confirmDialog(
+      m.tree_remove_confirm({ name: `${member.prenom} ${member.nom}` }),
+      { danger: true, confirmLabel: m.tree_remove_aria() }
+    );
+    if (!confirmed) return;
+    let orphan = null as { id: string; prenom: string; nom: string } | null;
     try {
       const res = await fetch('/api/relationships', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ relationshipId: relId }),
+        body: JSON.stringify({ relationshipId: member.relId }),
       });
-      if (!res.ok) return;
-      const result = (await res.json().catch(() => ({}))) as {
-        orphan?: { id: string; prenom: string; nom: string } | null;
-      };
-      await load(centerId);
-      // Removing the link left a placeholder with no relation: offer to delete it
-      // (a mistyped star recreated elsewhere leaves such an orphan behind).
-      if (result.orphan) {
-        const o = result.orphan;
-        if (
-          await confirmDialog(m.tree_orphan_confirm({ name: `${o.prenom} ${o.nom}` }), {
-            danger: true,
-            confirmLabel: m.common_delete(),
-          })
-        ) {
-          await fetch(`/api/relatives/${encodeURIComponent(o.id)}`, {
-            method: 'DELETE',
-          });
-          await load(centerId);
-        }
+      if (!res.ok) {
+        const refusal = (await res.json().catch(() => ({}))) as { error?: string };
+        console.error('[Tree] remove refused', res.status);
+        await alertDialog(refusal.error || m.tree_remove_failed());
+        return;
       }
+      const result = (await res.json().catch(() => ({}))) as { orphan?: typeof orphan };
+      orphan = result.orphan ?? null;
     } catch (e) {
       console.error('[Tree] remove error', e);
+      await alertDialog(m.tree_remove_failed());
+      return;
     }
+    // The link is gone from here on: what follows can only fail at deleting the orphan.
+    await load(centerId);
+    // Removing the link left a placeholder with no relation: offer to delete it
+    // (a mistyped star recreated elsewhere leaves such an orphan behind).
+    if (!orphan) return;
+    const confirmedOrphan = await confirmDialog(
+      m.tree_orphan_confirm({ name: `${orphan.prenom} ${orphan.nom}` }),
+      { danger: true, confirmLabel: m.common_delete() }
+    );
+    if (!confirmedOrphan) return;
+    try {
+      const gone = await fetch(`/api/relatives/${encodeURIComponent(orphan.id)}`, {
+        method: 'DELETE',
+      });
+      if (!gone.ok) {
+        console.error('[Tree] orphan delete refused', gone.status);
+        await alertDialog(m.tree_delete_failed());
+      }
+    } catch (e) {
+      console.error('[Tree] orphan delete error', e);
+      await alertDialog(m.tree_delete_failed());
+    }
+    await load(centerId);
   }
 
   /** Open the edit form for a placeholder relative. */
@@ -261,6 +291,12 @@
 
   {#if loading}
     <div class="state"><LoaderCircle size={40} class="spin" /></div>
+  {:else if !data && failedId}
+    {@const again = failedId}
+    <div class="state failed">
+      <p>{m.tree_load_failed()}</p>
+      <button class="retry" onclick={() => load(again)}>{m.tree_retry()}</button>
+    </div>
   {:else if !data}
     <div class="state">{m.tree_no_fiche()}</div>
   {:else}
@@ -391,7 +427,7 @@
         {/if}
         <button
           class="del"
-          onclick={() => removeRelation(member.relId)}
+          onclick={() => removeRelation(member)}
           aria-label={m.tree_remove_aria()}
           title={m.tree_remove_title()}
         >
@@ -504,6 +540,19 @@
     justify-content: center;
     padding: 6rem 1rem;
     color: #94a3b8;
+  }
+  .state.failed {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .retry {
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
   }
   .tree {
     max-width: 980px;
