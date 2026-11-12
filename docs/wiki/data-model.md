@@ -77,7 +77,9 @@ Created lazily in `getDatabase()` like the table above:
 `merge_log(id, merged_by, removed_id, kept_id, merged_at)`. One row per admin merge, written in
 the merge's own transaction by `mergePeople`: the `people.id` of the admin who decided, the fiche
 that was removed and the one that was kept. Ids only. Nothing reads it in the application; it is
-what answers "who merged this fiche away, and when".
+what answers "who merged this fiche away, and when". A merge that names a fiche that does not exist
+throws inside the transaction and writes nothing (the route answers 404). Rows are kept for the
+life of the database: nothing purges them, and they hold no name.
 
 ### `metadata`
 

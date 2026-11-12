@@ -52,6 +52,14 @@ function initializeSchema(database: Database): void {
   }
 }
 
+/** A merge named a fiche that does not exist; thrown inside the merge's transaction. */
+export class MergePersonNotFoundError extends Error {
+  constructor(readonly personId: string) {
+    super(`No fiche ${personId} to merge`);
+    this.name = 'MergePersonNotFoundError';
+  }
+}
+
 /**
  * Drop the process-wide handle so the next `getDatabase()` reopens the file.
  *
@@ -282,7 +290,8 @@ export function deletePerson(id: string): boolean {
  * survivor's own values unchanged (silent survivor-wins).
  *
  * `mergedBy` is the `people.id` of the admin who decided: the merge and its `merge_log` row are
- * one transaction, so no merge exists without the record of who made it.
+ * one transaction, so no merge exists without the record of who made it - and no record without a
+ * merge: a fiche that does not exist throws {@link MergePersonNotFoundError} and nothing is written.
  */
 export function mergePeople(
   sourceId: string,
@@ -293,6 +302,10 @@ export function mergePeople(
   const database = getDatabase();
 
   database.transaction(() => {
+    if (!database.prepare('SELECT 1 FROM people WHERE id = ?').get(targetId)) {
+      throw new MergePersonNotFoundError(targetId);
+    }
+
     // 1. Move relationships requests (target_id = sourceId)
     // I am the TARGET (fillot), so these are my Parrains.
     const incoming = database
@@ -328,8 +341,12 @@ export function mergePeople(
       }
     }
 
-    // 3. Delete the source person
-    database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
+    // 3. Delete the source person. Exactly one fiche goes, or the whole merge rolls back: a
+    // log row for a fiche that never existed would be a record of nothing.
+    const removed = database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
+    if (removed.changes !== 1) {
+      throw new MergePersonNotFoundError(sourceId);
+    }
     database
       .prepare('INSERT INTO merge_log (merged_by, removed_id, kept_id) VALUES (?, ?, ?)')
       .run(mergedBy, sourceId, targetId);

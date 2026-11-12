@@ -7,6 +7,7 @@ vi.mock('#lib/server/database.js', () => ({
   mergePeople: vi.fn(),
   recalculatePositions: vi.fn(() => Promise.resolve()),
   getPersonAuthSub: vi.fn(() => null),
+  MergePersonNotFoundError: class extends Error {},
 }));
 
 type MergeEvent = RequestEvent<Record<string, never>, '/api/admin/merge'>;

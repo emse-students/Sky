@@ -1,4 +1,9 @@
-import { mergePeople, recalculatePositions, getPersonAuthSub } from '#lib/server/database.js';
+import {
+  mergePeople,
+  recalculatePositions,
+  getPersonAuthSub,
+  MergePersonNotFoundError,
+} from '#lib/server/database.js';
 import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
 import { requireAdmin } from '#lib/server/guards.js';
 import type { RequestHandler } from '@sveltejs/kit';
@@ -66,6 +71,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     return Response.json({ success: true, survivorId: keepId });
   } catch (error) {
+    if (error instanceof MergePersonNotFoundError) {
+      console.warn(`[Merge] Refused: fiche ${error.personId} does not exist`);
+      return Response.json({ error: 'Person not found' }, { status: 404 });
+    }
     console.error('Merge failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return Response.json({ error: 'Merge failed', details: message }, { status: 500 });
