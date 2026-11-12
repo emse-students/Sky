@@ -107,4 +107,26 @@ describe('the confirm dialog from the keyboard', () => {
     buttons()[0].click();
     await acknowledged;
   });
+
+  it('an alert that follows a confirm at once takes the focus, and gives it back', async () => {
+    const answer = confirmDialog('Remove this link?');
+    flushSync();
+    buttons()[1].click();
+    expect(await answer).toBe(true);
+
+    // The caller reports a failure before the first dialog has finished leaving the page.
+    const acknowledged = alertDialog('The link could not be removed.');
+    flushSync();
+
+    const alert = Array.from(host.querySelectorAll('[role="alertdialog"]')).find((d) =>
+      d.textContent?.includes('could not be removed')
+    )!;
+    const ok = alert.querySelector('button')!;
+    expect(document.activeElement).toBe(ok);
+
+    ok.click();
+    await acknowledged;
+    flushSync();
+    expect(document.activeElement).toBe(opener);
+  });
 });

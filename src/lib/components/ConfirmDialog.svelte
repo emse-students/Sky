@@ -67,44 +67,48 @@
 </script>
 
 {#if $activeDialog}
-  {@const dialog = $activeDialog}
-  <div
-    class="backdrop"
-    transition:fade={{ duration: 150 }}
-    onclick={(e) => e.target === e.currentTarget && settle(dialog, false)}
-    onkeydown={(e) => onKeydown(e, dialog)}
-    role="presentation"
-  >
+  <!-- Keyed on the request: a dialog asked for while the previous one is still leaving the page
+       is a NEW block, so `holdFocus` runs for it too. -->
+  {#key $activeDialog}
+    {@const dialog = $activeDialog}
     <div
-      class="dialog"
-      transition:scale={{ duration: 180, start: 0.95 }}
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby={dialog.title ? 'confirm-dialog-title' : undefined}
-      aria-describedby="confirm-dialog-message"
-      tabindex="-1"
-      use:holdFocus
+      class="backdrop"
+      transition:fade={{ duration: 150 }}
+      onclick={(e) => e.target === e.currentTarget && settle(dialog, false)}
+      onkeydown={(e) => onKeydown(e, dialog)}
+      role="presentation"
     >
-      {#if dialog.title}
-        <h2 id="confirm-dialog-title">{dialog.title}</h2>
-      {/if}
-      <p class="message" id="confirm-dialog-message">{dialog.message}</p>
-      <div class="actions">
-        {#if dialog.kind === 'confirm'}
-          <button class="ghost" onclick={() => settle(dialog, false)}>
-            {dialog.cancelLabel ?? m.common_cancel()}
-          </button>
+      <div
+        class="dialog"
+        transition:scale={{ duration: 180, start: 0.95 }}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={dialog.title ? 'confirm-dialog-title' : undefined}
+        aria-describedby="confirm-dialog-message"
+        tabindex="-1"
+        use:holdFocus
+      >
+        {#if dialog.title}
+          <h2 id="confirm-dialog-title">{dialog.title}</h2>
         {/if}
-        <button class="primary" class:danger={dialog.danger} onclick={() => settle(dialog, true)}>
+        <p class="message" id="confirm-dialog-message">{dialog.message}</p>
+        <div class="actions">
           {#if dialog.kind === 'confirm'}
-            {dialog.confirmLabel ?? m.dialog_confirm()}
-          {:else}
-            {dialog.cancelLabel ?? m.dialog_ok()}
+            <button class="ghost" onclick={() => settle(dialog, false)}>
+              {dialog.cancelLabel ?? m.common_cancel()}
+            </button>
           {/if}
-        </button>
+          <button class="primary" class:danger={dialog.danger} onclick={() => settle(dialog, true)}>
+            {#if dialog.kind === 'confirm'}
+              {dialog.confirmLabel ?? m.dialog_confirm()}
+            {:else}
+              {dialog.cancelLabel ?? m.dialog_ok()}
+            {/if}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  {/key}
 {/if}
 
 <style>
