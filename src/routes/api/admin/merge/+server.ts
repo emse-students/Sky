@@ -13,7 +13,7 @@ interface MergeResolution {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   // Before the try: the refusal is a 403 of its own, never the 500 of the catch below.
-  requireAdmin(locals);
+  const admin = requireAdmin(locals);
 
   try {
     const body = (await request.json()) as {
@@ -59,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       };
     }
 
-    mergePeople(removeId, keepId, survivorIdentity);
+    mergePeople(removeId, keepId, survivorIdentity, admin.id);
 
     // Trigger recalculation in background
     recalculatePositions().catch((e) => console.error('Recalc failed', e));
