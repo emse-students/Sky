@@ -65,6 +65,12 @@ the nonce of each inline script it writes), in two stages:
   logs it as `[CSP] would block: directive=... blocked=... page=... source=...` - once per distinct
   violation, then at its 10th, 100th... occurrence with the count; URLs lose their query and
   fragment. When a release's log is quiet, the observed directives move to `directives`.
+  A reported value also loses every control character and white space, so it stays one field of
+  one line, and every line the route writes passes `logCspLine`: at most
+  `CSP_REPORT_LINES_PER_HOUR` (200) in a clock hour, then one line saying the bound was passed,
+  then nothing until the next hour. The front's nginx `add_header` writes `X-Frame-Options` and
+  `X-Content-Type-Options` too, so an answer can carry each twice with the same value; that is
+  harmless.
 
 Pinned by `tests/security-headers.test.ts`.
 
