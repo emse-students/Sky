@@ -4,6 +4,7 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
+import { CSP } from './csp.config';
 
 export default defineConfig({
   plugins: [
@@ -27,6 +28,8 @@ export default defineConfig({
       preprocess: vitePreprocess({ script: true }),
       // The official Bun adapter: Sky runs on Bun (`bun:sqlite`), so the server is Bun's own.
       adapter: adapter(),
+      // Enforced: no framing by another site. Observed for one release: everything else.
+      csp: CSP,
     }),
   ],
 });

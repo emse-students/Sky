@@ -5,6 +5,7 @@ import { SESSION_COOKIE_NAME } from '#lib/server/session.js';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { m } from '#lib/paraglide/messages.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.js';
+import { applySecurityHeaders } from '#lib/server/security-headers.js';
 
 /**
  * adapter-bun drains in-flight requests on SIGTERM/SIGINT, emits `sveltekit:shutdown` and then
@@ -44,7 +45,15 @@ const paraglideHandler: Handle = ({ event, resolve }) =>
 const PUBLIC_EXACT = new Set(['/', '/unauthorized', '/confidentialite']);
 // `/api/external/` is protected by its own key (SKY_API_KEY), not the ICM
 // session: it is consumed by Canari (server to server).
-const PUBLIC_PREFIXES = ['/auth/', '/api/health', '/api/avatar/', '/api/external/'];
+// `/api/csp-report` is where a browser posts a policy violation; a visitor with no session sends
+// them too, and it stores nothing.
+const PUBLIC_PREFIXES = [
+  '/auth/',
+  '/api/health',
+  '/api/avatar/',
+  '/api/external/',
+  '/api/csp-report',
+];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_EXACT.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
@@ -96,6 +105,9 @@ const robotsHandler: Handle = async ({ event, resolve }) => {
   if (!isIndexable(event.url.pathname)) {
     response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
   }
+  // This handler is the outermost one, and a redirect was just made a response: every answer
+  // passes here, so this is where the site-wide headers are written.
+  applySecurityHeaders(response.headers);
   return response;
 };
 
