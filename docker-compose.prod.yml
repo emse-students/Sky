@@ -41,5 +41,9 @@ services:
       # Cle de l API publique entrante (Canari lit l arbre de parrainage). Doit
       # etre identique a SKY_API_KEY cote Canari. Vide = endpoint refuse.
       SKY_API_KEY: ${SKY_API_KEY:-}
+      # Le passage de connexion depuis Canari (docs/wiki/authentication.md, "Signed in from
+      # Canari") : l'emetteur unique accepte et ses cles publiques. Non secrets.
+      CANARI_HANDOFF_ISSUER: ${CANARI_HANDOFF_ISSUER:-https://canari.emse.fr}
+      CANARI_HANDOFF_JWKS: ${CANARI_HANDOFF_JWKS:-https://canari.emse.fr/api/auth/handoff/jwks}
     volumes:
       - ./database:/app/database

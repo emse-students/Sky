@@ -25,7 +25,7 @@
     "db:check": "bun scripts/check-db-integrity.js",
     "package": "bun run build && bun ./scripts/pack-bun.js",
     "test": "vitest run",
-    "test:db": "bun test ./tests/merge-log.bun.ts"
+    "test:db": "bun test ./tests/merge-log.bun.ts && bun test ./tests/handoff.bun.ts"
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.3.0",
@@ -35,7 +35,8 @@
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout": "^0.6.1",
-    "graphology-layout-forceatlas2": "^0.10.1"
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "jose": "^6.2.10"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.29.3",

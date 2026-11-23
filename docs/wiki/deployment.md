@@ -63,6 +63,8 @@ in `docker-compose.prod.yml`.
 | `CANARI_API_URL`          | no           | Canari base; default `https://canari.emse.fr`             |
 | `CANARI_API_KEY`          | for profiles | Read the inbound Canari profile API                       |
 | `SKY_API_KEY`             | for outbound | Protects `/api/external/entourage/*` (Canari presents it) |
+| `CANARI_HANDOFF_ISSUER`   | no           | Canari handoff issuer; default `https://canari.emse.fr`   |
+| `CANARI_HANDOFF_JWKS`     | no           | Its keys; default `<issuer>/api/auth/handoff/jwks`        |
 
 The three MiConnect/MiGallery secrets are mandatory (the CD fails without them), and so are the
 three backup destinations `BACKUP_DIR`, `BACKUP_SSH_HOST` and `BACKUP_SSH_PATH`, which go to

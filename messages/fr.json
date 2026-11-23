@@ -270,5 +270,11 @@
   "privacy_retention_h": "Combien de temps",
   "privacy_retention_p": "Les fiches et les liens restent tant que la carte existe, ou jusqu'à ta demande d'effacement. Les sessions durent 7 jours et les sauvegardes 14 jours.",
   "privacy_rights_h": "Tes droits",
-  "privacy_rights_p": "Tu peux demander l'accès à tes données, leur rectification, leur effacement, t'opposer à leur traitement, en demander la limitation ou la portabilité. Écris à bureau@rootz-emse.fr : on traite ta demande par e-mail sous 30 jours. Si tu estimes que ça ne suffit pas, tu peux saisir la CNIL (cnil.fr)."
+  "privacy_rights_p": "Tu peux demander l'accès à tes données, leur rectification, leur effacement, t'opposer à leur traitement, en demander la limitation ou la portabilité. Écris à bureau@rootz-emse.fr : on traite ta demande par e-mail sous 30 jours. Si tu estimes que ça ne suffit pas, tu peux saisir la CNIL (cnil.fr).",
+  "handoff_title": "Connexion depuis Canari - Sky",
+  "handoff_working": "Connexion en cours…",
+  "handoff_as_next": "Tu vas être connecté en tant que {next}.",
+  "handoff_switch": "Tu es connecté en tant que {current}. Continuer en tant que {next} ?",
+  "handoff_continue": "Continuer",
+  "handoff_cancel": "Annuler"
 }

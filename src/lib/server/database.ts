@@ -111,8 +111,35 @@ export function getDatabase(): Database {
          merged_at TEXT NOT NULL DEFAULT (datetime('now'))
        )`
     );
+
+    markHandoffSessions(db);
   }
   return db;
+}
+
+/**
+ * The Canari sign-in handoff (2026-11) on a database made before it: `sessions` gains
+ * `via_handoff`, the mark of a session a handoff opened, and the single-use ledger
+ * `handoff_redemptions` appears. Both additive and idempotent, like the two tables above; every
+ * session that exists before is an ordinary one (MiConnect opened it), hence the default 0.
+ * `schema.sql` carries both for a new database.
+ */
+function markHandoffSessions(database: Database): void {
+  const columns = (database.prepare('PRAGMA table_info(sessions)').all() as { name: string }[]).map(
+    (c) => c.name
+  );
+  if (!columns.includes('via_handoff')) {
+    database.exec('ALTER TABLE sessions ADD COLUMN via_handoff INTEGER NOT NULL DEFAULT 0');
+    console.log('[Database] sessions.via_handoff added');
+  }
+  database.exec(
+    `CREATE TABLE IF NOT EXISTS handoff_redemptions (
+       jti TEXT PRIMARY KEY,
+       sub TEXT NOT NULL,
+       exp INTEGER NOT NULL,
+       redeemed_at INTEGER NOT NULL
+     )`
+  );
 }
 
 /**
@@ -396,6 +423,8 @@ export interface SessionPerson {
   auth_sub: string | null;
   formation: string | null;
   role: string;
+  /** The session was opened by a Canari handoff: it may browse and may change nothing. */
+  viaHandoff: boolean;
 }
 
 /** The `people` record already linked to this Authentik sub, else null. */
@@ -839,8 +868,15 @@ export function getAllPeopleAdmin(): AdminPersonRow[] {
   }));
 }
 
-/** Create an opaque session (7 days) for a `people` record. */
-export function createSession(personId: string): {
+/**
+ * Create an opaque session (7 days) for a `people` record. `viaHandoff` MARKS a session a Canari
+ * handoff opened - the ordinary session, same lifetime, same cookie, one column apart - which may
+ * change nothing until a MiConnect sign-in (`#lib/server/handoff/step-up.js`).
+ */
+export function createSession(
+  personId: string,
+  options: { viaHandoff?: boolean } = {}
+): {
   token: string;
   expiresAt: number;
 } {
@@ -848,9 +884,76 @@ export function createSession(personId: string): {
   const token = randomUUID();
   const expiresAt = nowEpoch() + SESSION_TTL_SECONDS;
   database
-    .prepare('INSERT INTO sessions (token, person_id, expires_at) VALUES (?, ?, ?)')
-    .run(token, personId, expiresAt);
+    .prepare('INSERT INTO sessions (token, person_id, expires_at, via_handoff) VALUES (?, ?, ?, ?)')
+    .run(token, personId, expiresAt, options.viaHandoff === true ? 1 : 0);
   return { token, expiresAt };
+}
+
+/** A linked record as the handoff admits it: who the token's `sub` is, and what the gate reads. */
+export interface HandoffPerson {
+  id: string;
+  firstName: string;
+  lastName: string;
+  formation: string | null;
+  role: string;
+}
+
+/** The `people` record linked to this Authentik sub, as the handoff needs it, else null. */
+export function getHandoffPerson(authSub: string): HandoffPerson | null {
+  const row = getDatabase()
+    .prepare(
+      `SELECT id, first_name AS firstName, last_name AS lastName, formation, role
+       FROM people WHERE auth_sub = ?`
+    )
+    .get(authSub) as HandoffPerson | null;
+  return row ?? null;
+}
+
+/**
+ * Spends one handoff token: the single-use decision. The INSERT is the decision - nothing reads
+ * first and writes afterwards, so two redemptions of one token cannot both win. The rows whose
+ * token can no longer verify go first, by proof rather than by a timer: a row whose `exp` is more
+ * than `leewaySeconds` past belongs to a token the verifier refuses as expired before it gets here.
+ *
+ * When `personId` is given, the MARKED session is opened in the SAME transaction (and `replaced`,
+ * another session of this browser, deleted): a token is never spent without its session, nor a
+ * session left half replaced.
+ *
+ * @returns the session opened (null when `personId` is null), or `replayed` when already spent
+ */
+export function redeemHandoffToken(input: {
+  jti: string;
+  sub: string;
+  exp: number;
+  nowSeconds: number;
+  leewaySeconds: number;
+  personId: string | null;
+  replaced: string | null;
+}): { replayed: true } | { replayed: false; session: { token: string; expiresAt: number } | null } {
+  const database = getDatabase();
+  return database.transaction(() => {
+    database
+      .prepare('DELETE FROM handoff_redemptions WHERE exp < ?')
+      .run(input.nowSeconds - input.leewaySeconds);
+    const inserted = database
+      .prepare(
+        'INSERT OR IGNORE INTO handoff_redemptions (jti, sub, exp, redeemed_at) VALUES (?, ?, ?, ?)'
+      )
+      .run(input.jti, input.sub, input.exp, input.nowSeconds);
+    if (inserted.changes !== 1) {
+      return { replayed: true as const };
+    }
+    if (input.personId === null) {
+      return { replayed: false as const, session: null };
+    }
+    if (input.replaced) {
+      deleteSession(input.replaced);
+    }
+    return {
+      replayed: false as const,
+      session: createSession(input.personId, { viaHandoff: true }),
+    };
+  })();
 }
 
 /** Resolve the `people` record of a valid (non-expired) session, else null. */
@@ -859,7 +962,7 @@ export function getSessionPerson(token: string): SessionPerson | null {
   const row = database
     .prepare(
       `SELECT p.id, p.first_name, p.last_name, p.level,
-              p.auth_sub, p.formation, p.role
+              p.auth_sub, p.formation, p.role, s.via_handoff
        FROM sessions s
        JOIN people p ON p.id = s.person_id
        WHERE s.token = ? AND s.expires_at > ?`
@@ -872,6 +975,7 @@ export function getSessionPerson(token: string): SessionPerson | null {
     auth_sub: string | null;
     formation: string | null;
     role: string;
+    via_handoff: number;
   } | null;
   if (!row) {
     return null;
@@ -884,6 +988,7 @@ export function getSessionPerson(token: string): SessionPerson | null {
     auth_sub: row.auth_sub,
     formation: row.formation,
     role: row.role,
+    viaHandoff: row.via_handoff === 1,
   };
 }
 

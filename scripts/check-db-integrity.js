@@ -53,7 +53,8 @@ const EXPECTED = {
   ],
   relationships: ['id', 'source_id', 'target_id', 'type', 'created_at'],
   associations: ['id', 'person_id', 'name', 'role', 'logo_url', 'display_order', 'created_at'],
-  sessions: ['token', 'person_id', 'expires_at', 'created_at'],
+  sessions: ['token', 'person_id', 'expires_at', 'created_at', 'via_handoff'],
+  handoff_redemptions: ['jti', 'sub', 'exp', 'redeemed_at'],
   pending_links: [
     'token',
     'sub',

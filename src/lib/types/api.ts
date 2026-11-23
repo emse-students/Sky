@@ -9,4 +9,5 @@ export interface SessionUser {
   role: 'admin' | 'user';
   formation: string | null; // 'ICM', 'ISMIN'...
   promo: number | null; // = people.level
+  viaHandoff: boolean; // opened by a Canari handoff: may browse, may change nothing until MiConnect
 }

@@ -116,11 +116,26 @@ CREATE TABLE IF NOT EXISTS sessions (
     person_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- 1 when a Canari sign-in handoff opened the session rather than MiConnect: it may browse and
+    -- may change nothing until a MiConnect sign-in (docs/wiki/authentication.md, "Signed in from Canari").
+    via_handoff INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_person ON sessions(person_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- ============================================
+-- HANDOFF_REDEMPTIONS TABLE
+-- The sign-in handoff's single-use ledger: one row per Canari token redeemed, keyed by its jti.
+-- The INSERT is the decision; a row past its token's lifetime protects nothing and is purged.
+-- ============================================
+CREATE TABLE IF NOT EXISTS handoff_redemptions (
+    jti TEXT PRIMARY KEY,
+    sub TEXT NOT NULL,
+    exp INTEGER NOT NULL,
+    redeemed_at INTEGER NOT NULL
+);
 
 -- ============================================
 -- PENDING_LINKS TABLE
