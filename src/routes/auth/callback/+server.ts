@@ -4,28 +4,19 @@ import { completeOIDCFlow } from '#lib/server/oidc.js';
 import {
   resolveLogin,
   createPendingLink,
-  createSession,
   deleteExpiredSessions,
   deleteExpiredPendingLinks,
   getPersonRoleByAuthSub,
   recalculatePositions,
   type OidcIdentity,
 } from '#lib/server/database.js';
-import { setSessionCookie } from '#lib/server/session.js';
+import { openSignedInSession } from '#lib/server/session.js';
+import { admits, roleAtSignIn } from '#lib/server/admission.js';
 import { PENDING_COOKIE_NAME } from '#lib/server/link.js';
 import { m } from '#lib/paraglide/messages.js';
 
 const STATE_COOKIE_NAME = '__oidc_state';
 const NONCE_COOKIE_NAME = '__oidc_nonce';
-
-/** True if the sub is part of the SKY_ADMIN_SUBS admin list (comma-separated). */
-function isAdminSub(sub: string): boolean {
-  return (process.env.SKY_ADMIN_SUBS || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .includes(sub);
-}
 
 /**
  * Authentik return: validates the state, runs the OIDC flow, applies the ICM gate
@@ -63,11 +54,10 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 
     // Role source of truth: the database. The SKY_ADMIN_SUBS env only bootstraps;
     // an admin promoted in the DB is never demoted at login.
-    const role =
-      isAdminSub(claims.sub) || getPersonRoleByAuthSub(claims.sub) === 'admin' ? 'admin' : 'user';
+    const role = roleAtSignIn(claims.sub, getPersonRoleByAuthSub(claims.sub));
 
-    // ICM gate: Sky is reserved for the ICM formation (admins also pass).
-    if (claims.formation !== 'ICM' && role !== 'admin') {
+    // ICM gate (`#lib/server/admission.js`, the one decision the handoff and every request ask too).
+    if (!admits(claims.formation, role)) {
       console.warn(
         `[CALLBACK] Access denied (non-ICM): sub=${claims.sub} formation=${claims.formation ?? 'null'}`
       );
@@ -112,8 +102,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
       );
     }
 
-    const session = createSession(resolution.personId);
-    setSessionCookie(cookies, session.token, session.expiresAt);
+    openSignedInSession(cookies, resolution.personId);
     console.debug(`[CALLBACK] Session opened for ${resolution.personId} (role=${role})`);
     throw redirect(302, '/');
   } catch (e) {

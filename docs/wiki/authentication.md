@@ -67,11 +67,13 @@ each time. The e-mail is neither requested nor stored
 
 ## The ICM gate
 
-Sky is reserved for the ICM formation. In the callback:
+Sky is reserved for the ICM formation. The rule is ONE function,
+`admits(formation, role)` in `src/lib/server/admission.ts`, and every way in asks
+it: the callback, the Canari handoff (below) and `gateHandler`. In the callback:
 
 ```
-role = isAdminSub(sub) || getPersonRoleByAuthSub(sub) === "admin" ? "admin" : "user"
-if (claims.formation !== "ICM" && role !== "admin") -> redirect /unauthorized
+role = roleAtSignIn(sub, getPersonRoleByAuthSub(sub))   // isAdminSub(sub) || db role === "admin"
+if (!admits(claims.formation, role)) -> redirect /unauthorized
 ```
 
 Non-ICM, non-admin users are redirected to `/unauthorized` **without a session**.
@@ -93,6 +95,84 @@ Sessions are opaque and server-resolved; nothing signed is stored client-side.
   intact.
 - **Housekeeping**: the callback calls `deleteExpiredSessions()` and
   `deleteExpiredPendingLinks()` on each login.
+
+## Signed in from Canari
+
+**Canari, already signed in, opens Sky already signed in**, instead of the
+browser meeting a MiConnect prompt it has long forgotten. One mechanism for every
+MiConnect site Canari opens; the design, the threats and the contract are
+Canari's
+[sign-in handoff note](https://github.com/emse-students/canari/blob/main/docs/wiki/backlog.d/sign-in-handoff-to-the-ecosystem-sites-and-migallery-notifications.md),
+section 8. This section is what Sky does.
+
+1. **Canari mints** a 60-second ES256 token for the audience `sky` (after
+   MiConnect's own access inputs pass) and opens
+   `https://sky.emse.fr/auth/handoff#<token>`. The token rides in the FRAGMENT,
+   which no browser sends to a server.
+2. **`/auth/handoff`** (`routes/auth/handoff/+page.svelte`) removes the fragment
+   from the address bar at once (`takeHandoffToken`) and posts the token to
+   `POST /api/auth/handoff`. `Referrer-Policy: no-referrer`,
+   `Cache-Control: no-store`, no third-party script.
+3. **The redemption** (`src/lib/server/handoff/redeem.ts`): `Origin` must be
+   Sky's; the VENDORED verifier checks the token against Canari's JWKS (`ES256`,
+   `typ: canari-handoff+jwt`, issuer `CANARI_HANDOFF_ISSUER`, audience the
+   constant `sky`, 30 s leeway, at most 60 s of life, `dest` a path on this
+   origin). JWKS cached 60 s, never jose's ten minutes.
+4. **Admission (F1)**: the record LINKED to the token's `sub`, nothing written on
+   it. None - a first visit, or an account still to link - answers
+   `unknown_user`, and the page sends the user through MiConnect, where linking
+   (`choice` -> `/auth/link`) happens as after any sign-in. A linked record that
+   fails the ICM gate (`admits`, on its own formation and role) is refused
+   `not_admitted`: the page goes to MiConnect, whose callback refuses the same
+   person the same way.
+5. **The interstitial, ALWAYS** before anything is written ("Tu vas être
+   connecté en tant que B", with B's avatar, `/api/avatar/` being public), or
+   "Tu es connecté en tant que A - continuer en tant que B ?". Only a browser
+   already signed in as B skips it. The click sends the same token again.
+6. **Single use and the session, in ONE transaction** (`redeemHandoffToken`):
+   `INSERT OR IGNORE INTO handoff_redemptions` is the decision (409
+   `replayed`), dead rows are purged by proof first, the other user's session is
+   deleted and the ordinary 7-day session opened, MARKED
+   `sessions.via_handoff = 1`.
+
+Every refusal is logged `[HANDOFF] refused class=<class> jti=<jti or none>` -
+**never the token**. `keys_unavailable` (Canari's JWKS unreachable) is 503 at
+error. After a key COMPROMISE at Canari, restart Sky right after Canari deploys.
+
+**Configuration**: `CANARI_HANDOFF_ISSUER` and `CANARI_HANDOFF_JWKS`, defaulted
+in `docker-compose.prod.yml` to production Canari, like MiGallery's. Either
+empty: every redemption answers `not_offered` and the page goes to MiConnect.
+
+**The vendored files are byte-identical copies of Canari's**, edited only there
+(`src/lib/server/handoff/handoff-verify.ts`, `src/lib/handoff/handoff-landing.ts`,
+`tests/fixtures/handoff-token.cases.json`); Canari's `shape.mjs` compares them.
+
+### The step-up: a handoff session may browse and may change nothing
+
+**The attack (login CSRF):** anyone with a Canari account can mint a token for
+THEIR OWN account and send a victim to `/auth/handoff#<token>`, whose browser
+would then hold a session as the attacker. The interstitial warns, it does not
+prove. **What decides is the mark:** a session whose row says `via_handoff = 1`
+is refused EVERY `POST`, `PUT`, `PATCH` and `DELETE`, whatever its path, form
+actions included - **default deny**, `stepUpHandler` in `hooks.server.ts`,
+`src/lib/server/handoff/step-up.ts` - until the user signs in through MiConnect
+in this browser. The callback and `/auth/link` open an UNMARKED session through
+`openSignedInSession`, which deletes the presented one.
+
+Guarded today, enumerated from the route tree by `tests/step-up.test.ts`: record
+linking (`/account` relink), relatives (`/api/relatives/[id]`) and relationships
+(`/api/relationships`), and every admin write (people, merge, merge suggestions,
+import, positions recompute). **Exempt**, each because it writes nothing into the
+session's account: `/auth/logout`, `/api/auth/handoff`, `/auth/link` (it acts on
+the identity a MiConnect sign-in just proved, from its pending cookie) and
+`/api/csp-report`.
+
+**The refusal** carries `x-step-up-required: 1` in every shape: a redirect
+ActionResult to `/auth/login` for a `use:enhance` form, a 303 for a plain form,
+a 403 `{ code: "STEP_UP_REQUIRED" }` for a `fetch`. `hooks.client.ts` wraps
+`fetch` once (`installStepUpRedirect`), so the page goes to MiConnect whatever
+the caller does with the answer. The mark rides on the session row the session
+handler already reads, so it costs no query.
 
 ## Admin roles
 

@@ -6,6 +6,8 @@ import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { m } from '#lib/paraglide/messages.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.js';
 import { applySecurityHeaders } from '#lib/server/security-headers.js';
+import { admits } from '#lib/server/admission.js';
+import { stepUpRequired, stepUpResponse } from '#lib/server/handoff/step-up.js';
 
 /**
  * adapter-bun drains in-flight requests on SIGTERM/SIGINT, emits `sveltekit:shutdown` and then
@@ -53,6 +55,9 @@ const PUBLIC_PREFIXES = [
   '/api/avatar/',
   '/api/external/',
   '/api/csp-report',
+  // The Canari sign-in handoff's redemption OPENS a session, so it is reached without one; it
+  // applies the ICM gate itself (`#lib/server/admission.js`). Its landing page is under `/auth/`.
+  '/api/auth/handoff',
 ];
 
 function isPublic(pathname: string): boolean {
@@ -75,6 +80,7 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
       role: person.role === 'admin' ? 'admin' : 'user',
       formation: person.formation,
       promo: person.level,
+      viaHandoff: person.viaHandoff,
     };
   } else {
     event.locals.user = null;
@@ -130,7 +136,7 @@ const gateHandler: Handle = async ({ event, resolve }) => {
     throw redirect(302, '/auth/login');
   }
 
-  if (user.formation !== 'ICM' && user.role !== 'admin') {
+  if (!admits(user.formation, user.role)) {
     if (pathname.startsWith('/api/')) {
       return Response.json({ error: m.api_icm_only() }, { status: 403 });
     }
@@ -140,4 +146,28 @@ const gateHandler: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle = sequence(robotsHandler, paraglideHandler, sessionHandler, gateHandler);
+/**
+ * The step-up (`#lib/server/handoff/step-up.js`): a session a Canari handoff opened may browse and
+ * may change nothing until the user signs in through MiConnect here. Refused before any handler or
+ * form action runs - a hook sees every request whatever its method, so no route can forget it. The
+ * mark rides on the session row the session handler already read: it costs no query.
+ */
+const stepUpHandler: Handle = async ({ event, resolve }) => {
+  if (
+    stepUpRequired(event.request.method, event.url.pathname, event.locals.user?.viaHandoff === true)
+  ) {
+    console.info(
+      `[STEP-UP] Refused ${event.request.method} ${event.url.pathname}: a session opened from Canari needs a MiConnect sign-in to change anything`
+    );
+    return stepUpResponse(event.request);
+  }
+  return resolve(event);
+};
+
+export const handle = sequence(
+  robotsHandler,
+  paraglideHandler,
+  sessionHandler,
+  stepUpHandler,
+  gateHandler
+);

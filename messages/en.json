@@ -270,5 +270,11 @@
   "privacy_retention_h": "For how long",
   "privacy_retention_p": "Records and links stay while the map exists, or until you ask for erasure. Sessions last 7 days and backups 14 days.",
   "privacy_rights_h": "Your rights",
-  "privacy_rights_p": "You can ask for access to your data, its rectification or erasure, object to its processing, and ask for restriction or portability. Write to bureau@rootz-emse.fr: requests are handled by e-mail within 30 days. If that is not enough, you can complain to the CNIL (cnil.fr)."
+  "privacy_rights_p": "You can ask for access to your data, its rectification or erasure, object to its processing, and ask for restriction or portability. Write to bureau@rootz-emse.fr: requests are handled by e-mail within 30 days. If that is not enough, you can complain to the CNIL (cnil.fr).",
+  "handoff_title": "Signing in from Canari - Sky",
+  "handoff_working": "Signing in…",
+  "handoff_as_next": "You are about to be signed in as {next}.",
+  "handoff_switch": "You are signed in as {current}. Continue as {next}?",
+  "handoff_continue": "Continue",
+  "handoff_cancel": "Cancel"
 }

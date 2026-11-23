@@ -27,6 +27,9 @@
     "**/*.tsbuildinfo",
     "**/.env",
     "**/.env.local",
-    "**/bun.lock"
+    "**/bun.lock",
+    "src/lib/server/handoff/handoff-verify.ts",
+    "src/lib/handoff/handoff-landing.ts",
+    "tests/fixtures/handoff-token.cases.json"
   ]
 }

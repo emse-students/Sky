@@ -7,11 +7,10 @@ import {
   getLinkCandidates,
   linkPersonAuth,
   createAuthedPerson,
-  createSession,
   getPersonIdByAuthSub,
   recalculatePositions,
 } from '#lib/server/database.js';
-import { setSessionCookie } from '#lib/server/session.js';
+import { openSignedInSession } from '#lib/server/session.js';
 
 /**
  * Ecran de choix de liaison : affiche les fiches candidates (meme nom/prenom,
@@ -67,8 +66,7 @@ export const actions: Actions = {
 
     deletePendingLink(token);
     cookies.delete(PENDING_COOKIE_NAME, { path: '/' });
-    const session = createSession(personId);
-    setSessionCookie(cookies, session.token, session.expiresAt);
+    openSignedInSession(cookies, personId);
 
     // A newly created fiche needs a position so it shows on the map (best-effort).
     if (created) {
