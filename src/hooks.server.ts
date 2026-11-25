@@ -1,5 +1,6 @@
 import { redirect, isRedirect } from '@sveltejs/kit';
 import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { leaveInAppBrowserHandler } from '#lib/server/leaveInAppBrowser.js';
 import { closeDatabase, getSessionPerson } from '#lib/server/database.js';
 import { SESSION_COOKIE_NAME } from '#lib/server/session.js';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
@@ -165,6 +166,7 @@ const stepUpHandler: Handle = async ({ event, resolve }) => {
 };
 
 export const handle = sequence(
+  leaveInAppBrowserHandler,
   robotsHandler,
   paraglideHandler,
   sessionHandler,
