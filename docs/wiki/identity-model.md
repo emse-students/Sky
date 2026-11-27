@@ -82,6 +82,48 @@ account. Three operations rearrange links:
   (`/api/admin/merge` returns an error). Duplicate-detection to suggest merges is
   covered in [godparent-graph.md](godparent-graph.md).
 
+## The Alumni merge (Canari D52-D54)
+
+When Canari's Alumni merge completes (a person's Alumni duplicate account folded into their real
+MiConnect account, [Canari's design](https://github.com/emse-students/canari/blob/main/docs/wiki/profiles-and-access.md#the-alumni-merge-extended-d52-d58-planned-for-183)),
+Canari's site-jobs worker calls `POST /api/internal/alumni-merge` once per merge, and Sky moves what
+the duplicate's subject owns onto the target's subject, then erases the rest, in ONE transaction
+(`applyAlumniMerge` in `database.ts`; the endpoint in `src/lib/server/alumni-merge/`).
+
+- **The call**: `Authorization: Bearer <token>`, an ES256 JWS signed with Canari's HANDOFF key and
+  verified against the same JWKS and issuer as the sign-in handoff (`CANARI_HANDOFF_ISSUER`,
+  `CANARI_HANDOFF_JWKS`) - no new secret. Its own `typ`, `canari-merge+jwt`, so a handoff token is
+  never taken for it nor the reverse; audience `sky`; claims `dup`, `target`, `jti` (Canari's job
+  id), lifetime at most 60 s, and an optional `mode` (`transfer`, the default, or `erase`). The body
+  is not read. The trust unset answers `503 not_configured`, never an acceptance.
+- **The outcomes** (`200 { outcome }`):
+  - no record under `dup` -> `absent`;
+  - no record under `target` -> the duplicate's record takes `target` as its `auth_sub`: the record
+    IS the person, its graph and its role stay -> `transferred`;
+  - a record under `target` -> `mergePeople(duplicate, target, undefined, 'alumni-merge')`: the
+    links and the clubs (`associations`) move, a link between the two records is dropped (it would
+    be a self-loop), `merge_log` names the reserved actor `alumni-merge`, and the duplicate's role
+    is NOT carried (a privilege belongs to the account it was granted to; a dropped one is logged)
+    -> `merged`;
+  - `mode: erase` (the target was erased in the meantime) -> the duplicate's account is closed: a
+    record with no link and no club is deleted, one in the graph becomes a placeholder again
+    (`auth_sub`, `role`, `formation`, `last_login` cleared; the links are other people's too) ->
+    `erased`.
+
+  In every case but `absent`, the duplicate's `sessions`, `pending_links` and
+  `handoff_redemptions` are deleted in the same transaction (and its `ignored_merge_pairs` when its
+  record goes). `ALUMNI_MERGE_TABLES` classifies every table; `tests/alumni-merge.bun.ts` walks the
+  schema and fails on a table in no list.
+
+- **Idempotence comes from the state, not from a ledger**: after any success no record carries
+  `dup`, so a retry of the same job answers `absent` and changes nothing - nothing is ever
+  transferred twice.
+- **The refusals**: a missing or refused token `401 { outcome: <class> }`; Canari's JWKS unreachable
+  `503 keys_unavailable` (error); the duplicate equal to the target `409 { code:
+  'ALUMNI_MERGE_SAME_SUBJECT' }`, which Canari blocks rather than retries. No 5xx answers a state.
+- **Logs**: `[ALUMNI_MERGE]` at entry, at each refusal and at the outcome, with the `jti` and the
+  first 8 characters of each subject - never a name, never the token.
+
 ## Data ownership
 
 Sky is the source of truth **only** for the godparent links (`relationships`).

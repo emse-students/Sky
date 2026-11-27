@@ -32,6 +32,12 @@ public so people WITHOUT an account can read it, and `noindex` like every page b
 their own godparent or godchild. These people never agreed to anything, which is why the notice says
 so and gives the removal route. Removal is an admin action (`/admin/people`, delete the record).
 
+**An Alumni duplicate account is erased by Canari's merge**: when MiConnect folds a duplicate into
+the person's real account, Canari calls Sky, which moves the duplicate's record onto the real
+subject and deletes its sessions, pending link choices and handoff redemptions in one transaction -
+no account is left under a subject that no longer signs in
+([identity-model.md](identity-model.md#the-alumni-merge-canari-d52-d54)).
+
 Hosting: the school's shared server, administered with the DSI. Recipients: signed-in ICM students
 (map), MiConnect (identity provider), MiGallery (photos).
 

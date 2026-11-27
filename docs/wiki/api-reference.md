@@ -7,11 +7,12 @@ additionally calls `requireAdmin`.
 
 ## Public / infrastructure
 
-| Method | Path                            | Auth                        | Purpose                                                                          |
-| ------ | ------------------------------- | --------------------------- | -------------------------------------------------------------------------------- |
-| GET    | `/api/health`                   | none                        | Liveness probe, `{ status: "ok" }`                                               |
-| GET    | `/api/avatar/[id]`              | none                        | Avatar proxy (MiGallery) or initials SVG; see [integrations.md](integrations.md) |
-| GET    | `/api/external/entourage/[sub]` | `x-api-key` (`SKY_API_KEY`) | Outbound entourage API for Canari                                                |
+| Method | Path                            | Auth                        | Purpose                                                                                                       |
+| ------ | ------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/health`                   | none                        | Liveness probe, `{ status: "ok" }`                                                                            |
+| GET    | `/api/avatar/[id]`              | none                        | Avatar proxy (MiGallery) or initials SVG; see [integrations.md](integrations.md)                              |
+| GET    | `/api/external/entourage/[sub]` | `x-api-key` (`SKY_API_KEY`) | Outbound entourage API for Canari                                                                             |
+| POST   | `/api/internal/alumni-merge`    | Canari ES256 token          | Canari's Alumni merge, Sky's half; see [identity-model.md](identity-model.md#the-alumni-merge-canari-d52-d54) |
 
 ## Graph and positions
 
