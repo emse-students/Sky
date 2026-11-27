@@ -50,7 +50,8 @@ installs `--frozen`.
   promo, or creates one.
 - The godparent graph (`relationships`) enforces the rules 1 official godparent /
   1 adoption godparent / 3 official godchildren / 2 adoption godchildren, plus
-  no-cycle, server-side. Star positions are computed in-process and cached in
+  no-cycle, server-side; a promo order inversion or a gap over 3 years only
+  warns and is created once the user confirms (same promotion is fine). Star positions are computed in-process and cached in
   `database/positions.json`.
 - Bio and clubs are read from Canari at request time; avatars are proxied from
   MiGallery. Canari reads a person's close tree back from Sky's

@@ -15,10 +15,22 @@
 export const MIN_PROMO = 1816;
 
 /**
- * Maximum promotion-year gap between a godparent and their godchild. A godchild
- * is always a strictly more recent promotion, at most this many years apart.
+ * Promotion-year gap beyond which linking a godparent and a godchild raises a WARNING (not a
+ * refusal). Owner decision 2026-11-27: the gap and the order are soft rules, "so as not to
+ * block the future".
  */
 export const MAX_PROMO_GAP = 3;
+
+/** Codes of the SOFT promo rules: the link is created only once the caller acknowledged them. */
+export const PROMO_WARNING_CODES = ['PROMO_ORDER', 'PROMO_GAP'] as const;
+
+/** A soft promo rule that was tripped. */
+export type PromoWarningCode = (typeof PROMO_WARNING_CODES)[number];
+
+/** Type guard: is `code` one of the acknowledgeable promo warnings? */
+export function isPromoWarningCode(code: unknown): code is PromoWarningCode {
+  return (PROMO_WARNING_CODES as readonly unknown[]).includes(code);
+}
 
 /**
  * True if a promotion year is acceptable as user input: either unknown (null) or
@@ -30,20 +42,21 @@ export function isValidPromo(level: number | null): boolean {
 }
 
 /**
- * Validate the promotions of a would-be godparent/godchild pair. Returns the
- * violated rule's code, or null when the pair is acceptable: both promos must be
- * known, the godchild ({@link fillotLevel}) must be a strictly more recent
- * promotion than the godparent ({@link parrainLevel}), and they must be at most
- * {@link MAX_PROMO_GAP} years apart. Applies to both link kinds.
+ * Check the promotions of a would-be godparent/godchild pair. Returns `'PROMO_UNKNOWN'` (HARD:
+ * both promos must be known), a {@link PromoWarningCode} (SOFT: the link is allowed once the
+ * caller acknowledged it) or null when the pair is fine. The same promotion is valid; a godchild
+ * (`fillotLevel`) OLDER than the godparent (`parrainLevel`) is `PROMO_ORDER`; more than
+ * {@link MAX_PROMO_GAP} years younger is `PROMO_GAP`. The two warnings are mutually exclusive.
+ * Applies to both link kinds.
  */
 export function checkPromoPair(
   parrainLevel: number | null,
   fillotLevel: number | null
-): 'PROMO_UNKNOWN' | 'PROMO_ORDER' | 'PROMO_GAP' | null {
+): 'PROMO_UNKNOWN' | PromoWarningCode | null {
   if (parrainLevel === null || fillotLevel === null) {
     return 'PROMO_UNKNOWN';
   }
-  if (fillotLevel <= parrainLevel) {
+  if (fillotLevel < parrainLevel) {
     return 'PROMO_ORDER';
   }
   if (fillotLevel - parrainLevel > MAX_PROMO_GAP) {

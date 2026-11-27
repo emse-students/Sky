@@ -7,8 +7,8 @@ The godparent graph is the one thing Sky owns. It is a directed graph over
 
 ## Relation rules
 
-`addParrainage(sourceId, targetId, kind)` is the single entry point for creating
-a link. It enforces, in order, throwing a typed `RelationError` on the first
+`addParrainage(sourceId, targetId, kind, acknowledged = [])` is the single entry point for
+creating a link. It enforces, in order, throwing a typed `RelationError` on the first hard
 violation:
 
 1. `INVALID_KIND` - `kind` is not `'parrainage'`/`'adoption'`.
@@ -18,9 +18,14 @@ violation:
 5. `MAX_FILLOT` - the godparent is under the per-type godchild cap.
 6. `MAX_PARRAIN` - the godchild is under the per-type godparent cap.
 7. `CYCLE` - adding the edge must not create a cycle.
-8. `PROMO_UNKNOWN` - both promotions must be known (a `null` level blocks the link).
-9. `PROMO_ORDER` - the godchild must be a strictly more recent promotion than the godparent.
-10. `PROMO_GAP` - the two promotions are at most `MAX_PROMO_GAP` (3) years apart.
+8. `PROMO_UNKNOWN` - both promotions must be known (a `null` level blocks the link). HARD.
+9. `PROMO_ORDER` - the godchild is OLDER than the godparent. **WARNING** (`RelationWarning`).
+10. `PROMO_GAP` - the godchild is more than `MAX_PROMO_GAP` (3) years younger. **WARNING**.
+
+The SAME promotion is valid and raises nothing (owner, 2026-11-27: "change la regle pour que 2025
+puisse aller avec 2025"). Rules 1-8 are hard refusals; 9 and 10 are warnings (owner, 2026-11-27:
+"on peut afficher un avertissement plutot qu'une interdiction pour les cas limites, histoire de
+pas bloquer le futur"), and ANYONE allowed to create the link may confirm them.
 
 ### The 1 / 1 / 3 / 2 caps
 
@@ -41,12 +46,37 @@ so `addParrainage` rejects when `canReach(targetId, sourceId)` is true.
 
 ### Promotion rules
 
-A godchild is always a strictly more recent promotion than their godparent, and
-at most `MAX_PROMO_GAP` (3) years younger. `checkPromoPair(parrainLevel,
-fillotLevel)` is the pure validator (returns the violated code or `null`); both
-promotions must be known, so a `null` level blocks the link (`PROMO_UNKNOWN`).
-The rule applies to both link kinds. `level` is the promotion, i.e. the year of
-ENTRY (the SSO `promo` claim).
+`checkPromoPair(parrainLevel, fillotLevel)` is the pure validator in `promo.ts`: it returns
+`'PROMO_UNKNOWN'` (hard), a `PromoWarningCode` (`'PROMO_ORDER'` when the godchild is older,
+`'PROMO_GAP'` when more than `MAX_PROMO_GAP` (3) years younger; mutually exclusive) or `null`.
+`isPromoWarningCode` is the type guard. The rule applies to both link kinds. `level` is the
+promotion, i.e. the year of ENTRY (the SSO `promo` claim).
+
+#### The warning contract
+
+A warning is not a refusal and not an error message to parse:
+
+1. `POST /api/relationships` without acknowledgement: `addParrainage` throws `RelationWarning`
+   (a `RelationError` subclass; consumers use `instanceof`, never the message). NOTHING is written
+   (a new star created in the same request is rolled back with it). The route answers HTTP `409`
+   `{ warning: true, code: 'PROMO_ORDER' | 'PROMO_GAP', error: <localized message> }`.
+2. The client (`AddRelativeModal.svelte`, `postRelation`) shows `error` in the app's
+   `confirmDialog` (title `rel_warn_title`, button `rel_warn_confirm`, "Creer quand meme").
+3. On yes it re-sends the SAME body plus `confirm: ['PROMO_GAP']`. The server re-derives the
+   verdict from the real promos and creates the link only if every warning it finds is listed in
+   `confirm`; a stale or wrong code (promo edited in between, another warning) warns again, and
+   unknown values in `confirm` are dropped. Hard refusals ignore `confirm` entirely and keep the
+   `{ error, code }` shape without `warning`.
+
+#### Every path that creates or moves a link
+
+- `POST /api/relationships` (existing target and new star, via `addParrainage` and
+  `createPlaceholderAndLink`): all rules, acknowledgement accepted, as above. The only user path.
+- `mergePeople` (admin merge): re-points existing edges with `UPDATE`, no rule check, an ADMIN path
+  that may bypass; it creates no new relationship between two people.
+- `createRelationship` (raw `INSERT`, no check): used by no route, tooling primitive.
+- `PUT`/`DELETE /api/relatives/[id]` and the admin people routes edit identities or delete
+  records and edges; they never create a link.
 
 Separately, promotions entered by users are range-checked at creation:
 `isValidPromo(level)` accepts `null` (unknown) or an integer `>= MIN_PROMO`
@@ -60,7 +90,8 @@ people routes), which return `m.api_promo_invalid` with HTTP `400` on a typo.
 rendered in the request locale thanks to the paraglide hook (see
 [architecture.md](architecture.md)). The `POST /api/relationships` handler
 returns it as `{ error, code }` with HTTP `409`, so the client can show the
-message directly and branch on the machine `code`.
+message directly and branch on the machine `code`. Soft promo rules add `warning: true`, see
+above.
 
 ## Families
 
