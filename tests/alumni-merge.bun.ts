@@ -45,7 +45,8 @@ async function mint(
     typ?: string;
     iat?: number;
     exp?: number;
-    mode?: string;
+    /** `null` leaves the claim out; the default is `transfer`. Canari always signs one. */
+    mode?: string | null;
     dup?: string;
     /** `null` leaves the claim out; the default is the target for a transfer, none for an erase. */
     target?: string | null;
@@ -60,14 +61,11 @@ async function mint(
     iat,
     exp: overrides.exp ?? iat + 60,
   };
-  if (overrides.mode !== undefined) claims.mode = overrides.mode;
+  const mode = overrides.mode === undefined ? 'transfer' : overrides.mode;
+  if (mode !== null) claims.mode = mode;
   // As Canari signs it: a transfer names its target, an erase never does.
   const target =
-    overrides.target === undefined
-      ? overrides.mode === 'erase'
-        ? null
-        : TARGET
-      : overrides.target;
+    overrides.target === undefined ? (mode === 'erase' ? null : TARGET) : overrides.target;
   if (target !== null) claims.target = target;
   return new SignJWT(claims)
     .setProtectedHeader({ alg: 'ES256', typ: overrides.typ ?? 'canari-merge+jwt', kid: 'test' })
@@ -307,6 +305,15 @@ describe('the erase-only mode (the target was erased in the meantime)', () => {
     expect(traceOfDuplicateSubject()).toBe(3);
   });
 
+  it('refuses a token without a mode (no default)', async () => {
+    seedDuplicateAccount();
+    expect(await call(await mint({ mode: null }))).toEqual({
+      status: 401,
+      body: { outcome: 'invalid' },
+    });
+    expect(traceOfDuplicateSubject()).toBe(3);
+  });
+
   it('refuses an unknown mode', async () => {
     seedDuplicateAccount();
     expect((await call(await mint({ mode: 'steal' }))).status).toBe(401);
@@ -332,6 +339,7 @@ describe('the authentication', () => {
     seedDuplicateAccount();
     const other = await generateKeyPair('ES256');
     const forged = await new SignJWT({
+      mode: 'transfer',
       iss: ISSUER,
       aud: 'sky',
       dup: DUP,
@@ -358,6 +366,7 @@ describe('the authentication', () => {
   it('blocks a call whose duplicate is its target (409, typed)', async () => {
     seedDuplicateAccount();
     const token = await new SignJWT({
+      mode: 'transfer',
       iss: ISSUER,
       aud: 'sky',
       dup: DUP,

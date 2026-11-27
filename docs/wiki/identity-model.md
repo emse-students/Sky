@@ -93,7 +93,7 @@ the duplicate's subject owns onto the target's subject, then erases the rest, in
 - **The call**: `Authorization: Bearer <token>`, an ES256 JWS signed with Canari's HANDOFF key and
   verified against the same JWKS and issuer as the sign-in handoff (`CANARI_HANDOFF_ISSUER`,
   `CANARI_HANDOFF_JWKS`) - no new secret. Its own `typ`, `canari-merge+jwt`, so a handoff token is
-  never taken for it nor the reverse; audience `sky`; claims `mode` (`transfer`, the default, or
+  never taken for it nor the reverse; audience `sky`; claims `mode` (REQUIRED, no default: `transfer` or
   `erase`), `dup`, `target` (REQUIRED for a transfer, FORBIDDEN for an erase), `jti` (Canari's job
   id), lifetime at most 60 s. Verified by `src/lib/server/handoff/alumni-merge-verify.ts`, a
   byte-identical copy of Canari's `libs/handoff/alumni-merge-verify.ts` (see
