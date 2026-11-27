@@ -2,9 +2,10 @@
  * Canari's Alumni merge, Sky's half (`src/lib/server/alumni-merge/`), on a REAL database in a
  * throwaway folder (the `merge-log.bun.ts` pattern: `bun:sqlite` exists only under Bun), driven by
  * tokens signed here as Canari's site-jobs worker signs them (ES256, `typ: canari-merge+jwt`,
- * audience `sky`, claims `dup`, `target`, `jti`).
+ * audience `sky`, claims `mode`, `dup`, `target`, `jti`), verified by the vendored
+ * `src/lib/server/handoff/alumni-merge-verify.ts`.
  *
- * Pinned: the three outcomes and the `erase` mode; a replay answers `absent` and changes nothing;
+ * Pinned: the three outcomes and the `erase` mode (its token carries no `target`); a replay answers `absent` and changes nothing;
  * `mergePeople` keeps the clubs and drops a link between the two fiches; the role is never carried;
  * every table of the schema is classified (a new one fails here); the token refused when absent,
  * expired, of another audience, of another `typ`, or when the trust is unset; no subject is logged
@@ -46,6 +47,8 @@ async function mint(
     exp?: number;
     mode?: string;
     dup?: string;
+    /** `null` leaves the claim out; the default is the target for a transfer, none for an erase. */
+    target?: string | null;
   } = {}
 ): Promise<string> {
   const iat = overrides.iat ?? NOW_S - 1;
@@ -53,12 +56,19 @@ async function mint(
     iss: ISSUER,
     aud: overrides.aud ?? 'sky',
     dup: overrides.dup ?? DUP,
-    target: TARGET,
     jti: 'job-0001',
     iat,
     exp: overrides.exp ?? iat + 60,
   };
   if (overrides.mode !== undefined) claims.mode = overrides.mode;
+  // As Canari signs it: a transfer names its target, an erase never does.
+  const target =
+    overrides.target === undefined
+      ? overrides.mode === 'erase'
+        ? null
+        : TARGET
+      : overrides.target;
+  if (target !== null) claims.target = target;
   return new SignJWT(claims)
     .setProtectedHeader({ alg: 'ES256', typ: overrides.typ ?? 'canari-merge+jwt', kid: 'test' })
     .sign(privateKey);
@@ -288,6 +298,13 @@ describe('the erase-only mode (the target was erased in the meantime)', () => {
     expect((await call(await mint({ mode: 'erase' }))).body).toEqual({ outcome: 'erased' });
     expect(rows('SELECT 1 FROM people WHERE id = ?', DUP)).toHaveLength(0);
     expect((await call(await mint({ mode: 'erase' }))).body).toEqual({ outcome: 'absent' });
+  });
+
+  it('refuses an erase token that names a target, and a transfer token that names none', async () => {
+    seedDuplicateAccount();
+    expect((await call(await mint({ mode: 'erase', target: TARGET }))).status).toBe(401);
+    expect((await call(await mint({ mode: 'transfer', target: null }))).status).toBe(401);
+    expect(traceOfDuplicateSubject()).toBe(3);
   });
 
   it('refuses an unknown mode', async () => {

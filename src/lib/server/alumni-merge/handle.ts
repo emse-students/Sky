@@ -3,7 +3,8 @@
  * docs/wiki/profiles-and-access.md, D52-D54; Sky's docs/wiki/identity-model.md, "The Alumni merge").
  *
  * Canari's site-jobs worker calls it once per completed merge, with `Authorization: Bearer <token>`
- * (`./verify.ts`) and an empty JSON body: everything is in the signed claims. The answers:
+ * (the vendored `../handoff/alumni-merge-verify.ts`) and an empty JSON body: everything is in the
+ * signed claims - `mode: erase` carries no `target`. The answers:
  *
  * - `200 { outcome }` - `absent` | `transferred` | `merged` | `erased` (`applyAlumniMerge`);
  * - `401 { outcome: <class> }` - no token, or a token refused (signature, type, issuer, audience,
@@ -19,7 +20,7 @@
 import type { JWTVerifyGetKey } from 'jose';
 import { applyAlumniMerge } from '#lib/server/database.js';
 import { handoffTrust, HANDOFF_AUDIENCE, HANDOFF_TOKEN_MAX_LENGTH } from '../handoff/redeem.js';
-import { verifyAlumniMergeCall } from './verify.js';
+import { verifyAlumniMergeCall } from '../handoff/alumni-merge-verify.js';
 
 /** What the endpoint answers. */
 export interface AlumniMergeAnswer {
@@ -74,8 +75,10 @@ export async function handleAlumniMerge(input: {
     return { status: 401, body: { outcome: verified.outcome } };
   }
 
-  const { dup, target, jti, mode } = verified.claims;
-  const tag = `jti=${jti} dup=${prefix(dup)} target=${prefix(target)} mode=${mode}`;
+  const claims = verified.claims;
+  const { dup, jti, mode } = claims;
+  const target = claims.mode === 'transfer' ? claims.target : null;
+  const tag = `jti=${jti} dup=${prefix(dup)} target=${target ? prefix(target) : 'none'} mode=${mode}`;
   if (dup === target) {
     console.error(`[ALUMNI_MERGE] refused ${tag} - the duplicate is the target`);
     return { status: 409, body: { code: 'ALUMNI_MERGE_SAME_SUBJECT' } };
@@ -83,7 +86,9 @@ export async function handleAlumniMerge(input: {
 
   let result;
   try {
-    result = applyAlumniMerge({ dup, target, mode });
+    result = applyAlumniMerge(
+      claims.mode === 'transfer' ? { mode, dup, target: claims.target } : { mode: 'erase', dup }
+    );
   } catch (e) {
     console.error(`[ALUMNI_MERGE] failed ${tag} - rolled back:`, (e as Error).name);
     throw e;

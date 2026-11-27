@@ -422,12 +422,6 @@ export function mergePeople(
 /** The reserved `merge_log.merged_by` of a merge Canari's Alumni merge asked for: no admin decided it. */
 export const ALUMNI_MERGE_ACTOR = 'alumni-merge';
 
-/**
- * What a sibling-site call asks: `transfer` moves the duplicate's account onto the target, then
- * erases it; `erase` (the target was erased in the meantime) only erases the duplicate's account.
- */
-export type AlumniMergeMode = 'transfer' | 'erase';
-
 /** What Sky answers it did, in Canari's words (D53), plus `erased` for the `erase` mode. */
 export type AlumniMergeOutcome = 'absent' | 'transferred' | 'merged' | 'erased';
 
@@ -456,7 +450,8 @@ export interface AlumniMergeResult {
 
 /**
  * THE ALUMNI MERGE'S SKY HALF (Canari's profiles-and-access D52-D54), ONE transaction: the account
- * linked to the duplicate's subject `dup` is transferred to the target's subject `target`, then
+ * linked to the duplicate's subject `dup` is transferred to the target's subject `target` (absent in
+ * the `erase` mode: the target was erased in Canari in the meantime), then
  * everything else naming the duplicate is erased.
  *
  * - No record under `dup` -> `absent`. This is also the answer of a retry after a success: the
@@ -474,12 +469,10 @@ export interface AlumniMergeResult {
  * In every case but `absent`, the duplicate's sessions, its pending link choices, its handoff
  * redemptions and (for a deleted record) its ignored merge pairs are deleted in the same transaction.
  */
-export function applyAlumniMerge(input: {
-  dup: string;
-  target: string;
-  mode: AlumniMergeMode;
-}): AlumniMergeResult {
-  const { dup, target, mode } = input;
+export function applyAlumniMerge(
+  input: { mode: 'transfer'; dup: string; target: string } | { mode: 'erase'; dup: string }
+): AlumniMergeResult {
+  const { dup } = input;
   const database = getDatabase();
   return database.transaction((): AlumniMergeResult => {
     const duplicate = database
@@ -494,7 +487,7 @@ export function applyAlumniMerge(input: {
     database.prepare('DELETE FROM pending_links WHERE sub = ?').run(dup);
     database.prepare('DELETE FROM handoff_redemptions WHERE sub = ?').run(dup);
 
-    if (mode === 'erase') {
+    if (input.mode === 'erase') {
       const inGraph =
         countPersonRelations(duplicate.id) > 0 ||
         (
@@ -518,6 +511,7 @@ export function applyAlumniMerge(input: {
       return { outcome: 'erased', droppedRole: duplicate.role === 'user' ? null : duplicate.role };
     }
 
+    const { target } = input;
     const kept = database.prepare('SELECT id FROM people WHERE auth_sub = ?').get(target) as {
       id: string;
     } | null;

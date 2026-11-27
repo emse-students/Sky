@@ -31,6 +31,7 @@
     "**/.env.local",
     "**/bun.lock",
     "src/lib/server/handoff/handoff-verify.ts",
+    "src/lib/server/handoff/alumni-merge-verify.ts",
     "src/lib/handoff/handoff-landing.ts",
     "tests/fixtures/handoff-token.cases.json"
   ]

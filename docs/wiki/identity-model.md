@@ -93,9 +93,11 @@ the duplicate's subject owns onto the target's subject, then erases the rest, in
 - **The call**: `Authorization: Bearer <token>`, an ES256 JWS signed with Canari's HANDOFF key and
   verified against the same JWKS and issuer as the sign-in handoff (`CANARI_HANDOFF_ISSUER`,
   `CANARI_HANDOFF_JWKS`) - no new secret. Its own `typ`, `canari-merge+jwt`, so a handoff token is
-  never taken for it nor the reverse; audience `sky`; claims `dup`, `target`, `jti` (Canari's job
-  id), lifetime at most 60 s, and an optional `mode` (`transfer`, the default, or `erase`). The body
-  is not read. The trust unset answers `503 not_configured`, never an acceptance.
+  never taken for it nor the reverse; audience `sky`; claims `mode` (`transfer`, the default, or
+  `erase`), `dup`, `target` (REQUIRED for a transfer, FORBIDDEN for an erase), `jti` (Canari's job
+  id), lifetime at most 60 s. Verified by `src/lib/server/handoff/alumni-merge-verify.ts`, a
+  byte-identical copy of Canari's `libs/handoff/alumni-merge-verify.ts` (see
+  [authentication.md](authentication.md)). The body is not read. The trust unset answers `503 not_configured`, never an acceptance.
 - **The outcomes** (`200 { outcome }`):
   - no record under `dup` -> `absent`;
   - no record under `target` -> the duplicate's record takes `target` as its `auth_sub`: the record
@@ -105,7 +107,7 @@ the duplicate's subject owns onto the target's subject, then erases the rest, in
     be a self-loop), `merge_log` names the reserved actor `alumni-merge`, and the duplicate's role
     is NOT carried (a privilege belongs to the account it was granted to; a dropped one is logged)
     -> `merged`;
-  - `mode: erase` (the target was erased in the meantime) -> the duplicate's account is closed: a
+  - `mode: erase` (the target was erased in Canari in the meantime; the token names none) -> the duplicate's account is closed: a
     record with no link and no club is deleted, one in the graph becomes a placeholder again
     (`auth_sub`, `role`, `formation`, `last_login` cleared; the links are other people's too) ->
     `erased`.
