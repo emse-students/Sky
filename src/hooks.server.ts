@@ -59,6 +59,8 @@ const PUBLIC_PREFIXES = [
   // The Canari sign-in handoff's redemption OPENS a session, so it is reached without one; it
   // applies the ICM gate itself (`#lib/server/admission.js`). Its landing page is under `/auth/`.
   '/api/auth/handoff',
+  // Canari's Alumni merge calls it server to server, authenticated by its signed token.
+  '/api/internal/alumni-merge',
 ];
 
 function isPublic(pathname: string): boolean {

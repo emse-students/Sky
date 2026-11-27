@@ -115,9 +115,10 @@ Config: `SKY_API_KEY` (the shared secret Canari presents).
 
 ## Summary of keys
 
-| Direction        | Endpoint                         | Auth          | Env                                      |
-| ---------------- | -------------------------------- | ------------- | ---------------------------------------- |
-| Sky -> MiGallery | `.../api/users/{sub}/avatar`     | `x-api-key`   | `MIGALLERY_API_KEY`, `MIGALLERY_API_URL` |
-| Sky -> Canari    | `.../api/external/profile/{sub}` | `x-api-key`   | `CANARI_API_KEY`, `CANARI_API_URL`       |
-| Canari -> Sky    | `/api/external/entourage/{sub}`  | `x-api-key`   | `SKY_API_KEY`                            |
-| Sky -> Authentik | `/application/o/*`               | client secret | `MICONNECT_*`                            |
+| Direction        | Endpoint                         | Auth          | Env                                            |
+| ---------------- | -------------------------------- | ------------- | ---------------------------------------------- |
+| Sky -> MiGallery | `.../api/users/{sub}/avatar`     | `x-api-key`   | `MIGALLERY_API_KEY`, `MIGALLERY_API_URL`       |
+| Sky -> Canari    | `.../api/external/profile/{sub}` | `x-api-key`   | `CANARI_API_KEY`, `CANARI_API_URL`             |
+| Canari -> Sky    | `/api/external/entourage/{sub}`  | `x-api-key`   | `SKY_API_KEY`                                  |
+| Canari -> Sky    | `/api/internal/alumni-merge`     | ES256 token   | `CANARI_HANDOFF_ISSUER`, `CANARI_HANDOFF_JWKS` |
+| Sky -> Authentik | `/application/o/*`               | client secret | `MICONNECT_*`                                  |

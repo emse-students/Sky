@@ -145,7 +145,10 @@ empty: every redemption answers `not_offered` and the page goes to MiConnect.
 
 **The vendored files are byte-identical copies of Canari's**, edited only there
 (`src/lib/server/handoff/handoff-verify.ts`, `src/lib/handoff/handoff-landing.ts`,
-`tests/fixtures/handoff-token.cases.json`); Canari's `shape.mjs` compares them.
+`tests/fixtures/handoff-token.cases.json`, and the Alumni merge call's verifier
+`src/lib/server/handoff/alumni-merge-verify.ts`, [identity-model.md](identity-model.md#the-alumni-merge-canari-d52-d54));
+Canari's `shape.mjs` compares them. Each is in `oxfmt.json`'s `ignorePatterns`, so
+the formatter never makes a copy differ.
 
 ### The step-up: a handoff session may browse and may change nothing
 

@@ -308,7 +308,7 @@ export function deletePerson(id: string): boolean {
 }
 
 /**
- * Merge `sourceId` into `targetId`: move every relation and external link onto
+ * Merge `sourceId` into `targetId`: move every relation and club row onto
  * the survivor, then delete the source. When `survivorIdentity` is given, the
  * survivor's display identity (nom/prenom/promo) is overwritten with the chosen
  * values - this is how the admin keeps one fiche's data over the other when they
@@ -331,6 +331,19 @@ export function mergePeople(
   database.transaction(() => {
     if (!database.prepare('SELECT 1 FROM people WHERE id = ?').get(targetId)) {
       throw new MergePersonNotFoundError(targetId);
+    }
+
+    // 0. A link BETWEEN the two fiches would become a self-loop once both ends are the survivor:
+    // it describes nothing left in the graph, so it goes.
+    const between = database
+      .prepare(
+        'DELETE FROM relationships WHERE (source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)'
+      )
+      .run(sourceId, targetId, targetId, sourceId);
+    if (between.changes > 0) {
+      console.warn(
+        `[Database] Merge dropped ${between.changes} link(s) between the two fiches (a self-loop otherwise)`
+      );
     }
 
     // 1. Move relationships requests (target_id = sourceId)
@@ -368,16 +381,24 @@ export function mergePeople(
       }
     }
 
+    // 2b. Move the source's club rows: `associations` cascades on the person's deletion, so a
+    // merge that did not move them lost them (D53 of Canari's alumni merge).
+    database
+      .prepare('UPDATE associations SET person_id = ? WHERE person_id = ?')
+      .run(targetId, sourceId);
+
     // 3. Delete the source person. Exactly one fiche goes, or the whole merge rolls back: a
     // log row for a fiche that never existed would be a record of nothing.
     const removed = database.prepare('DELETE FROM people WHERE id = ?').run(sourceId);
     if (removed.changes !== 1) {
       throw new MergePersonNotFoundError(sourceId);
     }
-    database
+    const logged = database
       .prepare('INSERT INTO merge_log (merged_by, removed_id, kept_id) VALUES (?, ?, ?)')
       .run(mergedBy, sourceId, targetId);
-    console.debug(`[Database] Merge of ${sourceId} into ${targetId} recorded for ${mergedBy}`);
+    // The row's id, not the fiches': an id is a name slug or a MiConnect subject, and the row
+    // already says which fiches it joined.
+    console.debug(`[Database] Merge recorded as merge_log row ${logged.lastInsertRowid}`);
 
     // 4. Apply the chosen identity to the survivor (only when resolving a
     // conflict). Re-format to keep the "NOM"/"Prenom" display convention.
@@ -391,6 +412,121 @@ export function mergePeople(
           targetId
         );
     }
+  })();
+}
+
+// ============================================
+// ALUMNI MERGE (Canari D52-D54)
+// ============================================
+
+/** The reserved `merge_log.merged_by` of a merge Canari's Alumni merge asked for: no admin decided it. */
+export const ALUMNI_MERGE_ACTOR = 'alumni-merge';
+
+/** What Sky answers it did, in Canari's words (D53), plus `erased` for the `erase` mode. */
+export type AlumniMergeOutcome = 'absent' | 'transferred' | 'merged' | 'erased';
+
+/**
+ * Every table of `sky.db`, by what an Alumni merge does to it. A table that names a person must be in
+ * one of the first three lists; `tests/alumni-merge.bun.ts` walks the live schema and fails on a table
+ * in none, so a new table is classified before it can be forgotten by a merge.
+ */
+export const ALUMNI_MERGE_TABLES = {
+  /** Moved onto the target (or kept on the record, which becomes the target's). */
+  transferred: ['people', 'relationships', 'associations'],
+  /** Rows naming the duplicate are deleted. */
+  erased: ['sessions', 'pending_links', 'handoff_redemptions', 'ignored_merge_pairs'],
+  /** Written to, never rewritten: the record that a merge happened (`merge_log`, ids only). */
+  appended: ['merge_log'],
+  /** Names no person. */
+  unrelated: ['metadata', 'sqlite_sequence'],
+} as const;
+
+/** The result of {@link applyAlumniMerge}: the outcome, and the privilege it dropped, if any. */
+export interface AlumniMergeResult {
+  outcome: AlumniMergeOutcome;
+  /** The duplicate's role when it was not carried onto the target (`admin`), else null. */
+  droppedRole: string | null;
+}
+
+/**
+ * THE ALUMNI MERGE'S SKY HALF (Canari's profiles-and-access D52-D54), ONE transaction: the account
+ * linked to the duplicate's subject `dup` is transferred to the target's subject `target` (absent in
+ * the `erase` mode: the target was erased in Canari in the meantime), then
+ * everything else naming the duplicate is erased.
+ *
+ * - No record under `dup` -> `absent`. This is also the answer of a retry after a success: the
+ *   first call left no record under `dup`, so nothing is ever transferred twice (idempotence from
+ *   the state, not from a ledger).
+ * - `transfer`, no record under `target` -> the duplicate's record takes `target` as its `auth_sub`
+ *   (the record IS the person, its graph and role stay): `transferred`.
+ * - `transfer`, a record under `target` -> {@link mergePeople}(duplicate, target): its links and
+ *   clubs move, the record goes, `merge_log` names {@link ALUMNI_MERGE_ACTOR}; the duplicate's role is
+ *   NOT carried (a privilege belongs to the account it was granted to): `merged`.
+ * - `erase` -> the duplicate's account is closed: a record with no link and no club is deleted, one
+ *   in the graph becomes a placeholder again (`auth_sub`, `role`, `formation`, `last_login`
+ *   cleared - the godparent links are other people's too): `erased`.
+ *
+ * In every case but `absent`, the duplicate's sessions, its pending link choices, its handoff
+ * redemptions and (for a deleted record) its ignored merge pairs are deleted in the same transaction.
+ */
+export function applyAlumniMerge(
+  input: { mode: 'transfer'; dup: string; target: string } | { mode: 'erase'; dup: string }
+): AlumniMergeResult {
+  const { dup } = input;
+  const database = getDatabase();
+  return database.transaction((): AlumniMergeResult => {
+    const duplicate = database
+      .prepare('SELECT id, role FROM people WHERE auth_sub = ?')
+      .get(dup) as { id: string; role: string } | null;
+    if (!duplicate) {
+      return { outcome: 'absent', droppedRole: null };
+    }
+
+    // What names the duplicate's SUBJECT goes whatever happens to its record.
+    database.prepare('DELETE FROM sessions WHERE person_id = ?').run(duplicate.id);
+    database.prepare('DELETE FROM pending_links WHERE sub = ?').run(dup);
+    database.prepare('DELETE FROM handoff_redemptions WHERE sub = ?').run(dup);
+
+    if (input.mode === 'erase') {
+      const inGraph =
+        countPersonRelations(duplicate.id) > 0 ||
+        (
+          database
+            .prepare('SELECT COUNT(*) AS n FROM associations WHERE person_id = ?')
+            .get(duplicate.id) as { n: number }
+        ).n > 0;
+      if (inGraph) {
+        database
+          .prepare(
+            `UPDATE people SET auth_sub = NULL, role = 'user', formation = NULL, last_login = NULL,
+               updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+          )
+          .run(duplicate.id);
+      } else {
+        database
+          .prepare('DELETE FROM ignored_merge_pairs WHERE a_id = ? OR b_id = ?')
+          .run(duplicate.id, duplicate.id);
+        database.prepare('DELETE FROM people WHERE id = ?').run(duplicate.id);
+      }
+      return { outcome: 'erased', droppedRole: duplicate.role === 'user' ? null : duplicate.role };
+    }
+
+    const { target } = input;
+    const kept = database.prepare('SELECT id FROM people WHERE auth_sub = ?').get(target) as {
+      id: string;
+    } | null;
+    if (!kept) {
+      database
+        .prepare('UPDATE people SET auth_sub = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(target, duplicate.id);
+      return { outcome: 'transferred', droppedRole: null };
+    }
+
+    database
+      .prepare('DELETE FROM ignored_merge_pairs WHERE a_id = ? OR b_id = ?')
+      .run(duplicate.id, duplicate.id);
+    mergePeople(duplicate.id, kept.id, undefined, ALUMNI_MERGE_ACTOR);
+    return { outcome: 'merged', droppedRole: duplicate.role === 'user' ? null : duplicate.role };
   })();
 }
 
