@@ -1,4 +1,4 @@
-import { checkPromoPair, MAX_PROMO_GAP } from './promo';
+import { checkPromoPair, MAX_PROMO_GAP, type PromoWarningCode } from './promo';
 import { Database } from 'bun:sqlite';
 import path from 'path';
 import fs from 'fs';
@@ -1140,6 +1140,10 @@ export function getAllRelationships(): JsonRelation[] {
   }));
 }
 
+/**
+ * Raw insert, NO rule check. No route uses it (links go through `addParrainage`); kept as the
+ * low-level primitive for tooling.
+ */
 export function createRelationship(relationship: JsonRelation): boolean {
   const database = getDatabase();
   const stmt = database.prepare(`
@@ -1227,6 +1231,18 @@ export class RelationError extends Error {
   }
 }
 
+/**
+ * A SOFT rule tripped (promo order or gap): the link is valid once the caller acknowledges
+ * `code`, so it is a distinct type - consumers branch on `instanceof`, never on the message.
+ */
+export class RelationWarning extends RelationError {
+  declare code: PromoWarningCode;
+  constructor(code: PromoWarningCode, message: string) {
+    super(code, message);
+    this.name = 'RelationWarning';
+  }
+}
+
 /** Number of godparents of a given type pointing at `personId` (incoming links). */
 function countIncoming(personId: string, kind: RelationKind): number {
   const row = getDatabase()
@@ -1296,12 +1312,18 @@ function canReach(fromId: string, toId: string): boolean {
 
 /**
  * Create a godparent link `sourceId` (godparent) -> `targetId` (godchild) of the
- * given type, enforcing every rule: no self-link, both records must exist, no
- * duplicate, maxima 1/1/3/2, no cycle, and the promo rules (godchild strictly
- * more recent, both promos known, at most MAX_PROMO_GAP years apart). Throws
- * `RelationError` otherwise.
+ * given type, enforcing every rule. HARD rules throw `RelationError`: no self-link, both
+ * records must exist, no duplicate, maxima 1/1/3/2, no cycle, both promos known. SOFT promo
+ * rules (godchild older than the godparent, or more than MAX_PROMO_GAP years younger) throw
+ * `RelationWarning` unless their code is listed in `acknowledged` (owner, 2026-11-27); the
+ * decision is made here, server-side, from the pair's real promos.
  */
-export function addParrainage(sourceId: string, targetId: string, kind: RelationKind): void {
+export function addParrainage(
+  sourceId: string,
+  targetId: string,
+  kind: RelationKind,
+  acknowledged: readonly string[] = []
+): void {
   console.debug(`[Entourage] addParrainage source=${sourceId} target=${targetId} kind=${kind}`);
   if (!isRelationKind(kind)) {
     throw new RelationError('INVALID_KIND', m.rel_err_invalid_kind());
@@ -1330,16 +1352,20 @@ export function addParrainage(sourceId: string, targetId: string, kind: Relation
   if (canReach(targetId, sourceId)) {
     throw new RelationError('CYCLE', m.rel_err_cycle());
   }
-  // Promo rules: source = godparent, target = godchild. The godchild must be a
-  // strictly more recent, at-most-MAX_PROMO_GAP-younger promotion, and both
-  // promos must be known.
-  switch (checkPromoPair(personLevel(sourceId), personLevel(targetId))) {
-    case 'PROMO_UNKNOWN':
-      throw new RelationError('PROMO_UNKNOWN', m.rel_err_promo_unknown());
-    case 'PROMO_ORDER':
-      throw new RelationError('PROMO_ORDER', m.rel_err_promo_order());
-    case 'PROMO_GAP':
-      throw new RelationError('PROMO_GAP', m.rel_err_promo_gap({ max: MAX_PROMO_GAP }));
+  // Promo rules: source = godparent, target = godchild. Both promos must be known (hard); the
+  // order and the gap are warnings the caller may acknowledge.
+  const promoVerdict = checkPromoPair(personLevel(sourceId), personLevel(targetId));
+  if (promoVerdict === 'PROMO_UNKNOWN') {
+    throw new RelationError('PROMO_UNKNOWN', m.rel_err_promo_unknown());
+  }
+  if (promoVerdict !== null && !acknowledged.includes(promoVerdict)) {
+    console.debug(`[Entourage] addParrainage warns ${promoVerdict}`);
+    throw new RelationWarning(
+      promoVerdict,
+      promoVerdict === 'PROMO_ORDER'
+        ? m.rel_warn_promo_order()
+        : m.rel_warn_promo_gap({ max: MAX_PROMO_GAP })
+    );
   }
   getDatabase()
     .prepare('INSERT INTO relationships (source_id, target_id, type) VALUES (?, ?, ?)')
@@ -1801,7 +1827,8 @@ export function createPlaceholderAndLink(
   createdBy: string,
   centerId: string,
   role: 'parrain' | 'fillot',
-  kind: RelationKind
+  kind: RelationKind,
+  acknowledged: readonly string[] = []
 ): string {
   console.debug(
     `[Entourage] createPlaceholderAndLink center=${centerId} role=${role} kind=${kind}`
@@ -1811,7 +1838,7 @@ export function createPlaceholderAndLink(
     // parrain = the new star is the godparent (source), fillot = the godchild.
     const sourceId = role === 'parrain' ? id : centerId;
     const targetId = role === 'parrain' ? centerId : id;
-    addParrainage(sourceId, targetId, kind);
+    addParrainage(sourceId, targetId, kind, acknowledged);
     return id;
   })();
 }

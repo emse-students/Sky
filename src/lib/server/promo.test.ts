@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { isValidPromo, checkPromoPair, MIN_PROMO, MAX_PROMO_GAP } from './promo';
+import {
+  isValidPromo,
+  checkPromoPair,
+  isPromoWarningCode,
+  MIN_PROMO,
+  MAX_PROMO_GAP,
+} from './promo';
 
 // These validators are pure (no DB access), so they import safely without a
 // database connection. They back the parrainage promo rules enforced server-side
@@ -32,19 +38,33 @@ describe('checkPromoPair', () => {
     expect(checkPromoPair(null, null)).toBe('PROMO_UNKNOWN');
   });
 
-  it('requires the godchild to be a strictly more recent promotion', () => {
-    // Older godchild.
-    expect(checkPromoPair(2024, 2020)).toBe('PROMO_ORDER');
-    // Same promotion is not strictly more recent.
-    expect(checkPromoPair(2020, 2020)).toBe('PROMO_ORDER');
+  it('accepts the same promotion (owner decision 2026-11-27)', () => {
+    expect(checkPromoPair(2025, 2025)).toBeNull();
   });
 
-  it('rejects a gap larger than MAX_PROMO_GAP years', () => {
+  it('warns when the godchild is older than the godparent', () => {
+    expect(checkPromoPair(2026, 2025)).toBe('PROMO_ORDER');
+    expect(checkPromoPair(2024, 2020)).toBe('PROMO_ORDER');
+  });
+
+  it('warns on a gap larger than MAX_PROMO_GAP years', () => {
+    expect(checkPromoPair(2022, 2026)).toBe('PROMO_GAP');
     expect(checkPromoPair(2020, 2020 + MAX_PROMO_GAP + 1)).toBe('PROMO_GAP');
   });
 
-  it('accepts a godchild within [+1, +MAX_PROMO_GAP] years', () => {
+  it('accepts a godchild within [0, +MAX_PROMO_GAP] years', () => {
     expect(checkPromoPair(2020, 2021)).toBeNull();
+    expect(checkPromoPair(2023, 2026)).toBeNull();
     expect(checkPromoPair(2020, 2020 + MAX_PROMO_GAP)).toBeNull();
+  });
+});
+
+describe('isPromoWarningCode', () => {
+  it('knows the two soft codes and nothing else', () => {
+    expect(isPromoWarningCode('PROMO_ORDER')).toBe(true);
+    expect(isPromoWarningCode('PROMO_GAP')).toBe(true);
+    expect(isPromoWarningCode('PROMO_UNKNOWN')).toBe(false);
+    expect(isPromoWarningCode('CYCLE')).toBe(false);
+    expect(isPromoWarningCode(42)).toBe(false);
   });
 });

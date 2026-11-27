@@ -4,6 +4,7 @@
   import type { RelationRole, RelationKind } from '#lib/types/graph.js';
   import { m } from '#lib/paraglide/messages.js';
   import { formatPromoShort } from '#lib/utils/format.js';
+  import { confirmDialog } from '#lib/stores/dialogStore.js';
 
   /**
    * Modal to add a network member for a given slot (role + kind fixed by the
@@ -70,8 +71,17 @@
     }
   }
 
-  /** Handle the server response: success, link request (dedup), or error. */
-  async function handleResponse(res: Response) {
+  /**
+   * POST a link request. A `{ warning: true, code }` answer (soft promo rule, nothing written)
+   * is shown in a confirm dialog; on yes the SAME request is re-sent with the acknowledged
+   * codes in `confirm`. Classified by `code`, never by message.
+   */
+  async function postRelation(payload: Record<string, unknown>, acknowledged: string[] = []) {
+    const res = await fetch('/api/relationships', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(acknowledged.length ? { ...payload, confirm: acknowledged } : payload),
+    });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       onAdded();
@@ -81,18 +91,27 @@
       candidates = data.candidates ?? [];
       return;
     }
+    if (res.status === 409 && data.warning === true && typeof data.code === 'string') {
+      if (acknowledged.includes(data.code)) {
+        showError(data.error || m.modal_add_failed());
+        return;
+      }
+      const ok = await confirmDialog(data.error, {
+        title: m.rel_warn_title(),
+        confirmLabel: m.rel_warn_confirm(),
+      });
+      if (ok) {
+        await postRelation(payload, [...acknowledged, data.code]);
+      }
+      return;
+    }
     showError(data.error || m.modal_add_failed());
   }
 
   async function linkExisting(targetId: string) {
     busy = true;
     try {
-      const res = await fetch('/api/relationships', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetId, type: kind, role, centerId }),
-      });
-      await handleResponse(res);
+      await postRelation({ targetId, type: kind, role, centerId });
     } catch {
       showError(m.common_network_error());
     } finally {
@@ -109,22 +128,17 @@
     busy = true;
     errorMessage = '';
     try {
-      const res = await fetch('/api/relationships', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: kind,
-          role,
-          confirmCreate,
-          centerId,
-          newPerson: {
-            firstName: newPerson.firstName,
-            lastName: newPerson.lastName,
-            level: newPerson.level ? parseInt(newPerson.level) : null,
-          },
-        }),
+      await postRelation({
+        type: kind,
+        role,
+        confirmCreate,
+        centerId,
+        newPerson: {
+          firstName: newPerson.firstName,
+          lastName: newPerson.lastName,
+          level: newPerson.level ? parseInt(newPerson.level) : null,
+        },
       });
-      await handleResponse(res);
     } catch {
       showError(m.common_network_error());
     } finally {

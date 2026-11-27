@@ -13,9 +13,10 @@ import {
   isRelationKind,
   isSameFamily,
   RelationError,
+  RelationWarning,
   type RelationKind,
 } from '#lib/server/database.js';
-import { isValidPromo, MIN_PROMO } from '#lib/server/promo.js';
+import { isValidPromo, isPromoWarningCode, MIN_PROMO } from '#lib/server/promo.js';
 import { m } from '#lib/paraglide/messages.js';
 
 /** Raw list of links (read). */
@@ -44,6 +45,11 @@ interface AddRelationBody {
   targetId?: string;
   newPerson?: NewPersonInput;
   confirmCreate?: boolean;
+  /**
+   * Soft promo warnings (`PROMO_ORDER`, `PROMO_GAP`) the user has acknowledged after a
+   * `{ warning: true, code }` answer. The link is created only if they cover what the server finds.
+   */
+  confirm?: unknown;
   /** Person at the center of the link (default: the user). Admin required otherwise. */
   centerId?: string;
 }
@@ -66,8 +72,9 @@ function parseLevel(value: number | string | null | undefined): number | null {
  * the other is my godchild (me -> other). The other is either an existing record
  * (`targetId`) or a new record (`newPerson`); in the latter case, if namesakes
  * exist and `confirmCreate` is false, the candidates are returned to offer a link
- * rather than a duplicate. The 1/1/3/2 rules and the anti-cycle constraint are
- * enforced by the engine (`addParrainage`).
+ * rather than a duplicate. The 1/1/3/2 rules and the anti-cycle constraint are hard and
+ * enforced by the engine (`addParrainage`); the promo order/gap answer a typed warning (409
+ * `{ warning: true, code, error }`) until re-sent with `confirm: [code]`.
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
@@ -77,6 +84,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   const body = (await request.json()) as AddRelationBody;
   const { type, role = 'fillot', targetId, newPerson, confirmCreate, centerId } = body;
+  const acknowledged = Array.isArray(body.confirm) ? body.confirm.filter(isPromoWarningCode) : [];
 
   if (!isRelationKind(type)) {
     return Response.json({ error: m.api_invalid_relation_type() }, { status: 400 });
@@ -133,7 +141,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         user.id,
         center,
         role,
-        kind
+        kind,
+        acknowledged
       );
     } else {
       // Existing target (creation is null implies targetId is set).
@@ -141,9 +150,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       // parrain = source, fillot = target (relative to the central person).
       const sourceId = role === 'parrain' ? otherId : center;
       const targetUser = role === 'parrain' ? center : otherId;
-      addParrainage(sourceId, targetUser, kind);
+      addParrainage(sourceId, targetUser, kind, acknowledged);
     }
   } catch (error) {
+    if (error instanceof RelationWarning) {
+      // Soft rule: nothing was written; the client may re-send with `confirm: [code]`.
+      return Response.json(
+        { warning: true, error: error.message, code: error.code },
+        { status: 409 }
+      );
+    }
     if (error instanceof RelationError) {
       return Response.json({ error: error.message, code: error.code }, { status: 409 });
     }
